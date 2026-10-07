@@ -44,6 +44,8 @@ Issue가 생기기 전 저장소 최초 구성에는 `chore/repository-bootstrap
 
 ## DLL 기반 빌드와 실행 검사
 
+검증한 커밋·구성별 결과·산출물 해시는 [BUILD_EVIDENCE.md](BUILD_EVIDENCE.md)에 기록한다.
+
 ```text
 node tools/verify-build.js
 node tools/verify-build.js --configuration Debug
