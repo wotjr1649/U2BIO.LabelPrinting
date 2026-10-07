@@ -7,10 +7,10 @@ const crypto = require('node:crypto');
 const { spawn, spawnSync } = require('node:child_process');
 const root = path.resolve(__dirname, '..');
 // This diagnostic manifest identifies the reviewed Release build, not an arbitrary current bin directory.
-const managedBuildCommit = '4c9eb8a';
+const managedBuildCommit = '8a58235';
 const managedHashes = {
-    x86: ['a19ad3e5a5112a3ea94b17448b57c89fa825023ee724fffb7e07e394c7dff861', 'ac006c07a5519a6e91a819bdcae53f4345951892e57b71a652cdb406999afe57'],
-    x64: ['1ed9a01b7b48d19b08be6014fd31be8b3df876016a94a69847f22ae8b694ead5', 'ac006c07a5519a6e91a819bdcae53f4345951892e57b71a652cdb406999afe57']
+    x86: ['e7cdf24d325bfa255534416f8130cf27f26349b503d9247b87f5a7ecdbd036fe', 'e7fe54b69bafba711831bc991a29d1f8ca252ac770a1ae9e467096a841cf517f'],
+    x64: ['5133502a2a21339cecb930274a94e008a7c1923946bbfed0a1dc8524dcd90efe', 'e7fe54b69bafba711831bc991a29d1f8ca252ac770a1ae9e467096a841cf517f']
 };
 const passReport = 'NATIVE_LOAD|status=Passed|bound=41|deviceDelegatesInvoked=0';
 const files = ['BlackfishNfcLib.dll', 'HFModule.dll'];
