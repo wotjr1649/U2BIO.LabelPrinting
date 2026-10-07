@@ -62,6 +62,8 @@ Debug는 Configuration 값을 Debug로 바꾼다. DLL은 `src/U2BIO.BT003PROLabe
 
 MSBuild가 평가한 TargetFrameworkVersion·PlatformTarget·Prefer32Bit를 확인한 뒤 실제 어셈블리의 TargetFrameworkAttribute·PE와 실행 프로세스 비트 수를 검사한다. 검증 DLL은 실행 파일과 같은 폴더의 정확한 경로에서 로드한다. DevExpress/DB provider 참조와 프린터 native 모듈 로드 여부도 검사한다. 성공 출력은 `PASS: framework=4.6.1 library=AnyCPU process=x86 또는 x64 nativeSDK=not-loaded`와 `Build checks passed`다.
 
-빌드·검증 각 프로세스는 120초, 출력은 2 MiB로 제한하며 실패·제한 초과는 검사 실패다. 공유 compiler와 MSBuild node reuse는 끈다. 로그·선택한 도구·명령·종료 코드·Git 커밋·작업 트리 변경 여부·targeting pack 식별 해시·산출물 경로와 SHA-256은 `.work/foundation/` 아래 실행별 폴더에 저장한다. 로그는 UTF-8과 이 환경의 CP949 출력을 판별하여 읽으며 호스트의 코드 페이지 설정은 바꾸지 않는다.
+빌드·검증 각 프로세스는 120초, 출력은 2 MiB로 제한하며 실패·제한 초과는 검사 실패다. 제한 초과 시 해당 프로세스 트리 종료를 요청하고 child 종료를 최대 5초 확인하며 미확인은 실패로 표시한다. 공유 compiler와 MSBuild node reuse는 끈다. 하위 프로세스에는 필요한 Windows·도구 환경만 전달하고 TEMP/TMP는 실행별 작업 폴더로 지정한다. 실행 도구와 로그 폴더는 실제 경로를 확인하며 저장소 밖으로 이어지는 로그 junction을 거절한다.
+
+로그·선택한 도구·명령·종료 코드·Git 커밋·작업 트리 변경 여부·targeting pack 식별 해시·산출물 경로와 SHA-256은 `.work/foundation/` 아래 실행별 폴더에 저장한다. DLL과 검증 exe 사본도 실행별 x86/x64 폴더에 새 파일로 보존하여 다음 Rebuild가 이전 실행의 사본을 덮어쓰지 않는다. workingTreeDirty=true인 결과는 현재 작업 파일의 검증이며 해당 Git 커밋 자체를 검증한 증거로 사용하지 않는다. 로그는 UTF-8과 이 환경의 CP949 출력을 판별하여 읽으며 호스트의 코드 페이지 설정은 바꾸지 않는다.
 
 DLL을 만들기 전 같은 Program.cs를 .NET Framework 4.6.1 참조로 standalone x86 exe로 컴파일·실행하여 `MANAGED_LIBRARY_MISSING` 및 종료 코드 3을 확인했다. 시험 소스를 커밋하고 devflow 시험 잠금을 적용한 뒤 DLL을 추가했다. Release/Debug × x86/x64의 네 실제 빌드·실행이 통과했다. DLL은 현재 공개 인쇄 API가 없는 기반 어셈블리이며 실제 출력·RFID 보존·ABI 검증은 TASK-02 이후에 수행한다. 문서 기준 태그는 그대로 보존한다.

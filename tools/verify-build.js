@@ -11,6 +11,19 @@ const configuration = process.argv.length === 2 ? 'Release'
     : process.argv.length === 4 && process.argv[2] === '--configuration' ? process.argv[3] : '';
 const evidence = { configuration, commands: [], artifacts: [] };
 let logRoot;
+let childEnv, taskkill;
+
+function inside(parent, candidate) {
+    const relative = path.relative(parent, candidate);
+    return relative === '' || (!relative.startsWith('..' + path.sep) && relative !== '..' && !path.isAbsolute(relative));
+}
+
+function createTaskDirectory(directory) {
+    const realRoot = fs.realpathSync(root);
+    if (!inside(realRoot, fs.realpathSync(path.dirname(directory)))) throw new Error('Task directory parent is outside the repository.');
+    if (!fs.existsSync(directory)) fs.mkdirSync(directory);
+    if (fs.lstatSync(directory).isSymbolicLink() || !inside(realRoot, fs.realpathSync(directory))) throw new Error('Task directory redirects outside its owned location.');
+}
 
 function decodeOutput(chunks) {
     const bytes = Buffer.concat(chunks);
@@ -20,19 +33,19 @@ function decodeOutput(chunks) {
 
 function run(command, args, label) {
     return new Promise((resolve, reject) => {
-        const child = spawn(command, args, { cwd: root, windowsHide: true, shell: false });
+        const child = spawn(command, args, { cwd: root, windowsHide: true, shell: false, env: childEnv });
         const stdoutChunks = [], stderrChunks = [];
-        let outputBytes = 0, failed = false;
+        let outputBytes = 0, failureReason = '', cleanupTimer;
         const stop = reason => {
-            if (failed) return;
-            failed = true;
+            if (failureReason) return;
+            failureReason = reason;
             if (child.pid && child.exitCode === null) {
-                const kill = spawnSync(path.join(process.env.SystemRoot, 'System32', 'taskkill.exe'),
-                    ['/PID', String(child.pid), '/T', '/F'], { windowsHide: true, encoding: 'utf8', timeout: 10000 });
-                if (kill.error || kill.status !== 0) reason += ' (process tree termination was not confirmed)';
+                const kill = spawnSync(taskkill, ['/PID', String(child.pid), '/T', '/F'],
+                    { windowsHide: true, encoding: 'utf8', timeout: 10000, env: childEnv, maxBuffer: 128 * 1024 });
+                if (kill.error || kill.status !== 0) failureReason += ' (process tree termination was not confirmed)';
             }
             clearTimeout(timer);
-            reject(new Error(reason));
+            cleanupTimer = setTimeout(() => reject(new Error(failureReason + ' (child exit was not confirmed)')), 5000);
         };
         const timer = setTimeout(() => stop(`${label} exceeded 120 seconds`), 120000);
         const collect = (chunks, data) => {
@@ -42,15 +55,16 @@ function run(command, args, label) {
         };
         child.stdout.on('data', data => collect(stdoutChunks, data));
         child.stderr.on('data', data => collect(stderrChunks, data));
-        child.on('error', error => { clearTimeout(timer); failed = true; reject(new Error(`${label} could not start (${error.code})`)); });
+        child.on('error', error => { clearTimeout(timer); failureReason = `${label} could not start (${error.code})`; reject(new Error(failureReason)); });
         child.on('close', code => {
             clearTimeout(timer);
+            clearTimeout(cleanupTimer);
             let stdout, stderr;
             try { stdout = decodeOutput(stdoutChunks); stderr = decodeOutput(stderrChunks); }
             catch { reject(new Error(`${label} output encoding is unsupported`)); return; }
             fs.writeFileSync(path.join(logRoot, `${label}.log`), stdout + stderr);
             evidence.commands.push({ command, args, exitCode: code });
-            if (failed) return;
+            if (failureReason) { reject(new Error(failureReason)); return; }
             if (stdout) process.stdout.write(stdout.endsWith('\n') ? stdout : stdout + '\n');
             if (code !== 0) reject(new Error(`${label} exited ${code}; see task-local build logs`));
             else resolve(stdout);
@@ -63,21 +77,53 @@ async function main() {
     if (!['Debug', 'Release'].includes(configuration)) throw new Error('Usage: node tools/verify-build.js [--configuration Debug|Release]');
     const programFiles86 = process.env['ProgramFiles(x86)'];
     if (!programFiles86) throw new Error('Windows Program Files environment is unavailable.');
-    logRoot = path.join(root, '.work', 'foundation', `${configuration}-${Date.now()}`);
-    fs.mkdirSync(path.dirname(logRoot), { recursive: true });
-    fs.mkdirSync(logRoot);
-    evidence.gitCommit = (await run('git', ['rev-parse', 'HEAD'], 'revision')).trim();
-    evidence.workingTreeDirty = (await run('git', ['status', '--porcelain'], 'working-tree')).trim().length !== 0;
+    const work = path.join(root, '.work');
+    const foundation = path.join(work, 'foundation');
+    createTaskDirectory(work);
+    createTaskDirectory(foundation);
+    const proposedLogRoot = path.join(foundation, `${configuration}-${Date.now()}`);
+    if (fs.existsSync(proposedLogRoot)) throw new Error('Task log directory already exists.');
+    createTaskDirectory(proposedLogRoot);
+    logRoot = proposedLogRoot;
+    const temporary = path.join(logRoot, 'tmp');
+    createTaskDirectory(temporary);
+    childEnv = {};
+    for (const key of ['PATH', 'SystemRoot', 'WINDIR', 'ComSpec', 'ProgramFiles', 'ProgramFiles(x86)', 'ProgramW6432',
+        'PROCESSOR_ARCHITECTURE', 'PROCESSOR_ARCHITEW6432', 'NUMBER_OF_PROCESSORS', 'DEVFLOW_ROOT'])
+        if (process.env[key]) childEnv[key] = process.env[key];
+    childEnv.TEMP = temporary;
+    childEnv.TMP = temporary;
+    childEnv.NoDefaultCurrentDirectoryInExePath = '1';
+    if (!process.env.SystemRoot || !path.isAbsolute(process.env.SystemRoot)) throw new Error('Windows system root is unavailable.');
+    const realSystemRoot = fs.realpathSync(process.env.SystemRoot);
+    taskkill = fs.realpathSync(path.join(realSystemRoot, 'System32', 'taskkill.exe'));
+    if (!inside(realSystemRoot, taskkill)) throw new Error('Process cleanup executable is outside the Windows directory.');
+    const installedRoots = [programFiles86, process.env.ProgramFiles].filter(Boolean).map(p => fs.realpathSync(p));
+    const toolRoots = installedRoots.concat(realSystemRoot);
+    const toolDirectories = (process.env.PATH || '').split(path.delimiter).filter(Boolean).flatMap(p => {
+        try { const actual = fs.realpathSync(p.replace(/^"|"$/g, '')); return toolRoots.some(r => inside(r, actual)) ? [actual] : []; }
+        catch { return []; }
+    });
+    childEnv.PATH = toolDirectories.join(path.delimiter);
+    const gitCandidate = toolDirectories.map(p => path.join(p, 'git.exe')).find(p => fs.existsSync(p));
+    if (!gitCandidate) throw new Error('Git was not found under installed tool directories.');
+    const git = fs.realpathSync(gitCandidate);
+    if (!toolRoots.some(p => inside(p, git))) throw new Error('Git resolves outside installed tool directories.');
+    evidence.gitCommit = (await run(git, ['rev-parse', 'HEAD'], 'revision')).trim();
+    evidence.workingTreeDirty = (await run(git, ['status', '--porcelain'], 'working-tree')).trim().length !== 0;
     const targetingPack = path.join(programFiles86, 'Reference Assemblies', 'Microsoft', 'Framework', '.NETFramework', 'v4.6.1');
     if (!fs.existsSync(path.join(targetingPack, 'mscorlib.dll'))) throw new Error('.NET Framework 4.6.1 targeting pack is missing.');
-    const vswhere = path.join(programFiles86, 'Microsoft Visual Studio', 'Installer', 'vswhere.exe');
+    const vswhere = fs.realpathSync(path.join(programFiles86, 'Microsoft Visual Studio', 'Installer', 'vswhere.exe'));
+    if (!installedRoots.some(p => inside(p, vswhere))) throw new Error('Visual Studio discovery executable resolves outside Program Files.');
     const found = await run(vswhere, ['-latest', '-products', '*', '-requires', 'Microsoft.Component.MSBuild', '-find', 'MSBuild\\**\\Bin\\MSBuild.exe'], 'discover-msbuild');
-    const msbuild = found.trim().split(/\r?\n/)[0];
-    const installedRoots = [programFiles86, process.env.ProgramFiles].filter(Boolean).map(p => path.resolve(p).toLowerCase() + path.sep);
-    if (!msbuild || path.basename(msbuild).toLowerCase() !== 'msbuild.exe' || !fs.existsSync(msbuild) ||
-        !installedRoots.some(p => path.resolve(msbuild).toLowerCase().startsWith(p))) throw new Error('Installed MSBuild was not resolved under Program Files.');
+    const discovered = found.trim().split(/\r?\n/)[0];
+    if (!discovered || path.basename(discovered).toLowerCase() !== 'msbuild.exe' || !fs.existsSync(discovered)) throw new Error('Installed MSBuild was not resolved.');
+    const msbuild = fs.realpathSync(discovered);
+    if (!installedRoots.some(p => inside(p, msbuild))) throw new Error('Installed MSBuild resolves outside Program Files.');
+    const compiler = fs.realpathSync(path.join(path.dirname(msbuild), 'Roslyn', 'csc.exe'));
+    if (!installedRoots.some(p => inside(p, compiler))) throw new Error('Compiler resolves outside Program Files.');
     evidence.msbuildVersion = (await run(msbuild, ['/version', '/nologo'], 'msbuild-version')).trim();
-    evidence.compilerVersion = (await run(path.join(path.dirname(msbuild), 'Roslyn', 'csc.exe'), ['/version'], 'compiler-version')).trim();
+    evidence.compilerVersion = (await run(compiler, ['/version'], 'compiler-version')).trim();
     evidence.targetingPack = targetingPack;
     evidence.targetingPackMscorlibSha256 = crypto.createHash('sha256').update(fs.readFileSync(path.join(targetingPack, 'mscorlib.dll'))).digest('hex');
     await run(process.execPath, [path.join(root, 'tools', 'verify-repository.js')], 'repository');
@@ -91,7 +137,12 @@ async function main() {
         await run(path.join(output, 'U2BIO.BT003PROLabelPrinting.Validation.exe'), [`--expect-${platform}`], `validate-${platform}`);
         for (const name of ['U2BIO.BT003PROLabelPrinting.dll', 'U2BIO.BT003PROLabelPrinting.Validation.exe']) {
             const file = path.join(output, name);
-            evidence.artifacts.push({ platform, path: path.relative(root, file).replace(/\\/g, '/'), sha256: crypto.createHash('sha256').update(fs.readFileSync(file)).digest('hex') });
+            const snapshotFolder = path.join(logRoot, platform);
+            if (!fs.existsSync(snapshotFolder)) createTaskDirectory(snapshotFolder);
+            const snapshot = path.join(snapshotFolder, name);
+            fs.copyFileSync(file, snapshot, fs.constants.COPYFILE_EXCL);
+            evidence.artifacts.push({ platform, path: path.relative(root, file).replace(/\\/g, '/'),
+                snapshot: path.relative(root, snapshot).replace(/\\/g, '/'), sha256: crypto.createHash('sha256').update(fs.readFileSync(snapshot)).digest('hex') });
         }
     }
     evidence.result = 'passed';
