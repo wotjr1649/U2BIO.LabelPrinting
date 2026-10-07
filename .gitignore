@@ -1,0 +1,40 @@
+# >>> devflow (managed)
+/docs/prompts/
+/docs/plans/
+/artifacts/
+/.work/
+/_ref/
+/.claude/worktrees/
+/.claude/settings.local.json
+CLAUDE.local.md
+# <<< devflow
+
+# Visual Studio and .NET build output
+.vs/
+[Bb]in/
+[Oo]bj/
+packages/
+TestResults/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+*.pdb
+
+# Local configuration and credentials
+.env
+.env.*
+!.env.example
+*.pfx
+*.p12
+*.snk
+
+# Local SDK references and review evidence; preserve existing files in place
+/docs/.btpl-*/
+/docs/Blackfish BT-003 PRO_markdown/
+/docs/NFC_BT003-M01-04_Programming_Manual_v1.3_markdown/
+/docs/BTPL_API_GUIDE.ko.md
+/docs/verify_btpl_guide.ps1
+**/BlackfishNfcLib.dll
+**/HFModule.dll
+/.issue-registration-*/
