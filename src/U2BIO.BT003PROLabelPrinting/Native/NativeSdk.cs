@@ -172,18 +172,31 @@ namespace U2BIO.BT003PROLabelPrinting.Native
             NoReparse(path);
             return path;
         }
-        private static void CheckExisting(Pair pair)
+        private static void CheckExisting(Pair pair, string phase)
         {
             using (var process = Process.GetCurrentProcess())
                 foreach (ProcessModule module in process.Modules) {
                     string name = module.ModuleName;
                     foreach (string file in Files)
                         if (string.Equals(name, file, StringComparison.OrdinalIgnoreCase) &&
-                            module.BaseAddress != (file == Files[0] ? blackfish : hfModule)) throw new NativeSdkException("NativeModuleConflict");
-                    if (SystemImports.Contains(name)) CheckSystemModulePath(module.FileName);
+                            module.BaseAddress != (file == Files[0] ? blackfish : hfModule)) throw new NativeSdkException("NativeModuleConflict", null, phase + ":vendor-module:" + file.ToLowerInvariant() + ":other");
+                    if (SystemImports.Contains(name)) {
+                        try { CheckSystemModulePath(module.FileName); }
+                        catch (NativeSdkException error) when (error.Code == "NativeModuleConflict") {
+                            throw new NativeSdkException(error.Code, error.SystemErrorCode, phase + ":system-import:" + name.ToLowerInvariant() + ":" + SystemModuleLocation(module.FileName));
+                        }
+                    }
                 }
             foreach (string import in SystemImports)
-                if (File.Exists(Path.Combine(Path.GetDirectoryName(pair.Paths[0]), import))) throw new NativeSdkException("NativeModuleConflict");
+                if (File.Exists(Path.Combine(Path.GetDirectoryName(pair.Paths[0]), import))) throw new NativeSdkException("NativeModuleConflict", null, phase + ":app-local-system-import:" + import.ToLowerInvariant() + ":other");
+        }
+        // Diagnostic category only; this never authorizes a module or changes CheckSystemModulePath.
+        internal static string SystemModuleLocation(string path)
+        {
+            string directory = Path.GetDirectoryName(Path.GetFullPath(path));
+            if (string.Equals(directory, Environment.SystemDirectory, StringComparison.OrdinalIgnoreCase)) return "system";
+            string sideBySide = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Windows), "WinSxS") + Path.DirectorySeparatorChar;
+            return directory.StartsWith(sideBySide, StringComparison.OrdinalIgnoreCase) ? "sideBySide" : "other";
         }
         internal static void CheckSystemModulePath(string path)
         {
@@ -212,7 +225,7 @@ namespace U2BIO.BT003PROLabelPrinting.Native
                 if (loadFailure != null) throw new NativeSdkException(loadFailure.Code, loadFailure.SystemErrorCode, loadFailure.Function);
                 using (var pair = Inspect(AppDomain.CurrentDomain.BaseDirectory, Environment.Is64BitProcess)) {
                     try {
-                        CheckExisting(pair);
+                        CheckExisting(pair, "preload");
                         if (functions != null) {
                             if (!string.Equals(ModulePath(hfModule), pair.Paths[1], StringComparison.OrdinalIgnoreCase) ||
                                 !string.Equals(ModulePath(blackfish), pair.Paths[0], StringComparison.OrdinalIgnoreCase)) throw new NativeSdkException("NativeModuleConflict");
@@ -229,7 +242,7 @@ namespace U2BIO.BT003PROLabelPrinting.Native
                         if (blackfish == IntPtr.Zero) throw new NativeSdkException("NativeLoadFailed", Marshal.GetLastWin32Error(), "LoadLibraryExW");
                         if (!string.Equals(ModulePath(hfModule), pair.Paths[1], StringComparison.OrdinalIgnoreCase) ||
                             !string.Equals(ModulePath(blackfish), pair.Paths[0], StringComparison.OrdinalIgnoreCase)) throw new NativeSdkException("NativeModuleConflict");
-                        CheckExisting(pair);
+                        CheckExisting(pair, "postload");
                         var bound = new Dictionary<Type, Delegate>();
                         foreach (Type type in NativeApi.Types()) {
                             string name = NativeApi.ExportName(type, Environment.Is64BitProcess);

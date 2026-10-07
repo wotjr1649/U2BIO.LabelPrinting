@@ -98,6 +98,10 @@ namespace U2BIO.BT003PROLabelPrinting.Validation
                             var system = (int?)cause.GetType().GetProperty("SystemErrorCode", BindingFlags.NonPublic | BindingFlags.Instance).GetValue(cause);
                             result = code == "NativeLibraryMissing" ? 3 : 5;
                             report = "NATIVE_LOAD|status=Failed|code=" + code + "|win32=" + (system.HasValue ? system.Value.ToString(System.Globalization.CultureInfo.InvariantCulture) : "none");
+                            string detail = (string)cause.GetType().GetProperty("Function", BindingFlags.NonPublic | BindingFlags.Instance).GetValue(cause);
+                            if (code == "NativeModuleConflict" && detail != null && System.Text.RegularExpressions.Regex.IsMatch(detail,
+                                @"\A(preload|postload):(system-import|app-local-system-import|vendor-module):(setupapi\.dll|kernel32\.dll|user32\.dll|gdi32\.dll|msimg32\.dll|winspool\.drv|advapi32\.dll|shell32\.dll|shlwapi\.dll|uxtheme\.dll|ole32\.dll|oleaut32\.dll|oledlg\.dll|crypt32\.dll|ws2_32\.dll|oleacc\.dll|gdiplus\.dll|imm32\.dll|winmm\.dll|blackfishnfclib\.dll|hfmodule\.dll):(system|sideBySide|other)\z"))
+                                report += "|detail=" + detail;
                         }
                     }
                 }
