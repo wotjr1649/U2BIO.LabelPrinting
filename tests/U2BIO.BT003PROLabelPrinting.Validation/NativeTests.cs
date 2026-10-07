@@ -50,6 +50,8 @@ namespace U2BIO.BT003PROLabelPrinting.Validation
         internal static void Run(Assembly library)
         {
             Type probe = typeof(NativeTests).Assembly.GetType("U2BIO.BT003PROLabelPrinting.Validation.NativeLoadProbe", true);
+            Type job = typeof(NativeTests).Assembly.GetType("U2BIO.BT003PROLabelPrinting.Validation.NativeLoadProbe+JobLimits", true);
+            Check(Marshal.SizeOf(job) == (Environment.Is64BitProcess ? 144 : 112));
             Check(!File.Exists(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "BlackfishNfcLib.dll")) &&
                 !File.Exists(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "HFModule.dll")));
             Check((int)probe.GetMethod("Run", InternalStatic).Invoke(null, new object[] { library }) == 3);
