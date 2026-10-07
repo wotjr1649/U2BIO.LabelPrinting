@@ -92,5 +92,5 @@
 
 - SDK `라이브러리/x86/include/BlackfishNfcLib.h`, `라이브러리/x64/include/BlackfishNfcLib.h`.
 - SDK `샘플소스/HFSample/HFSample_UL/BT003CtrlWrapper.cs`.
-- [제공 API 변환본](NFC_BT003-M01-04_Programming_Manual_v1.3_markdown/NFC_BT003-M01-04_Programming_Manual_v1.3.md). 원본 PDF Rev.1.3, 2022-05-20.
-- [BTPL 참고 가이드](BTPL_API_GUIDE.ko.md) 14~15절. 가이드의 39개 이름 확인은 샘플 선언 범위이며 전체 헤더/export 커버리지가 아니다.
+- 로컬 제공 API 변환본 `NFC_BT003-M01-04_Programming_Manual_v1.3_markdown/NFC_BT003-M01-04_Programming_Manual_v1.3.md`. 원본 PDF Rev.1.3, 2022-05-20.
+- 로컬 BTPL 참고 가이드 `BTPL_API_GUIDE.ko.md` 14~15절. 가이드의 39개 이름 확인은 샘플 선언 범위이며 전체 헤더/export 커버리지가 아니다.

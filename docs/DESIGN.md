@@ -460,7 +460,7 @@ WithSetting은 허용 명령의 기존 하나를 그 위치에서 교체하고, 
 
 ### 1차 명령 범위와 편집 규칙
 
-언어 전체의 명령 정의는 [BTPL_API_GUIDE.ko.md](BTPL_API_GUIDE.ko.md)를 참고한다. 아래는 이번 제품의 파서·편집·검사 범위다. 명령 정의가 문서에 있다는 것과 BT-003 Pro의 해당 펌웨어·글꼴로 출력이 검증되었다는 것을 구분한다. 기본 허용 목록 밖 명령은 미리보기에서 누락시키며 통과시키지 않고 사전검사 오류로 표시한다.
+언어 전체의 명령 정의는 로컬 참고 자료 `BTPL_API_GUIDE.ko.md`를 참고한다. 아래는 이번 제품의 파서·편집·검사 범위다. 명령 정의가 문서에 있다는 것과 BT-003 Pro의 해당 펌웨어·글꼴로 출력이 검증되었다는 것을 구분한다. 기본 허용 목록 밖 명령은 미리보기에서 누락시키며 통과시키지 않고 사전검사 오류로 표시한다.
 
 | 명령 | 1차 처리 / 수치 편집 | 근거·제약 |
 | --- | --- | --- |
@@ -534,13 +534,13 @@ BTPL 규격과 실기 항목은 검증 과제이며, 사용자 정책을 추가�
 - 샘플: `../BT-003 pro SDK/샘플소스/HFSample/HFSample_UL/Form1.cs` 및 `BT003CtrlWrapper.cs`.
 - 헤더 및 기준 DLL 후보: `../BT-003 pro SDK/라이브러리/x86`, `../BT-003 pro SDK/라이브러리/x64`.
 - 제공 매뉴얼 변환본: `docs/NFC_BT003-M01-04_Programming_Manual_v1.3_markdown/NFC_BT003-M01-04_Programming_Manual_v1.3.md`.
-- phase2 기존 경로: `D:/U2BIO_SVN/phase2/UserControls/Class/LabelPrint/clsLabelPrint.cs`, `clsLabelPrintPaper.cs`, `UserControls/Frm/FrmLabelPrintManager.cs`.
+- phase2 기존 경로(phase2 루트 기준): `UserControls/Class/LabelPrint/clsLabelPrint.cs`, `clsLabelPrintPaper.cs`, `UserControls/Frm/FrmLabelPrintManager.cs`.
 
 SDK 샘플과 기존 제조사 문서는 변경하지 않는다. 설계 작성 단계에서는 Git 원격 연결 확인만 수행하며 push는 수행하지 않는다.
 
 ## 10. BTPL 가이드 검토
 
-검토 대상은 [docs/BTPL_API_GUIDE.ko.md](BTPL_API_GUIDE.ko.md)다. SHA-256은 `6700c7b53292832302257860963be8aaa58a0f1ac39a7cf67757610c6e967ca7`이다. 샘플 폴더의 동명 가이드는 SHA-256 `e4cfa7807fb52a67e6e0bb2cc06b6a2d31aee9db4eac420dc1d0a6d27f31673e`로 내용이 다르다. 새 문서를 기존 샘플 문서의 동일 사본으로 간주하지 않는다. 두 원본은 수정하지 않는다.
+검토 대상은 로컬 참고 자료 `docs/BTPL_API_GUIDE.ko.md`다. SHA-256은 `6700c7b53292832302257860963be8aaa58a0f1ac39a7cf67757610c6e967ca7`이다. 샘플 폴더의 동명 가이드는 SHA-256 `e4cfa7807fb52a67e6e0bb2cc06b6a2d31aee9db4eac420dc1d0a6d27f31673e`로 내용이 다르다. 새 문서를 기존 샘플 문서의 동일 사본으로 간주하지 않는다. 두 원본은 수정하지 않는다.
 
 | 검토 항목 | 결과 / 설계 반영 |
 | --- | --- |
