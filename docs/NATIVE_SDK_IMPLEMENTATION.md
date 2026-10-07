@@ -12,7 +12,7 @@
 
 로드는 DllMain과 dependency 초기화를 실행한다. 오프라인 PE 검사와 실제 로드 시험을 구분한다. 현재 로더는 internal이며 공개 Connect에 연결하지 않았다. TASK-05에서 worker·process/target 예약·대기 제한·늦은 정리 계약과 함께 연결해야 한다. 현재 캐시는 AppDomain 단위이며, 소유한 캐시가 아닌 기존 vendor 모듈은 같은 경로여도 보수적으로 NativeModuleConflict로 거부한다. 참여 AppDomain 간 안전한 재사용은 후속 수명 통합에서 별도 검증해야 한다.
 
-배포 폴더와 Windows 시스템 폴더는 신뢰되는 관리 영역이라는 전제가 필요하다. 파일·디렉터리 lease는 정상 파일 I/O의 교체·쓰기·부모 rename을 제한하지만, 공격자가 배포 폴더에 새 dependency를 삽입할 수 있는 환경이나 악의적인 관리자·기존 memory mapping·동적 DLL 로드를 모두 격리하는 sandbox는 아니다. ACL·호스트 보안 설정은 바꾸지 않는다. 두 private DLL과 관측된 일반 import만 검사하며 제조사 내부의 동적 로드/초기화 효과는 실기 검증 대상으로 남긴다. 현재 보수적인 정책은 System32/WOW64 이외의 WinSxS 모듈도 허용하지 않으며, 필요 여부와 안전한 지원은 실제 로드 시험에서 확인해야 한다.
+배포 폴더와 Windows 시스템 폴더는 신뢰되는 관리 영역이라는 전제가 필요하다. 파일·디렉터리 lease는 정상 파일 I/O의 교체·쓰기·부모 rename을 제한하지만, 공격자가 배포 폴더에 새 dependency를 삽입할 수 있는 환경이나 악의적인 관리자·기존 memory mapping·동적 DLL 로드를 모두 격리하는 sandbox는 아니다. ACL·호스트 보안 설정은 바꾸지 않는다. 두 private DLL과 관측된 일반 import만 검사하며 제조사 내부의 동적 로드/초기화 효과는 실기 검증 대상으로 남긴다. 현재 보수적인 정책은 System32/WOW64 이외의 WinSxS 모듈도 허용하지 않는다. 후속 실제 로드 시험에서 양쪽 아키텍처의 WinSxS gdiplus.dll이 이 정책에 의해 거부됨을 확인했다. 안전한 side-by-side 모듈 검증 지원은 미구현이다.
 
 ## 실행 검사
 
@@ -20,6 +20,7 @@
 node tools/verify-build.js
 node tools/verify-build.js --configuration Debug
 <Validation.exe> --inspect-sdk <SDK의 라이브러리 폴더>
+node tools/probe-native-load.js --sdk-directory <SDK의 라이브러리 폴더>
 ```
 
 일반 빌드 검사는 이전 framework·PE·프로세스 비트 수·native 미로드 검사에 41개 ABI golden 검사, 계약 차단, missing/corrupt/architecture/version 오류 검사를 추가한다. --inspect-sdk는 라이브러리 폴더 아래 x86/lib와 x64/lib의 실제 기준 파일을 읽고 두 쌍의 Machine·해시·exact 41 exports·일반 imports를 대조한다. vendor 코드는 실행하지 않으며 실제 연결·인쇄·RFID 시험을 대체하지 않는다.
@@ -45,12 +46,38 @@ SDK 검사 성공 출력은 `PASS: pinned x86/x64 native pairs architecture/hash
 
 Win32 구현 근거는 [LoadLibraryExW](https://learn.microsoft.com/en-us/windows/win32/api/libloaderapi/nf-libloaderapi-loadlibraryexw), [GetFinalPathNameByHandleW](https://learn.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-getfinalpathnamebyhandlew), [디렉터리 핸들](https://learn.microsoft.com/en-us/windows/win32/fileio/obtaining-a-handle-to-a-directory), [PE Format](https://learn.microsoft.com/en-us/windows/win32/debug/pe-format)을 대조했다.
 
+### 후속 로딩 진단 결과
+
+2026-10-08, `861ba5c967768d70b919e6323191d5ebb11f4ae3` clean 작업 트리에서 fresh verifier가 Release/Debug × x86/x64 빌드·검증을 다시 실행했고 모두 종료 코드 0이었다. 새 위치 분류 회귀 검사는 system/sideBySide/other를 구분하며 기존 허용 경로 검사와 PrintContractUnverified 차단을 유지했다. Release 산출물은 runner가 고정한 관리 코드 `8a582353fc73e186c50f34968820f980fb7f8b1e`의 해시와 일치했다.
+
+| 산출물 | Release SHA-256 |
+| --- | --- |
+| DLL, x86/x64 공통 | `e7fe54b69bafba711831bc991a29d1f8ca252ac770a1ae9e467096a841cf517f` |
+| x86 validation exe | `e7cdf24d325bfa255534416f8130cf27f26349b503d9247b87f5a7ecdbd036fe` |
+| x64 validation exe | `5133502a2a21339cecb930274a94e008a7c1923946bbfed0a1dc8524dcd90efe` |
+
+관리 검사 원본은 `.work/foundation/Release-1791415619425/evidence.json`과 `.work/foundation/Debug-1791415625954/evidence.json`이다. 앞의 51d9cea 근거와 현재 산출물을 혼동하지 않는다.
+
+root가 고정된 제조사 SDK 쌍을 사용하여 `tools/probe-native-load.js`를 실행했다. 첫 실행은 양쪽 NativeModuleConflict/exit 5였고, 검사 단계와 허용 목록의 모듈명만 출력하도록 진단을 보완한 두 번째 실행에서도 다음과 같이 실패했다.
+
+```text
+x86: NATIVE_LOAD|status=Failed|code=NativeModuleConflict|win32=none|detail=postload:system-import:gdiplus.dll:sideBySide; exit=5
+x64: NATIVE_LOAD|status=Failed|code=NativeModuleConflict|win32=none|detail=postload:system-import:gdiplus.dll:sideBySide; exit=5
+NativeLoadProbeFailed
+```
+
+감독 프로그램의 종료 코드는 1이다. 이 결과는 두 vendor DLL의 LoadLibraryEx와 경로 대조 이후, postload 시스템 import 검사에서 WinSxS gdiplus.dll을 거부한 증거다. 41개 delegate 바인딩 완료 또는 USB 연결 성공을 뜻하지 않는다. 장치 delegate를 꺼내거나 호출하지 않았다. 로컬 근거는 `.work/native-load/1791415327431/evidence.json`과 `.work/native-load/1791415681323/evidence.json`이다.
+
+진단은 검토한 Release exe/DLL과 제조사 두 쌍의 해시를 source/stage에서 검사한다. 관리 코드만 있는 별도 stage의 OS 시스템 디렉터리 조회로 환경과 호스트 도구 경로를 구성하며 caller PATH/SystemRoot를 사용하지 않는다. vendor load 전 Job Object를 설정하고 프로세스·메모리·시간·출력을 제한한다. 출력은 nonce가 일치하는 고정 report와 허용된 진단 필드만 기록하고 성공은 exact Passed report와 exit 0을 함께 요구한다. 이 도구는 현재 64-bit Windows host에서 x86/x64 child를 실행하는 진단이며, 네트워크 sandbox나 악성 in-process DLL의 격리를 보장하지 않는다. 제조사 초기화·dependency 코드의 실행과 장치 API 호출을 구분한다.
+
+정확성·보안 리뷰는 새 진단이 로드 허용 조건을 바꾸지 않고 실제 경로를 보고하지 않음을 확인했다. bare vendor ModulePath 충돌 등 일부 오류는 상세 tag 없이 실패할 수 있으며 이를 성공으로 해석하지 않는다. 실패를 없애기 위한 WinSxS 전체 허용, 경로 fallback 또는 무검증 preload는 추가하지 않았다.
+
 ## 남은 수용 근거
 
 | TASK-02 조건 | 현재 경계 |
 | --- | --- |
 | 41개 내부 래핑 | 선언·바인딩 코드와 offline ABI 검사; native 호출 ABI 실기 증거는 별도 |
-| 아키텍처·해시·충돌·export·절대경로 로더 | 구현 및 offline 검사; 실제 LoadLibraryEx/실패·모듈 수명 시험은 아직 미실행 |
+| 아키텍처·해시·충돌·export·절대경로 로더 | offline 검사 통과. 실제 두 프로세스의 postload WinSxS gdiplus.dll 검사 실패 확인; 바인딩 성공·모듈 수명 통합은 미검증 |
 | ANSI·방향·StdCall·버퍼 상한·종료 규칙 | 제공 선언 대조, buffer/문자열 실기·제조사 계약 미확인 |
 | USB 식별·RFID 포트 없는 연결·해제 | 사용자 장치 준비 확인; sample 0/manual USB1 차이와 실제 연결은 미검증 |
 | StartLabelPrint 전용 응답·완료 의미 | 미확인, UID/코드 parser나 void 성공으로 대체하지 않음 |
@@ -58,3 +85,12 @@ Win32 구현 근거는 [LoadLibraryExW](https://learn.microsoft.com/en-us/window
 | 장치·펌웨어·시험 결과 | 장치 정보·실제 시험 기록은 아직 없음 |
 
 핵심 미확정 조건이 남아 있으므로 TASK-02 전체를 완료하거나 실제 인쇄가 가능하다고 보고하지 않는다.
+
+## 완료를 위해 필요한 조치
+
+1. 로더가 현재 OS에서 사용하는 Windows side-by-side 모듈을 검증할 수 있도록 설계를 보완하고 정상 모듈·잘못된 경로·변조·충돌을 검사한다. 위 실패는 제조사 응답 자료 부족과 별개의 로더 호환성 문제다.
+2. StartLabelPrint의 정확한 원형, caller 버퍼 소유권, 최대 쓰기 **바이트** 수와 종료 문자 포함 여부, 인코딩, 잘림·오류 처리 규칙을 제조사로부터 확보한다. 매개변수에 길이가 없으므로 샘플 SizeConst=100이나 임의의 큰 버퍼만으로 안전성을 확정하지 않는다.
+3. 인쇄 전용 응답 문법·성공/오류 예·완료 시점·timeout/미정의 응답, copies와 BTPL 수량의 관계, RFID 무기록 동작을 확인한다. StartPrintWithRfid의 UID,code 형식을 전용하지 않는다.
+4. USB 식별 문자열과 RFID 포트 없는 연결·해제를 확인한 뒤 합성 한글 문구 한 건을 출력하고 장수·글꼴·RFID 전후 일치를 기록한다. RFID 비교는 검증된 별도 시험 절차로 수행하며 제품에 RFID 공개 API를 추가하지 않는다.
+
+사용자 장치 준비는 확인되어 있다. 현재 작업 순서는 TASK-02 완료 → TASK-03이며, 이 두 blocker가 남은 상태에서 TASK-03을 착수하지 않았다. GitHub #2는 종료하지 않았고 이번 코드와 근거 문서는 로컬 작업 브랜치에만 기록했다.

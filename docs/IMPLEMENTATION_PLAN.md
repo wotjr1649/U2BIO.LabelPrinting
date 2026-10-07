@@ -16,7 +16,7 @@
 | TASK-08 | TASK-07 | C17~C19, C24 및 화면 확인 | DB 없는 DevExpress Tester |
 | TASK-09 | TASK-07 | 독립 호출 예제 | Checkup·SmartCheckup용 연동 예시 |
 
-TASK-02를 초기에 진행하며 장치 대기 중에는 TASK-03~TASK-04를 진행할 수 있다. TASK-09는 TASK-08 완료를 기다릴 필요가 없다. 문서에 기재된 41개 원형의 내부 래핑과 실제 인쇄 흐름의 호출 허용을 구분한다. 원형 미공개 export는 추정 구현하지 않는다.
+현재 사용자 지시에 따른 작업 순서는 TASK-02 완료 후 TASK-03~TASK-04 진행이다. TASK-09는 TASK-08 완료를 기다릴 필요가 없다. 문서에 기재된 41개 원형의 내부 래핑과 실제 인쇄 흐름의 호출 허용을 구분한다. 원형 미공개 export는 추정 구현하지 않는다.
 
 ## 공통 완료 규칙
 
@@ -60,7 +60,7 @@ TASK-02를 초기에 진행하며 장치 대기 중에는 TASK-03~TASK-04를 진
 - [ ] 합성 문구의 한글과 사용할 BTPL 글꼴·인수 조합, 한 행 한 장, RFID 값 전후 일치를 실제로 확인한다.
 - [ ] 장치·펌웨어·DLL 해시·시험 일시·결과와 미확인 항목을 기록한다. 안전한 버퍼 계약 등 핵심 미확정 상태에서는 완료 처리하지 않는다.
 
-근거: DESIGN 5·8절, SDK_API_COVERAGE. C20·C21. 장치 준비 대기 중 TASK-03~TASK-04 진행 가능.
+근거: DESIGN 5·8절, SDK_API_COVERAGE. C20·C21. 현재 구현·실행 결과와 남은 조건은 [NATIVE_SDK_IMPLEMENTATION.md](NATIVE_SDK_IMPLEMENTATION.md)에 기록한다. TASK-02 전체 완료 후 TASK-03을 시작한다.
 
 ## TASK-03: BTPL 서식 해석·편집·저장 구현
 
