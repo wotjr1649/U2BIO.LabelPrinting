@@ -21,6 +21,14 @@ namespace U2BIO.BT003PROLabelPrinting.Validation
 
         private static int Main(string[] args)
         {
+            if (args.Length == 2 && args[0] == "--inspect-sdk")
+            {
+                try {
+                    NativeTests.InspectSdk(Assembly.LoadFrom(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "U2BIO.BT003PROLabelPrinting.dll")), args[1]);
+                    return 0;
+                }
+                catch (Exception error) { Console.Error.WriteLine("FAIL: SDK inspection (" + error.GetType().Name + ")"); return 1; }
+            }
             if (args.Length != 1 || (args[0] != "--expect-x86" && args[0] != "--expect-x64"))
             {
                 Console.Error.WriteLine("Usage: Validation.exe --expect-x86|--expect-x64");
@@ -40,6 +48,7 @@ namespace U2BIO.BT003PROLabelPrinting.Validation
                 Require(library.GetName().Name == "U2BIO.BT003PROLabelPrinting", "Library assembly name differs.");
                 CheckFramework(library);
                 CheckFramework(Assembly.GetExecutingAssembly());
+                NativeTests.Run(library);
 
                 PortableExecutableKinds libraryKind;
                 ImageFileMachine libraryMachine;
