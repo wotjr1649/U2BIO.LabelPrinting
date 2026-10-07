@@ -76,14 +76,29 @@ namespace U2BIO.BT003PROLabelPrinting.Validation
             }
             Check(!types.Any(t => t.Name.StartsWith("StartPrintWithRfid2", StringComparison.Ordinal) || t.Name.StartsWith("ReadResponseMessage", StringComparison.Ordinal)));
             Type sdk = Required(library, "NativeSdk");
+            Invoke(sdk, "CheckSystemModulePath", Path.Combine(Environment.SystemDirectory, "USER32.dll"));
+            ExpectCode(() => Invoke(sdk, "CheckSystemModulePath", Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Windows), "Temp", "USER32.dll")), "NativeModuleConflict");
+            foreach (var error in new Exception[] { new DllNotFoundException(), new BadImageFormatException(), new EntryPointNotFoundException() }) {
+                object classified = Invoke(sdk, "ClassifyLoaderException", error);
+                string code = (string)classified.GetType().GetProperty("Code", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(classified);
+                Check(code == (error is BadImageFormatException ? "NativeArchitectureMismatch" : error is EntryPointNotFoundException ? "UnsupportedLoaderPlatform" : "NativeLoadFailed"));
+            }
             var generic = sdk.GetMethod("GetFunction", InternalStatic).MakeGenericMethod(types.Single(t => t.Name == "SetPrinterPortDelegate"));
             ExpectCode(() => generic.Invoke(null, null), "PrintContractUnverified");
             string temporary = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, ".native-validation-" + Guid.NewGuid().ToString("N"));
             ExpectCode(() => Invoke(sdk, "InspectPair", temporary, Environment.Is64BitProcess), "NativeLibraryMissing");
             Directory.CreateDirectory(temporary);
             try {
+                using ((IDisposable)Invoke(sdk, "LeaseDirectoryTree", temporary)) {
+                    bool refused = false;
+                    try { Directory.Move(temporary, temporary + "-moved"); }
+                    catch (IOException) { refused = true; }
+                    Check(refused && Directory.Exists(temporary) && !Directory.Exists(temporary + "-moved"));
+                }
                 byte[] fixture = Image(Environment.Is64BitProcess);
                 foreach (string name in new[] { "BlackfishNfcLib.dll", "HFModule.dll" }) File.WriteAllBytes(Path.Combine(temporary, name), fixture);
+                using (var file = File.OpenRead(Path.Combine(temporary, "BlackfishNfcLib.dll")))
+                    Check(string.Equals((string)Invoke(sdk, "FinalFilePath", file.SafeFileHandle), Path.GetFullPath(Path.Combine(temporary, "BlackfishNfcLib.dll")), StringComparison.OrdinalIgnoreCase));
                 ExpectCode(() => Invoke(sdk, "InspectPair", temporary, Environment.Is64BitProcess), "NativeVersionMismatch");
                 ExpectCode(() => Invoke(sdk, "InspectPair", temporary, !Environment.Is64BitProcess), "NativeArchitectureMismatch");
                 File.WriteAllBytes(Path.Combine(temporary, "BlackfishNfcLib.dll"), new byte[10]);
