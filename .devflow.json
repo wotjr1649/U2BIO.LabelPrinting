@@ -25,7 +25,10 @@
     ".editorconfig": "node tools/verify-repository.js",
     ".devflow.json": "node tools/verify-repository.js",
     ".github/**": "node tools/verify-repository.js",
-    "tools/**": "node tools/verify-repository.js"
+    "tools/**": "node tools/verify-build.js",
+    "src/**": "node tools/verify-build.js",
+    "tests/**": "node tools/verify-build.js",
+    "*.sln": "node tools/verify-build.js"
   },
-  "verify": "node tools/verify-repository.js"
+  "verify": "node tools/verify-build.js"
 }
