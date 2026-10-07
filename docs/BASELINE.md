@@ -1,4 +1,4 @@
-# 구현 기준 v0.1.0-design
+# 구현 기준 v0.1.1-design
 
 확정일: 2026-10-08. 이전 요구사항·SDK 정적 검토는 2026-10-07에 수행했다. 이 버전은 DLL 구현에 사용하는 문서 기준이며 제품 릴리스나 실제 장치 검증 완료를 의미하지 않는다.
 
@@ -6,12 +6,14 @@
 
 | 파일 | SHA-256 |
 | --- | --- |
-| README.md | `937917721e62ae01c3461164d0db015d2409cddeaaf8261036d8c7e12eb8f1c6` |
-| docs/DESIGN.md | `7762c5296c1abfdcf63194d4d5fe52a65192512e2d383be12c077576693dd4b8` |
-| docs/SDK_API_COVERAGE.md | `7019a5de98a5b43aafa3b839a79d2aa4d1ac8d8d3081a400af6753c658bb6e48` |
-| docs/IMPLEMENTATION_PLAN.md | `271cd88912af372e3d8314f504455a3fd66e8032111650120c82adc4bc83962d` |
+| README.md | `90ca4c3b1850107216edf72b594a01384dbe779cfbd66cbe64a3aca4f99ed2c7` |
+| docs/DESIGN.md | `17deec12880bf773b66cfdfb806eaade27c17f0b86d086c8c9284ff06e236cd1` |
+| docs/SDK_API_COVERAGE.md | `8e60f9916a297919fcb04c6380ca14e2998ddacf4ed7965028b9ec519726e112` |
+| docs/IMPLEMENTATION_PLAN.md | `99d02df720646c9e0ac525f84a3b5876ab8a243c3b038895eabe7e0139fed22f` |
 
-목록의 대상 문서와 본서를 로컬 Git 커밋에 저장하고 `v0.1.0-design` 태그로 고정한다.
+목록의 대상 문서와 본서를 로컬 Git 커밋에 저장하고 `v0.1.1-design` 태그로 고정한다. 기준 문서의 해시는 UTF-8 BOM 없음·LF 줄바꿈으로 정규화한 내용의 SHA-256이다. CRLF 작업 사본에서도 같은 정규화 뒤 비교한다.
+
+초기 `v0.1.0-design`에서 Git 줄바꿈 정규화를 반영한 해시 기준과 현재 검증 스크립트 존재 여부를 보완했다. 이전 태그는 보존한다. 사용자 정책과 제품 API 계약은 변경하지 않았다.
 
 ## 참고 자료와 기준의 경계
 
