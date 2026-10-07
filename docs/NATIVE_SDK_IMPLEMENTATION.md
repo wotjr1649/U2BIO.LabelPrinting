@@ -26,6 +26,25 @@ node tools/verify-build.js --configuration Debug
 
 SDK 검사 성공 출력은 `PASS: pinned x86/x64 native pairs architecture/hash/41 exports/imports inspected; vendor code not executed`다. 원본·실제 label/RFID 값·raw 응답은 출력하거나 저장하지 않는다. 검증 오류는 안전한 코드와 원래 OS 오류 번호만 보존한다.
 
+### 관측한 실행 근거
+
+2026-10-08, 제품 코드 커밋 `51d9ceaebdbc3167254b3627a512309c1728e495`의 clean 작업 트리에서 fresh verifier가 Release/Debug × x86/x64 네 빌드·실행을 수행했고 모두 종료 코드 0이었다. root가 같은 네 실행 파일로 실제 SDK의 x86/x64 쌍을 --inspect-sdk로 검사했고 모두 종료 코드 0이었다. 사본 8개 해시는 verifier가 실제 바이트로 재계산해 원본 evidence와 대조했다. 다음 표는 해당 실행의 식별값이며 이후 문서 커밋과 구분한다.
+
+| 구성 | 산출물 | SHA-256 |
+| --- | --- | --- |
+| Release | DLL, x86/x64 공통 | `ac006c07a5519a6e91a819bdcae53f4345951892e57b71a652cdb406999afe57` |
+| Release | x86 validation exe | `e94553163398b13699df19fbb072c25d0172d2cd410b742da6e3799f21e561fa` |
+| Release | x64 validation exe | `6704bf13fbc0483d92d7aa1d56179b3def11ad1d540bc76c4a65a98b06762bf5` |
+| Debug | DLL, x86/x64 공통 | `351efc67694fec99dfead4527da0efc96a3041b76d9a8dbb0199b2937612d628` |
+| Debug | x86 validation exe | `84ab15c9933ae80e08e3db88cadb654bbf004d9b827643cab040f3d73f9fde4d` |
+| Debug | x64 validation exe | `2f30fd328b85ddcf9a88b97e8c13941906e0625e43033265e3eb1a32650aa36a` |
+
+원본 로컬 기록은 `.work/foundation/Release-1791411556958/evidence.json`과 `.work/foundation/Debug-1791411562492/evidence.json`에 보존한다.
+
+최초 시험 커밋 f7163d0에서 wrapper 없는 실행이 TypeLoadException으로 실패했고 시험 잠금 뒤 구현했다. 리뷰 후 abfd915에서 새 경로·예외 회귀 시험의 실패를 확인하고 다시 잠갔다. 수정 후 실제 Windows 파일 핸들 canonical path, Windows Temp 모듈 경로 거부, 목록 읽기 lease 중 자기 임시 폴더 rename 거부 시험을 통과했다. attributes-only 핸들은 rename을 막지 못하는 것이 관측되어 list/read access로 보완했다. 이는 정상 I/O의 rename 거부 시험이며 vendor DLL 초기화·dependency 삽입 race의 통합 시험은 아니다.
+
+Win32 구현 근거는 [LoadLibraryExW](https://learn.microsoft.com/en-us/windows/win32/api/libloaderapi/nf-libloaderapi-loadlibraryexw), [GetFinalPathNameByHandleW](https://learn.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-getfinalpathnamebyhandlew), [디렉터리 핸들](https://learn.microsoft.com/en-us/windows/win32/fileio/obtaining-a-handle-to-a-directory), [PE Format](https://learn.microsoft.com/en-us/windows/win32/debug/pe-format)을 대조했다.
+
 ## 남은 수용 근거
 
 | TASK-02 조건 | 현재 경계 |
