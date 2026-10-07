@@ -87,6 +87,33 @@ namespace U2BIO.BT003PROLabelPrinting.Validation
             Check((string)Invoke(sdk, "SystemModuleLocation", Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Windows), "Temp", "USER32.dll")) == "other");
             Invoke(sdk, "CheckSystemModulePath", Path.Combine(Environment.SystemDirectory, "USER32.dll"));
             ExpectCode(() => Invoke(sdk, "CheckSystemModulePath", Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Windows), "Temp", "USER32.dll")), "NativeModuleConflict");
+            using (var reference = new MemoryStream(new byte[] { 1, 2, 3 }))
+            using (var same = new MemoryStream(new byte[] { 1, 2, 3 }))
+            using (var changed = new MemoryStream(new byte[] { 1, 2, 4 }))
+            using (var empty = new MemoryStream()) {
+                Check((bool)Invoke(sdk, "SameFileContent", reference, same));
+                Check(!(bool)Invoke(sdk, "SameFileContent", reference, changed));
+                Check(!(bool)Invoke(sdk, "SameFileContent", reference, empty));
+            }
+            string sxsRoot = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Windows), "WinSxS");
+            ExpectCode(() => Invoke(sdk, "CheckSystemModulePath", Path.Combine(sxsRoot, "invalid", "USER32.dll")), "NativeModuleConflict");
+            bool checkedSideBySide = false;
+            using (var reference = File.OpenRead(Path.Combine(Environment.SystemDirectory, "gdiplus.dll"))) {
+                string architecture = Environment.Is64BitProcess ? "amd64" : "x86";
+                foreach (string dir in Directory.EnumerateDirectories(sxsRoot, architecture + "_microsoft.windows.gdiplus_*").Take(64)) {
+                    string candidate = Path.Combine(dir, "gdiplus.dll");
+                    if (!File.Exists(candidate)) continue;
+                    using (var file = File.OpenRead(candidate)) {
+                        if (!(bool)Invoke(sdk, "SameFileContent", reference, file)) {
+                            ExpectCode(() => Invoke(sdk, "CheckSystemModulePath", candidate), "NativeModuleConflict");
+                            continue;
+                        }
+                    }
+                    Invoke(sdk, "CheckSystemModulePath", candidate);
+                    checkedSideBySide = true;
+                }
+            }
+            Check(checkedSideBySide);
             foreach (var error in new Exception[] { new DllNotFoundException(), new BadImageFormatException(), new EntryPointNotFoundException() }) {
                 object classified = Invoke(sdk, "ClassifyLoaderException", error);
                 string code = (string)classified.GetType().GetProperty("Code", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(classified);
