@@ -8,6 +8,7 @@ using System.Runtime.InteropServices;
 using System.Security;
 using System.Security.Cryptography;
 using System.Text;
+using Microsoft.Win32.SafeHandles;
 
 namespace U2BIO.BT003PROLabelPrinting.Native
 {
@@ -39,6 +40,7 @@ namespace U2BIO.BT003PROLabelPrinting.Native
         private static IntPtr blackfish, hfModule;
         private static Dictionary<Type, Delegate> functions;
         private static bool loadAttempted;
+        private static NativeSdkException loadFailure;
 
         [DllImport("kernel32.dll", CharSet = CharSet.Unicode, ExactSpelling = true, SetLastError = true)]
         private static extern IntPtr LoadLibraryExW(string name, IntPtr file, uint flags);
@@ -48,6 +50,10 @@ namespace U2BIO.BT003PROLabelPrinting.Native
         private static extern IntPtr GetModuleHandleW(string name);
         [DllImport("kernel32.dll", CharSet = CharSet.Unicode, ExactSpelling = true, SetLastError = true)]
         private static extern uint GetModuleFileNameW(IntPtr module, StringBuilder name, uint size);
+        [DllImport("kernel32.dll", CharSet = CharSet.Unicode, ExactSpelling = true, SetLastError = true)]
+        private static extern SafeFileHandle CreateFileW(string name, uint access, uint share, IntPtr security, uint creation, uint flags, IntPtr template);
+        [DllImport("kernel32.dll", CharSet = CharSet.Unicode, ExactSpelling = true, SetLastError = true)]
+        private static extern uint GetFinalPathNameByHandleW(SafeFileHandle file, StringBuilder name, uint size, uint flags);
 
         internal static T GetFunction<T>() where T : class
         {
@@ -60,7 +66,45 @@ namespace U2BIO.BT003PROLabelPrinting.Native
             internal readonly FileStream[] Streams = new FileStream[2];
             internal readonly NativeImage[] Images = new NativeImage[2];
             internal readonly string[] Paths = new string[2];
-            public void Dispose() { foreach (var stream in Streams) if (stream != null) stream.Dispose(); }
+            internal IDisposable Directories;
+            public void Dispose() {
+                foreach (var stream in Streams) if (stream != null) stream.Dispose();
+                if (Directories != null) Directories.Dispose();
+            }
+        }
+
+        internal static string FinalFilePath(SafeFileHandle file)
+        {
+            var buffer = new StringBuilder(32768);
+            uint length = GetFinalPathNameByHandleW(file, buffer, (uint)buffer.Capacity, 0);
+            if (length == 0 || length >= buffer.Capacity) throw new NativeSdkException("NativeModuleConflict", Marshal.GetLastWin32Error(), "GetFinalPathNameByHandleW");
+            string path = buffer.ToString();
+            if (!path.StartsWith(@"\\?\", StringComparison.Ordinal) || path.Length < 7 || path[5] != ':') throw new NativeSdkException("NativeModuleConflict");
+            return Path.GetFullPath(path.Substring(4));
+        }
+        private sealed class DirectoryLease : IDisposable
+        {
+            internal readonly List<SafeFileHandle> Handles = new List<SafeFileHandle>();
+            public void Dispose() { foreach (var handle in Handles) handle.Dispose(); }
+        }
+        internal static IDisposable LeaseDirectoryTree(string directory)
+        {
+            var lease = new DirectoryLease();
+            try {
+                string current = Path.GetFullPath(directory);
+                if (current.Length < 3 || current[1] != ':' || current[2] != '\\') throw new NativeSdkException("NativeModuleConflict");
+                while (!string.IsNullOrEmpty(current)) {
+                    NoReparse(current);
+                    // List/read access participates in Windows sharing checks; attributes-only does not block rename.
+                    var handle = CreateFileW(current, 0x1 | 0x80, 0x1 | 0x2, IntPtr.Zero, 3, 0x02000000 | 0x00200000, IntPtr.Zero);
+                    lease.Handles.Add(handle);
+                    if (handle.IsInvalid) throw new NativeSdkException("NativeLoadFailed", Marshal.GetLastWin32Error(), "CreateFileW");
+                    if (!string.Equals(FinalFilePath(handle).TrimEnd('\\'), current.TrimEnd('\\'), StringComparison.OrdinalIgnoreCase)) throw new NativeSdkException("NativeModuleConflict");
+                    current = Path.GetDirectoryName(current);
+                }
+                return lease;
+            }
+            catch { lease.Dispose(); throw; }
         }
 
         private static void NoReparse(string path)
@@ -75,11 +119,15 @@ namespace U2BIO.BT003PROLabelPrinting.Native
         {
             var pair = new Pair();
             try {
+                pair.Directories = LeaseDirectoryTree(directory);
                 for (int i = 0; i < Files.Length; i++) {
                     pair.Paths[i] = Path.GetFullPath(Path.Combine(directory, Files[i]));
                     NoReparse(pair.Paths[i]);
                     var stream = new FileStream(pair.Paths[i], FileMode.Open, FileAccess.Read, FileShare.Read);
                     pair.Streams[i] = stream;
+                    string final = FinalFilePath(stream.SafeFileHandle);
+                    if (!string.Equals(final, pair.Paths[i], StringComparison.OrdinalIgnoreCase)) throw new NativeSdkException("NativeModuleConflict");
+                    pair.Paths[i] = final;
                     if (stream.Length > 16 * 1024 * 1024) throw new NativeSdkException("NativeArchitectureMismatch");
                     byte[] data = new byte[checked((int)stream.Length)];
                     int read = 0;
@@ -99,13 +147,14 @@ namespace U2BIO.BT003PROLabelPrinting.Native
                 }
                 return pair;
             }
-            catch (Exception error) when (error is IOException || error is InvalidDataException || error is UnauthorizedAccessException || error is SecurityException || error is ArgumentException || error is NativeSdkException) {
+            catch (Exception error) when (error is IOException || error is InvalidDataException || error is UnauthorizedAccessException || error is SecurityException || error is ArgumentException ||
+                error is NativeSdkException || error is DllNotFoundException || error is BadImageFormatException || error is EntryPointNotFoundException) {
                 pair.Dispose();
                 var known = error as NativeSdkException;
                 if (known != null) throw;
                 if (error is InvalidDataException) throw new NativeSdkException("NativeArchitectureMismatch");
                 if (error is FileNotFoundException || error is DirectoryNotFoundException) throw new NativeSdkException("NativeLibraryMissing");
-                throw new NativeSdkException("NativeLoadFailed", error.HResult & 0xffff);
+                throw ClassifyLoaderException(error);
             }
             catch { pair.Dispose(); throw; }
         }
@@ -125,29 +174,54 @@ namespace U2BIO.BT003PROLabelPrinting.Native
         }
         private static void CheckExisting(Pair pair)
         {
-            string windows = Path.GetFullPath(Environment.GetFolderPath(Environment.SpecialFolder.Windows)).TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar;
             using (var process = Process.GetCurrentProcess())
                 foreach (ProcessModule module in process.Modules) {
                     string name = module.ModuleName;
                     foreach (string file in Files)
-                        if (string.Equals(name, file, StringComparison.OrdinalIgnoreCase)) throw new NativeSdkException("NativeModuleConflict");
-                    if (SystemImports.Contains(name) && !Path.GetFullPath(module.FileName).StartsWith(windows, StringComparison.OrdinalIgnoreCase))
-                        throw new NativeSdkException("NativeModuleConflict");
+                        if (string.Equals(name, file, StringComparison.OrdinalIgnoreCase) &&
+                            module.BaseAddress != (file == Files[0] ? blackfish : hfModule)) throw new NativeSdkException("NativeModuleConflict");
+                    if (SystemImports.Contains(name)) CheckSystemModulePath(module.FileName);
                 }
             foreach (string import in SystemImports)
                 if (File.Exists(Path.Combine(Path.GetDirectoryName(pair.Paths[0]), import))) throw new NativeSdkException("NativeModuleConflict");
         }
+        internal static void CheckSystemModulePath(string path)
+        {
+            string systemFile = Path.GetFullPath(Path.Combine(Environment.SystemDirectory, Path.GetFileName(path)));
+            using (var file = File.OpenRead(systemFile)) {
+                string actual = FinalFilePath(file.SafeFileHandle);
+                string candidate = Path.GetFullPath(path);
+                if (!string.Equals(candidate, systemFile, StringComparison.OrdinalIgnoreCase) && !string.Equals(candidate, actual, StringComparison.OrdinalIgnoreCase))
+                    throw new NativeSdkException("NativeModuleConflict");
+                NoReparse(candidate);
+            }
+        }
+        internal static NativeSdkException ClassifyLoaderException(Exception error)
+        {
+            var known = error as NativeSdkException;
+            if (known != null) return known;
+            var win32 = error as Win32Exception;
+            int? system = win32 != null ? (int?)win32.NativeErrorCode :
+                ((uint)error.HResult >> 16 == 0x8007 ? (int?)(error.HResult & 0xffff) : null);
+            return new NativeSdkException(error is BadImageFormatException ? "NativeArchitectureMismatch" :
+                error is EntryPointNotFoundException ? "UnsupportedLoaderPlatform" : "NativeLoadFailed", system);
+        }
         internal static void LoadForConnection()
         {
             lock (Sync) {
-                if (functions != null) return;
-                if (loadAttempted) throw new NativeSdkException("NativeLoadFailed");
+                if (loadFailure != null) throw new NativeSdkException(loadFailure.Code, loadFailure.SystemErrorCode, loadFailure.Function);
                 using (var pair = Inspect(AppDomain.CurrentDomain.BaseDirectory, Environment.Is64BitProcess)) {
                     try {
                         CheckExisting(pair);
+                        if (functions != null) {
+                            if (!string.Equals(ModulePath(hfModule), pair.Paths[1], StringComparison.OrdinalIgnoreCase) ||
+                                !string.Equals(ModulePath(blackfish), pair.Paths[0], StringComparison.OrdinalIgnoreCase)) throw new NativeSdkException("NativeModuleConflict");
+                            return;
+                        }
                         IntPtr kernel = GetModuleHandleW("kernel32.dll");
                         if (kernel == IntPtr.Zero || GetProcAddress(kernel, "AddDllDirectory") == IntPtr.Zero) throw new NativeSdkException("UnsupportedLoaderPlatform");
                         loadAttempted = true;
+                        loadFailure = new NativeSdkException("NativeLoadFailed");
                         // Retain every acquired reference, even on partial failure: never unload pending vendor state.
                         hfModule = LoadLibraryExW(pair.Paths[1], IntPtr.Zero, SearchFlags);
                         if (hfModule == IntPtr.Zero) throw new NativeSdkException("NativeLoadFailed", Marshal.GetLastWin32Error(), "LoadLibraryExW");
@@ -155,6 +229,7 @@ namespace U2BIO.BT003PROLabelPrinting.Native
                         if (blackfish == IntPtr.Zero) throw new NativeSdkException("NativeLoadFailed", Marshal.GetLastWin32Error(), "LoadLibraryExW");
                         if (!string.Equals(ModulePath(hfModule), pair.Paths[1], StringComparison.OrdinalIgnoreCase) ||
                             !string.Equals(ModulePath(blackfish), pair.Paths[0], StringComparison.OrdinalIgnoreCase)) throw new NativeSdkException("NativeModuleConflict");
+                        CheckExisting(pair);
                         var bound = new Dictionary<Type, Delegate>();
                         foreach (Type type in NativeApi.Types()) {
                             string name = NativeApi.ExportName(type, Environment.Is64BitProcess);
@@ -163,9 +238,13 @@ namespace U2BIO.BT003PROLabelPrinting.Native
                             bound.Add(type, Marshal.GetDelegateForFunctionPointer(address, type));
                         }
                         functions = bound;
+                        loadFailure = null;
                     }
-                    catch (Exception error) when (error is IOException || error is Win32Exception || error is SecurityException || error is UnauthorizedAccessException || error is ArgumentException) {
-                        throw new NativeSdkException("NativeLoadFailed", error.HResult & 0xffff);
+                    catch (Exception error) when (error is IOException || error is Win32Exception || error is SecurityException || error is UnauthorizedAccessException ||
+                        error is ArgumentException || error is NativeSdkException || error is DllNotFoundException || error is BadImageFormatException || error is EntryPointNotFoundException) {
+                        var failure = ClassifyLoaderException(error);
+                        if (loadAttempted) loadFailure = failure;
+                        throw failure;
                     }
                 }
             }
