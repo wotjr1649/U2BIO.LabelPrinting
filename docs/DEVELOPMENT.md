@@ -15,7 +15,7 @@
 | .github/PULL_REQUEST_TEMPLATE.md | 변경 범위·검증·제한 기록 |
 | tools/verify-repository.js | 설치된 devflow doctor 및 설계 기준·인수 ID 검사 |
 | U2BIO.LabelPrinting.sln | Debug/Release × x86/x64 구성, DLL은 AnyCPU로 매핑 |
-| src/U2BIO.BT003PROLabelPrinting | 공통 DLL 프로젝트, 현재는 어셈블리 메타데이터만 구현 |
+| src/U2BIO.BT003PROLabelPrinting | 공통 DLL 프로젝트, internal SDK 선언·배포 검사·로더 구현 중 |
 | tests/U2BIO.BT003PROLabelPrinting.Validation | DLL 독립 로드·framework·PE·실행 비트 수 검사 |
 | tools/verify-build.js | 실제 재빌드·실행, 평가된 설정과 산출물 증거 기록 |
 
@@ -43,6 +43,8 @@ Issue 본문·체크포인트와 장부는 설치된 devflow의 `devflow-state` 
 Issue가 생기기 전 저장소 최초 구성에는 `chore/repository-bootstrap`을 사용했다. 이후 작업은 `<type>/<issue>-<slug>` 형식으로 연결된 Issue와 함께 진행한다. 실제 빌드 명령은 아래에 기록하고 CI는 별도 구성 작업으로 남긴다.
 
 ## DLL 기반 빌드와 실행 검사
+
+TASK-02의 추가 검사와 native 실행 경계는 [NATIVE_SDK_IMPLEMENTATION.md](NATIVE_SDK_IMPLEMENTATION.md)를 따른다. 아래 최초 missing-library 시험과 [BUILD_EVIDENCE.md](BUILD_EVIDENCE.md)는 TASK-01 당시의 근거다.
 
 검증한 커밋·구성별 결과·산출물 해시는 [BUILD_EVIDENCE.md](BUILD_EVIDENCE.md)에 기록한다.
 

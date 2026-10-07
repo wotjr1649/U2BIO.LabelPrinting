@@ -28,7 +28,11 @@
     <Optimize>true</Optimize>
   </PropertyGroup>
   <ItemGroup>
+    <Reference Include="System" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="Native\NativeApi.cs" />
+    <Compile Include="Native\NativeImage.cs" />
+    <Compile Include="Native\NativeSdk.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <Target Name="ReportBuildSettings" AfterTargets="Build">

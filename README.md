@@ -2,7 +2,7 @@
 
 RFID 값이 이미 기록된 BT-003 Pro 라벨에 프로그램이 전달한 텍스트를 BTPL로 인쇄하기 위한 공통 모듈과 테스트 프로그램입니다.
 
-공통 DLL과 UI 없는 검증 프로젝트의 빌드 기반을 구성했습니다. BTPL 처리·장치 연결·인쇄 API와 DevExpress Tester는 후속 개발 작업입니다.
+공통 DLL과 UI 없는 검증 프로젝트의 빌드 기반을 구성했고, 41개 내부 SDK 선언과 배포 검사·로더 코드를 추가했습니다. 현재 [Native SDK 구현 범위와 미검증 항목](docs/NATIVE_SDK_IMPLEMENTATION.md)을 구분합니다. 공개 장치 연결·인쇄 API와 DevExpress Tester는 후속 개발 작업입니다.
 
 구현 기준 버전은 **v0.1.1-design (2026-10-08)**입니다. [기준 문서 목록과 변경 규칙](docs/BASELINE.md), [개발 작업과 완료 조건](docs/IMPLEMENTATION_PLAN.md)을 기준으로 구현합니다. 이 버전은 설계 기준이며 제품 DLL의 릴리스 버전이 아닙니다.
 
