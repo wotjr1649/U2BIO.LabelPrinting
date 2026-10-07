@@ -1,0 +1,31 @@
+{
+  "integration": "push-on-request",
+  "branch": "{type}/{issue}-{slug}",
+  "specs": false,
+  "decisions": false,
+  "private": [
+    "docs/prompts/", "docs/plans/", "artifacts/", ".work/", "_ref/",
+    "docs/.btpl-check/", "docs/.btpl-review-20261007/",
+    "docs/Blackfish BT-003 PRO_markdown/",
+    "docs/NFC_BT003-M01-04_Programming_Manual_v1.3_markdown/",
+    "docs/BTPL_API_GUIDE.ko.md", "docs/verify_btpl_guide.ps1"
+  ],
+  "protected": [
+    "_ref/**", "docs/.btpl-*/**",
+    "docs/Blackfish BT-003 PRO_markdown/**",
+    "docs/NFC_BT003-M01-04_Programming_Manual_v1.3_markdown/**",
+    "docs/BTPL_API_GUIDE.ko.md", "docs/verify_btpl_guide.ps1"
+  ],
+  "tests": ["tests/**"],
+  "highRisk": ["AGENTS.md", ".devflow.json", ".github/**", "tools/**", "**/Native/**", "**/Interop/**"],
+  "checks": {
+    "**/*.md": "node tools/verify-repository.js",
+    ".gitignore": "node tools/verify-repository.js",
+    ".gitattributes": "node tools/verify-repository.js",
+    ".editorconfig": "node tools/verify-repository.js",
+    ".devflow.json": "node tools/verify-repository.js",
+    ".github/**": "node tools/verify-repository.js",
+    "tools/**": "node tools/verify-repository.js"
+  },
+  "verify": "node tools/verify-repository.js"
+}
