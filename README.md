@@ -2,7 +2,7 @@
 
 RFID 값이 이미 기록된 BT-003 Pro 라벨에 프로그램이 전달한 텍스트를 BTPL로 인쇄하기 위한 공통 모듈과 테스트 프로그램입니다.
 
-현재 단계는 요구사항 및 설계입니다. DLL과 실행 프로그램은 아직 구현하지 않았습니다.
+공통 DLL과 UI 없는 검증 프로젝트의 빌드 기반을 구성했습니다. BTPL 처리·장치 연결·인쇄 API와 DevExpress Tester는 후속 개발 작업입니다.
 
 구현 기준 버전은 **v0.1.1-design (2026-10-08)**입니다. [기준 문서 목록과 변경 규칙](docs/BASELINE.md), [개발 작업과 완료 조건](docs/IMPLEMENTATION_PLAN.md)을 기준으로 구현합니다. 이 버전은 설계 기준이며 제품 DLL의 릴리스 버전이 아닙니다.
 
@@ -20,6 +20,8 @@ RFID 값이 이미 기록된 BT-003 Pro 라벨에 프로그램이 전달한 텍�
 [설계와 검증 계획](docs/DESIGN.md)에 공개 타입, 바인딩, 단계별 중단·결과·연결 수명, 저장·배포·명령 처리 계약과 24개 구현 인수 사례를 정리했습니다. [SDK 함수 대조표](docs/SDK_API_COVERAGE.md)는 내부 선언 대상 41개와 원형 미공개 export 1개, 기준 DLL 쌍의 해시를 관리합니다. 로컬 참고 자료 `docs/BTPL_API_GUIDE.ko.md`의 관련 내용을 대조했고, 일반 언어 기능과 이 제품의 1차 지원 범위를 구분했습니다.
 
 저장소 기본 구성과 검사 명령은 [개발 환경](docs/DEVELOPMENT.md), GitHub 등록 현황은 [이슈 등록 상태](docs/GITHUB_ISSUES.md)를 참고합니다.
+
+`U2BIO.LabelPrinting.sln`에는 관리 AnyCPU DLL과 `U2BIO.BT003PROLabelPrinting.Validation` 콘솔 프로젝트가 있습니다. `node tools/verify-build.js`로 Release x86/x64를 재빌드·실행하고, `--configuration Debug`로 Debug 구성도 확인합니다. 현재 DLL은 어셈블리 기반이며 공개 인쇄 API 구현 완료를 의미하지 않습니다.
 
 1차는 텍스트 출력에 집중합니다. USB를 우선 구현·검증하고 TCP/IP와 RS-232 연결 API도 제공합니다. DB 연결·조회·저장을 담당하지 않으며, 테스트 프로그램은 DB 없이 샘플 데이터로 동작합니다.
 

@@ -12,10 +12,17 @@ const configuration = process.argv.length === 2 ? 'Release'
 const evidence = { configuration, commands: [], artifacts: [] };
 let logRoot;
 
+function decodeOutput(chunks) {
+    const bytes = Buffer.concat(chunks);
+    try { return new TextDecoder('utf-8', { fatal: true }).decode(bytes); }
+    catch { return new TextDecoder('euc-kr', { fatal: true }).decode(bytes); }
+}
+
 function run(command, args, label) {
     return new Promise((resolve, reject) => {
         const child = spawn(command, args, { cwd: root, windowsHide: true, shell: false });
-        let stdout = '', stderr = '', failed = false;
+        const stdoutChunks = [], stderrChunks = [];
+        let outputBytes = 0, failed = false;
         const stop = reason => {
             if (failed) return;
             failed = true;
@@ -28,15 +35,23 @@ function run(command, args, label) {
             reject(new Error(reason));
         };
         const timer = setTimeout(() => stop(`${label} exceeded 120 seconds`), 120000);
-        child.stdout.on('data', data => { stdout += data; if (stdout.length + stderr.length > 2 * 1024 * 1024) stop(`${label} exceeded its output limit`); });
-        child.stderr.on('data', data => { stderr += data; if (stdout.length + stderr.length > 2 * 1024 * 1024) stop(`${label} exceeded its output limit`); });
+        const collect = (chunks, data) => {
+            outputBytes += data.length;
+            if (outputBytes > 2 * 1024 * 1024) stop(`${label} exceeded its output limit`);
+            else chunks.push(data);
+        };
+        child.stdout.on('data', data => collect(stdoutChunks, data));
+        child.stderr.on('data', data => collect(stderrChunks, data));
         child.on('error', error => { clearTimeout(timer); failed = true; reject(new Error(`${label} could not start (${error.code})`)); });
         child.on('close', code => {
             clearTimeout(timer);
+            let stdout, stderr;
+            try { stdout = decodeOutput(stdoutChunks); stderr = decodeOutput(stderrChunks); }
+            catch { reject(new Error(`${label} output encoding is unsupported`)); return; }
             fs.writeFileSync(path.join(logRoot, `${label}.log`), stdout + stderr);
             evidence.commands.push({ command, args, exitCode: code });
             if (failed) return;
-            process.stdout.write(stdout);
+            if (stdout) process.stdout.write(stdout.endsWith('\n') ? stdout : stdout + '\n');
             if (code !== 0) reject(new Error(`${label} exited ${code}; see task-local build logs`));
             else resolve(stdout);
         });
@@ -51,6 +66,8 @@ async function main() {
     logRoot = path.join(root, '.work', 'foundation', `${configuration}-${Date.now()}`);
     fs.mkdirSync(path.dirname(logRoot), { recursive: true });
     fs.mkdirSync(logRoot);
+    evidence.gitCommit = (await run('git', ['rev-parse', 'HEAD'], 'revision')).trim();
+    evidence.workingTreeDirty = (await run('git', ['status', '--porcelain'], 'working-tree')).trim().length !== 0;
     const targetingPack = path.join(programFiles86, 'Reference Assemblies', 'Microsoft', 'Framework', '.NETFramework', 'v4.6.1');
     if (!fs.existsSync(path.join(targetingPack, 'mscorlib.dll'))) throw new Error('.NET Framework 4.6.1 targeting pack is missing.');
     const vswhere = path.join(programFiles86, 'Microsoft Visual Studio', 'Installer', 'vswhere.exe');
