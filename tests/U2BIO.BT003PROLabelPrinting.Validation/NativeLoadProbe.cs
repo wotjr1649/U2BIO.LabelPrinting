@@ -2,6 +2,7 @@ using System;
 using System.Collections;
 using System.Diagnostics;
 using System.Reflection;
+using System.Runtime.InteropServices;
 using System.Threading;
 
 namespace U2BIO.BT003PROLabelPrinting.Validation
@@ -9,8 +10,58 @@ namespace U2BIO.BT003PROLabelPrinting.Validation
     // Dedicated diagnostic process only. Binds delegates; never retrieves or invokes a device delegate.
     internal static class NativeLoadProbe
     {
-        internal static int Run(Assembly library)
+        [StructLayout(LayoutKind.Sequential)]
+        private struct BasicLimits
         {
+            internal long ProcessTime, JobTime;
+            internal uint Flags;
+            internal UIntPtr MinWorkingSet, MaxWorkingSet;
+            internal uint ActiveProcesses;
+            internal UIntPtr Affinity;
+            internal uint Priority, Scheduling;
+        }
+        [StructLayout(LayoutKind.Sequential)]
+        private struct IoCounters { internal ulong ReadOperations, WriteOperations, OtherOperations, ReadBytes, WriteBytes, OtherBytes; }
+        [StructLayout(LayoutKind.Sequential)]
+        private struct JobLimits
+        {
+            internal BasicLimits Basic;
+            internal IoCounters Io;
+            internal UIntPtr ProcessMemory, JobMemory, PeakProcessMemory, PeakJobMemory;
+        }
+        private static IntPtr job;
+        [DllImport("kernel32.dll", CharSet = CharSet.Unicode, ExactSpelling = true, SetLastError = true)]
+        private static extern IntPtr CreateJobObjectW(IntPtr security, string name);
+        [DllImport("kernel32.dll", ExactSpelling = true, SetLastError = true)]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        private static extern bool SetInformationJobObject(IntPtr handle, int infoClass, ref JobLimits limits, uint size);
+        [DllImport("kernel32.dll", ExactSpelling = true, SetLastError = true)]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        private static extern bool AssignProcessToJobObject(IntPtr handle, IntPtr process);
+        [DllImport("kernel32.dll", ExactSpelling = true)]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        private static extern bool CloseHandle(IntPtr handle);
+        private static bool EnsureJob()
+        {
+            if (job != IntPtr.Zero) return true;
+            IntPtr candidate = CreateJobObjectW(IntPtr.Zero, null);
+            if (candidate == IntPtr.Zero) return false;
+            var limits = new JobLimits { Basic = new BasicLimits { Flags = 0x2000 | 0x8 | 0x200, ActiveProcesses = 4 }, JobMemory = new UIntPtr(512u * 1024u * 1024u) };
+            using (var process = Process.GetCurrentProcess()) {
+                if (!SetInformationJobObject(candidate, 9, ref limits, (uint)Marshal.SizeOf(typeof(JobLimits))) || !AssignProcessToJobObject(candidate, process.Handle)) {
+                    CloseHandle(candidate); return false;
+                }
+            }
+            // Intentionally process-lifetime. OS handle cleanup kills normal descendants when this process exits.
+            job = candidate;
+            return true;
+        }
+        internal static int Run(Assembly library)
+        { return RunWithNonce(library, ""); }
+        internal static int RunWithNonce(Assembly library, string nonce)
+        {
+            string suffix = nonce.Length == 0 ? "" : "|nonce=" + nonce;
+            if (!EnsureJob()) { Console.WriteLine("NATIVE_LOAD|status=Failed|code=ProbeJobUnavailable" + suffix); return 9; }
             int result = 8;
             string report = "NATIVE_LOAD|status=Failed|code=ProbeInternalError";
             string slotName = "Local\\U2BIO.BT003PROLabelPrinting.Process." + Process.GetCurrentProcess().Id;
@@ -63,7 +114,7 @@ namespace U2BIO.BT003PROLabelPrinting.Validation
                     try {
                         try { checkerOwns = checker.WaitOne(0); }
                         catch (AbandonedMutexException) { checkerOwns = true; }
-                        if (checkerOwns) { Console.WriteLine("NATIVE_LOAD|status=Failed|code=ProbeReservationFailed"); return 4; }
+                        if (checkerOwns) { Console.WriteLine("NATIVE_LOAD|status=Failed|code=ProbeReservationFailed" + suffix); return 4; }
                     }
                     finally { if (checkerOwns) checker.ReleaseMutex(); }
                 }
@@ -72,12 +123,12 @@ namespace U2BIO.BT003PROLabelPrinting.Validation
             }
             if (signalled == WaitHandle.WaitTimeout) {
                 // The launcher supervises process exit; do not claim the pending worker released its reservation.
-                Console.WriteLine("NATIVE_LOAD|status=Failed|code=ProbeTimeout");
+                Console.WriteLine("NATIVE_LOAD|status=Failed|code=ProbeTimeout" + suffix);
                 return 6;
             }
-            if (!worker.Join(5000)) { Console.WriteLine("NATIVE_LOAD|status=Failed|code=ProbeTimeout"); return 6; }
+            if (!worker.Join(5000)) { Console.WriteLine("NATIVE_LOAD|status=Failed|code=ProbeTimeout" + suffix); return 6; }
             acquired.Dispose(); proceed.Dispose(); finished.Dispose();
-            Console.WriteLine(report);
+            Console.WriteLine(report + suffix);
             return result;
         }
     }

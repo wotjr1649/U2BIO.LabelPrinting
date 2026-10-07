@@ -21,9 +21,11 @@ namespace U2BIO.BT003PROLabelPrinting.Validation
 
         private static int Main(string[] args)
         {
-            if (args.Length == 1 && args[0] == "--probe-native-load")
+            if ((args.Length == 1 || args.Length == 2) && args[0] == "--probe-native-load")
             {
-                try { return NativeLoadProbe.Run(Assembly.LoadFrom(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "U2BIO.BT003PROLabelPrinting.dll"))); }
+                string nonce = args.Length == 2 ? args[1] : "";
+                if (nonce.Length != 0 && !System.Text.RegularExpressions.Regex.IsMatch(nonce, "\\A[a-f0-9]{32}\\z")) return 2;
+                try { return NativeLoadProbe.RunWithNonce(Assembly.LoadFrom(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "U2BIO.BT003PROLabelPrinting.dll")), nonce); }
                 catch (Exception) { Console.Error.WriteLine("NATIVE_LOAD|status=Failed|code=ProbeInternalError"); return 8; }
             }
             if (args.Length == 2 && args[0] == "--inspect-sdk")
