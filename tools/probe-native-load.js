@@ -7,10 +7,10 @@ const crypto = require('node:crypto');
 const { spawn, spawnSync } = require('node:child_process');
 const root = path.resolve(__dirname, '..');
 // This diagnostic manifest identifies the reviewed Release build, not an arbitrary current bin directory.
-const managedBuildCommit = '4d78742';
+const managedBuildCommit = '4c9eb8a';
 const managedHashes = {
-    x86: ['5ed2afdaf9bb1d0a187fbf1cf249d9aff8ff7114d9065a8feb7def36b662fd58', 'ac006c07a5519a6e91a819bdcae53f4345951892e57b71a652cdb406999afe57'],
-    x64: ['1c6fd662d7dd93c33ea83332a3dc057d8894b7805d6271a1614903a823e9fd97', 'ac006c07a5519a6e91a819bdcae53f4345951892e57b71a652cdb406999afe57']
+    x86: ['a19ad3e5a5112a3ea94b17448b57c89fa825023ee724fffb7e07e394c7dff861', 'ac006c07a5519a6e91a819bdcae53f4345951892e57b71a652cdb406999afe57'],
+    x64: ['1ed9a01b7b48d19b08be6014fd31be8b3df876016a94a69847f22ae8b694ead5', 'ac006c07a5519a6e91a819bdcae53f4345951892e57b71a652cdb406999afe57']
 };
 const passReport = 'NATIVE_LOAD|status=Passed|bound=41|deviceDelegatesInvoked=0';
 const files = ['BlackfishNfcLib.dll', 'HFModule.dll'];
@@ -59,7 +59,10 @@ async function run(executable, stage, environment, taskkill) {
         };
         child.stdout.on('data', collect);
         child.stderr.on('data', collect);
-        child.on('error', () => { clearTimeout(timer); reject(new Error('ProbeStartFailed')); });
+        child.on('error', () => {
+            if (child.pid && child.exitCode === null) stop('ProbeStartFailed');
+            else { clearTimeout(timer); reject(new Error('ProbeStartFailed')); }
+        });
         child.on('close', code => {
             clearTimeout(timer); clearTimeout(cleanup);
             if (failure) { reject(new Error(failure)); return; }
@@ -77,12 +80,6 @@ async function main() {
     const sdk = path.resolve(process.argv[3]);
     if (!/^[A-Za-z]:\\/.test(sdk)) throw new Error('LocalSdkPathRequired');
     noLinks(root); noLinks(sdk);
-    // Host-specific diagnostic; fail closed on another OS installation instead of trusting caller PATH/SystemRoot.
-    const systemRoot = 'C:\\Windows';
-    noLinks(systemRoot); noLinks(path.join(systemRoot, 'System32'));
-    if (fs.realpathSync(systemRoot).toLowerCase() !== systemRoot.toLowerCase()) throw new Error('HostPathMismatch');
-    const environment = { SystemRoot: systemRoot, WINDIR: systemRoot, ComSpec: path.join(systemRoot, 'System32', 'cmd.exe'),
-        PATH: path.join(systemRoot, 'System32'), NoDefaultCurrentDirectoryInExePath: '1' };
     const work = path.join(root, '.work');
     noLinks(work);
     const parent = path.join(work, 'native-load');
@@ -90,9 +87,31 @@ async function main() {
     noLinks(parent);
     const runRoot = path.join(parent, String(Date.now()));
     directory(runRoot);
-    const taskkill = fs.realpathSync(path.join(systemRoot, 'System32', 'taskkill.exe'));
+    // The pinned x64 managed probe queries the OS API in a managed-only directory; caller PATH/SystemRoot are not used.
+    const bootstrap = path.join(runRoot, 'host');
+    directory(bootstrap);
+    const exeName = 'U2BIO.BT003PROLabelPrinting.Validation.exe';
+    const sourceExe = path.join(root, 'tests', 'U2BIO.BT003PROLabelPrinting.Validation', 'bin', 'x64', 'Release', exeName);
+    noLinks(sourceExe);
+    if (digest(sourceExe) !== managedHashes.x64[0]) throw new Error('ManagedBuildMismatch');
+    const bootstrapExe = path.join(bootstrap, exeName);
+    fs.copyFileSync(sourceExe, bootstrapExe, fs.constants.COPYFILE_EXCL);
+    if (digest(bootstrapExe) !== managedHashes.x64[0]) throw new Error('ManagedCopyMismatch');
+    const host = spawnSync(bootstrapExe, ['--host-system-directory'], { cwd: bootstrap,
+        env: { NoDefaultCurrentDirectoryInExePath: '1' }, windowsHide: true, shell: false,
+        stdio: ['ignore', 'pipe', 'pipe'], encoding: 'utf8', timeout: 10000, maxBuffer: 4096 });
+    const hostMatch = /^HOST_SYSTEM_DIRECTORY\|([A-Za-z]:\\[^\r\n|]+)\r?\n$/.exec(host.stdout || '');
+    if (host.error || host.status !== 0 || host.stderr || !hostMatch) throw new Error('HostPathMismatch');
+    const systemDirectory = hostMatch[1];
+    noLinks(systemDirectory);
+    if (path.basename(systemDirectory).toLowerCase() !== 'system32' ||
+        fs.realpathSync(systemDirectory).toLowerCase() !== systemDirectory.toLowerCase()) throw new Error('HostPathMismatch');
+    const systemRoot = path.dirname(systemDirectory);
+    const environment = { SystemRoot: systemRoot, WINDIR: systemRoot, ComSpec: path.join(systemDirectory, 'cmd.exe'),
+        PATH: systemDirectory, NoDefaultCurrentDirectoryInExePath: '1' };
+    const taskkill = fs.realpathSync(path.join(systemDirectory, 'taskkill.exe'));
     noLinks(taskkill);
-    if (path.dirname(taskkill).toLowerCase() !== path.join(systemRoot, 'System32').toLowerCase()) throw new Error('HostPathMismatch');
+    if (path.dirname(taskkill).toLowerCase() !== systemDirectory.toLowerCase()) throw new Error('HostPathMismatch');
     const evidence = { managedBuildCommit, configuration: 'Release', results: [], deviceDelegatesInvoked: 0 };
     for (const platform of ['x86', 'x64']) {
         const stage = path.join(runRoot, platform);
