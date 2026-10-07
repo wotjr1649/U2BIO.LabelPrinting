@@ -82,6 +82,9 @@ namespace U2BIO.BT003PROLabelPrinting.Validation
             }
             Check(!types.Any(t => t.Name.StartsWith("StartPrintWithRfid2", StringComparison.Ordinal) || t.Name.StartsWith("ReadResponseMessage", StringComparison.Ordinal)));
             Type sdk = Required(library, "NativeSdk");
+            Check((string)Invoke(sdk, "SystemModuleLocation", Path.Combine(Environment.SystemDirectory, "USER32.dll")) == "system");
+            Check((string)Invoke(sdk, "SystemModuleLocation", Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Windows), "WinSxS", "test", "gdiplus.dll")) == "sideBySide");
+            Check((string)Invoke(sdk, "SystemModuleLocation", Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Windows), "Temp", "USER32.dll")) == "other");
             Invoke(sdk, "CheckSystemModulePath", Path.Combine(Environment.SystemDirectory, "USER32.dll"));
             ExpectCode(() => Invoke(sdk, "CheckSystemModulePath", Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Windows), "Temp", "USER32.dll")), "NativeModuleConflict");
             foreach (var error in new Exception[] { new DllNotFoundException(), new BadImageFormatException(), new EntryPointNotFoundException() }) {
