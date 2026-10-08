@@ -1,6 +1,6 @@
 'use strict';
 
-// Executes the reviewed SDK initialization in task-only child processes. Does not call device delegates.
+// Task-only SDK diagnostics: default mode binds only; USB mode invokes the four buffer-free connection primitives.
 const fs = require('node:fs');
 const path = require('node:path');
 const crypto = require('node:crypto');
