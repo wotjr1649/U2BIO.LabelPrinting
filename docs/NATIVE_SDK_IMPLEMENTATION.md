@@ -175,9 +175,9 @@ node tests/label-probe-cli.test.js
 
 검증 근거는 `.work/foundation/Release-1791424552346/evidence.json`, `.work/foundation/Debug-1791424565633/evidence.json`, `.work/foundation/direct-solution-Release`, `.work/foundation/direct-solution-Debug`다. workingTreeDirty는 기존 Visual Studio 버전·속성 metadata를 보존한 상태를 반영한다. 해당 기존 metadata는 task 커밋에 포함하지 않았다. CLI 두 회귀 검사와 diff 검사는 exit 0이다. 이번 추가 검사에서는 vendor DLL을 로드하거나 장치·인쇄·RFID를 호출하지 않았다.
 
-현재 supervisor의 관리 코드 기준은 `10e38d9`이며 fresh verifier와 root가 다음 Release 핀의 일치를 확인했다.
+최초 진단 당시 supervisor의 관리 코드 기준은 `10e38d9`이며 fresh verifier와 root가 다음 Release 핀의 일치를 확인했다. 이후 기준은 아래 공통 DLL 서식 전달 보완 절을 따른다.
 
-| 현재 일회 진단 산출물 | SHA-256 |
+| 최초 일회 진단 산출물 | SHA-256 |
 | --- | --- |
 | DLL, x86/x64 공통 | `462ae54736b4e37afff76879aeaa12d49662b5c93335690b280ea633f7fef3f5` |
 | x86 validation exe | `f6b64f7c2323ecabf47c26c5e75ffc8c7572719f666d2622b3185c6a15528bda` |
@@ -224,7 +224,7 @@ SDK 일일 로그에서는 자체 합성 요소를 두 번 확인했다. 첫 기
 | --- | --- |
 | 흰색 라벨 | 폭 60 mm·진행 방향 길이 20 mm |
 | 라벨 끝부터 다음 라벨 시작까지 | 20 mm |
-| 라벨 사이 구간 구성 | 흰 뒷종이 합계 15 mm + 검은 마크 5 mm |
+| 라벨 사이 구간 구성 | 흰 뒷종이 7.5 mm + 검은 마크 5 mm + 흰 뒷종이 7.5 mm |
 | 반복 주기 | 20 + 20 = 40 mm |
 | 뒷종이 전체 폭 | 70 mm |
 | 인식 방식 | 뒷면 Black-Mark |
@@ -233,4 +233,22 @@ SDK 일일 로그에서는 자체 합성 요소를 두 번 확인했다. 첫 기
 
 다음 단일 진단은 Black-Mark 반복 주기 40 mm·마크 폭 5 mm를 기준으로 Q의 offset까지 다루고, 전체 뒷종이 기준 폭 70 mm와 흰 라벨 60 mm의 좌우 여백을 구분하는 후보로 준비한다. 반사 센서 G0의 해당 모델 적용과 SDK 가공 후 명령 보존도 확인해야 한다. 원문 BTPL의 센서/마크 offset과 SDK Registry 변경 함수 SetLabelSetting은 서로 다른 경로다. Registry를 대체 설정으로 쓰지 않는다.
 
-마크 앞·뒤의 흰 뒷종이 두 구간을 A/B로 두면 A+B=15 mm이나 A와 B 각각은 아직 확인하지 않았다. 사진만으로 각각 7.5 mm라고 확정하지 않는다. 용지 진행 방향의 마크 끝→흰 라벨 시작 거리를 사용자에게 요청했으며, 확인 전에는 offset을 임의 지정해 재출력하지 않는다. 현재 실행 코드는 최초 50×25/G3 고정 진단이므로 새 규격을 코드에 반영하고 관리 검사·산출물 핀을 갱신한 뒤 실기를 실행해야 한다. 실제 한 장·한글·RFID 저장 데이터 전후 일치 조건은 계속 열어 둔다.
+사용자는 마크 앞·뒤 흰 뒷종이가 각각 7.5 mm라고 확정했고, 이 규격은 이번 시험에만 적용하며 공통 DLL에 고정하지 않도록 지시했다. 실측 거리를 BTPL offset과 동일시하기 전에 원문의 기준점·부호와 SDK의 명령 처리 경로를 확인해야 한다. 아래 후보는 관리 전달 시험을 통과했지만 실제 인쇄는 실행하지 않았다. 실제 한 장·한글·RFID 저장 데이터 전후 일치 조건은 계속 열어 둔다.
+
+## 공통 DLL의 서식 전달 보완과 Black-Mark 후보 한계
+
+`c163e24`에서 공통 DLL의 고정 시험 서식을 제거했다. 내부 `ProbeLabel(options, validatedForm)`은 검증 프로그램이 넘긴 서식을 `SetPrintFormString`에 전달한다. 시험용 용지 규격·센서 선택·합성 문구는 검증 프로젝트의 `LabelDiagnosticForms`에만 있다. 제품의 용지 설정은 호출자의 BTPL 서식에 속하며 이번 규격을 기본값으로 승계하지 않는다. DB 조회·DPI 설정·JSON의 전역 용지 규격을 추가하지 않았다.
+
+검증 프로그램은 기존 `50x25gap3`와 새 `blackmark60x20` 두 고정 합성 후보만 선택한다. 새 후보는 `^Q40,5,7.5+`, `^W70`, `^G0`이며 아직 해당 SDK·펌웨어의 지원이 검증된 보정 서식이 아니다. CLI가 후보를 선택할 수 있다는 사실과 물리적 사용 가능 여부를 구분한다. 임의 원문·파일·DB 값을 진단 입력으로 받지 않는다. 내부 null/empty/NUL/길이 검사는 완전한 BTPL 검증기가 아니며, 공개 제품 인쇄 경로의 검증·게이트를 대신하지 않는다.
+
+정적 분석에서 Q의 세 번째 값 처리에 구체적인 한계를 확인했다. x86 `^Q` literal과 3-field 분기를 대조했으며, 두 번째 값이 0이 아닌 경로는 세 번째 값을 내부 용지 metadata로 읽지 않는다. 후보의 `5`는 이 경로를 따른다. 원문이 가공 로그에 남더라도 GDI/raster 후 전송에 offset이 반영된다는 증거가 아니다. `^G0`의 처리와 모델 지원도 미확인이다. 상세 주소·소수 입력의 한계는 [정적 분석 결과](START_LABEL_PRINT_ANALYSIS.md)의 Black-Mark 절에 기록한다. 이 발견 때문에 후보를 보정 완료로 간주해 재출력하지 않았다. 다음 확인은 실제 전송 버퍼에 생성되는 용지/센서 설정과 원점 처리이며 Registry 변경이나 raw SendData로 우회하지 않는다.
+
+fresh verifier가 `c163e24`에서 일반 `verify-build`의 Release/Debug × x86/x64 네 빌드·실행과 두 CLI 회귀 검사를 모두 exit 0으로 확인했다. 서로 다른 두 입력 서식의 전달, 기존 실패 단계별 인쇄 차단·연결 정리, 잘못된 서식의 callback 전 거부가 통과했다. 생산 `PrintContractUnverified` 게이트는 유지된다. 이 검증에서는 vendor DLL·장치·인쇄·RFID 함수를 실행하지 않았다. 기존 Visual Studio metadata 변경은 보존하고 task 커밋에서 제외했다.
+
+supervisor의 현재 관리 코드 핀은 `c163e24`이며 Release 산출물은 다음과 같다. 핀 갱신은 실행 파일 식별이며 Black-Mark 후보의 실기 승인이나 완료 증거가 아니다.
+
+| 현재 진단 산출물 | SHA-256 |
+| --- | --- |
+| DLL, x86/x64 공통 | `93bde4f28db91a90ed9f9d4058d916a61aa968ac903aa20f68dc1256cef15e95` |
+| x86 validation exe | `2e3ce12f7f9dc869584a63c15e76ce79221ca081d4a6173fcbe89171373b924d` |
+| x64 validation exe | `fea68e382e1152f092397a82ad0db59270f692db671cdeca6c62a79da2b61287` |

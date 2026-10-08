@@ -65,6 +65,18 @@ dumpbin /ERRORREPORT:NONE /DISASM:NOBYTES /OUT:<task-output.txt> <BlackfishNfcLi
 
 이번 관리 코드는 StartLabelPrint(1)을 한 번 호출했고 x86만 실행했다. 자체 합성 문구의 로그 두 기록은 원문과 가공 서식으로 구분되며, 가공 서식에는 E가 한 번 있다. 그러나 가공 로그의 문자 바이트 수를 GDI 처리 후 native 전송 버퍼 길이와 동일하다고 가정하지 않는다. SDK 내부 재시도와 실제 출력 매수는 이 정적 분석만으로 확정하지 않는다. 정상 응답 0은 물리적 완료뿐 아니라 이 하위 전송 반환값의 성공 증명으로도 사용하지 않는다.
 
+## Black-Mark 서식의 내부 용지 해석 한계
+
+추가 분석은 같은 고정 바이너리와 BTPL 원문 10쪽을 기준으로 했다. 원문은 Black-Mark의 x를 label length, y를 마크 폭, z를 마크와 서식 시작점의 관계로 설명한다. 그림의 반복 위치 관계만으로 특정 SDK의 pitch·센서·소수 offset 지원을 확정하지 않는다. 현재 실측 용지의 반복 주기 40 mm와 흰 라벨 길이 20 mm를 구분한다.
+
+- x86 `0x3A0098`의 literal은 원본 PE bytes에서 `^Q`로 대조했다. preprocessing `0x95E0`의 `0x9A6F`–`0x9B23`은 세 개의 comma-separated field를 처리한다. x64 대응은 `0xE72A`–`0xE80B`다.
+- x86 `0x9AB5`에서 두 번째 field를 정수로 읽은 후, 0이면 `0x9AD3`에서 세 번째 field를 읽어 내부 mode 2로 저장한다. 0이 아니면 `0x9ABF`가 `0x9AF3`으로 이동하며 두 번째 field만 다시 저장하고 mode 1을 설정한다. 후보 `^Q40,5,7.5+`는 후자이며 이 metadata 분기에서 세 번째 field를 읽지 않는다. mode 1을 문서의 Black-Mark enum과 같다고 단정하지 않는다.
+- 숫자 helper `0x2CFA68` → `0x2CE014`는 부호와 정수 digit을 누적한다. x64는 `0x3D680C` → `0x3D4A48`이다. 소수점을 해석하는 경로는 관측되지 않았다. trailing 기호의 정확한 오류 동작까지 확정한 것은 아니다.
+- 원문 세 번째 field가 중간 가공 서식에 남을 가능성과 내부 geometry에 반영되는지는 별개다. 이후 큰 `0xAB90`에서 생성한 buffer를 transport에 넘기므로, 서식 로그에 offset이 보인다는 사실만으로 실제 프린터에 동일 값이 전달됐다고 판단하지 않는다.
+- `^G0` literal의 해당 처리 경로와 모델 지원은 아직 확인하지 않았다. 프린터의 센서 설정이 반영되었거나 후보가 인쇄 원점을 보정한다고 선언하지 않는다.
+
+따라서 현재 시험 후보는 관리 코드의 서로 다른 서식 전달을 검사하는 데이터일 뿐이다. 공통 DLL에 용지 규격을 고정하지 않았고, 보정 실기를 실행하지 않았다. 다음 분석 대상은 생성되는 전송 buffer의 용지/센서 헤더와 원점이며, 원본 DLL 패치·Registry 변경·raw transport 호출로 검증 경계를 우회하지 않는다.
+
 ## SDK 자체 로그의 별도 효과
 
 일회 인쇄 경로의 상태 polling helper가 mode 0으로 logger를 호출한다. x86 logger `0x307D0`의 IAT와 원본 문자열을 해석한 결과, `wvsprintfA`는 상태 문자열을 만들고 `GetFileAttributesA`는 고정된 SDK 로그 디렉터리를 검사한다. 디렉터리가 없으면 `CreateDirectoryA` 경로를 거치고 날짜별 `.log` 파일을 `a+`로 연다. 이는 런타임 경로 조회가 아니라 **작업 루트 밖 고정 디렉터리에 대한 생성·추가 기록 효과**다.
