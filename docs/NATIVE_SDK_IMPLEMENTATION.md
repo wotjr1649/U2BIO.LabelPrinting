@@ -379,3 +379,9 @@ fresh verifier의 Release/Debug × x86/x64 빌드·관리 검증과 두 CLI 회�
 | DLL, x86/x64 공통 | `098f0820c20a880112d63d09e8afa14d76585d0157984e7ea14db3da10d1b331` |
 | x86 validation exe | `50e4e84e6a2291d8690e202dbba3b3c695eb435d33f4bef2cef433478a6b800d` |
 | x64 validation exe | `945b7bc50ea2790c439def402288c597f8350ff5e1f039b48d5eeaa2100aa4a8` |
+
+### 사용자 AC 서식의 단일 직접전송 실기
+
+2026-10-08 14:30:37 KST, 7702cb5에서 관리 핀5c44e12로 USB0·x86·blackmark60x20direct를 한 번 실행했다. 실행 전 현재 USB1 캐시만 존재하며 USB print 1개와 활성 instance 일치, USB/COM3 정상 열거, task probe0, SDK 로그 대상 링크 부재, 네 Release 핀 일치를 확인했다. 기존 USB1 갱신·SDK 로그 허용 범위에서 수행했다.
+
+DIRECT_LABEL 상태 Returned, pre0/setport0/connect0/open1/disconnect0/closed0/send0/invoked1, completion=unknown, printApiCalls0, rfidApiCalls0이었다. child/supervisor exit0, 잔여 task probe0이며 근거는 `.work/native-load/1791437437846/evidence.json`이다. 사용자 AC 서식의 Q/W/G/E7/S5/H19/P1/C1/L·AC80,120,1,1,0,0,U2BIO TEST2·E를 CRLF로 원문 전달했다. 실제 문구·배출·장수는 사용자에게 확인 요청했으며 답변 대기다. SendData0을 실제 전송/인쇄 완료로 판정하지 않는다. 추가 이송·자동 재출력·x64·RFID 함수는 실행하지 않았다.
