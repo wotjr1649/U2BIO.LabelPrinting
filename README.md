@@ -4,6 +4,8 @@ RFID 값이 이미 기록된 BT-003 Pro 라벨에 프로그램이 전달한 텍�
 
 공통 DLL과 UI 없는 검증 프로젝트의 빌드 기반을 구성했고, 41개 내부 SDK 선언과 배포 검사·로더 코드를 추가했습니다. 현재 [Native SDK 구현 범위와 미검증 항목](docs/NATIVE_SDK_IMPLEMENTATION.md)을 구분합니다. 공개 장치 연결·인쇄 API와 DevExpress Tester는 후속 개발 작업입니다.
 
+TASK-03의 공개 `BtplTemplate` 관리 API로 BTPL 해석·좌표/문구 편집·고정 줄바꿈·strict 인코딩·단일 파일 저장을 지원합니다. [사용 예와 저장 계약](docs/BTPL_TEMPLATE_API.ko.md)을 참고합니다. 이 API는 프린터 없이 동작하며 JSON/DataTable 바인딩과 화면 미리보기는 후속 작업입니다.
+
 구현 기준 버전은 **v0.1.1-design (2026-10-08)**입니다. [기준 문서 목록과 변경 규칙](docs/BASELINE.md), [개발 작업과 완료 조건](docs/IMPLEMENTATION_PLAN.md)을 기준으로 구현합니다. 이 버전은 설계 기준이며 제품 DLL의 릴리스 버전이 아닙니다.
 
 | 구성 | 이름 / 기준 |
@@ -21,7 +23,7 @@ RFID 값이 이미 기록된 BT-003 Pro 라벨에 프로그램이 전달한 텍�
 
 저장소 기본 구성과 검사 명령은 [개발 환경](docs/DEVELOPMENT.md), GitHub 등록 현황은 [이슈 등록 상태](docs/GITHUB_ISSUES.md)를 참고합니다.
 
-`U2BIO.LabelPrinting.sln`에는 관리 AnyCPU DLL과 `U2BIO.BT003PROLabelPrinting.Validation` 콘솔 프로젝트가 있습니다. `node tools/verify-build.js`로 Release x86/x64를 재빌드·실행하고, `--configuration Debug`로 Debug 구성도 확인합니다. 현재 DLL은 어셈블리 기반이며 공개 인쇄 API 구현 완료를 의미하지 않습니다.
+`U2BIO.LabelPrinting.sln`에는 관리 AnyCPU DLL과 `U2BIO.BT003PROLabelPrinting.Validation` 콘솔 프로젝트가 있습니다. `node tools/verify-build.js`로 Release x86/x64를 재빌드·실행하고, `--configuration Debug`로 Debug 구성도 확인합니다. 관리 템플릿 API 구현과 공개 인쇄 API 구현 완료를 구분합니다.
 
 1차는 텍스트 출력에 집중하며 사용자가 선택한 `AW`를 기준으로 구현·검증합니다. USB를 우선 구현·검증하고 TCP/IP와 RS-232 연결 API도 제공합니다. DB 연결·조회·저장을 담당하지 않으며, 테스트 프로그램은 DB 없이 샘플 데이터로 동작합니다.
 
