@@ -31,7 +31,7 @@ function parseArgs(args) {
     if (transport === 'tcp' && net.isIP(ip) === 0) bad();
     const selected = { sdk: args[1], connection: { transport, port, ip } };
     if (fields['--label-test'] !== undefined || fields['--architecture'] !== undefined) {
-        if (transport !== 'usb' || !['50x25gap3', 'blackmark60x20', 'blackmark60x20ac'].includes(fields['--label-test']) || !['x86', 'x64'].includes(fields['--architecture'])) bad();
+        if (transport !== 'usb' || !['50x25gap3', 'blackmark60x20', 'blackmark60x20ac', 'blackmark60x20direct'].includes(fields['--label-test']) || !['x86', 'x64'].includes(fields['--architecture'])) bad();
         selected.labelTest = fields['--label-test']; selected.architecture = fields['--architecture'];
     }
     return selected;
@@ -59,6 +59,7 @@ function directory(file) {
     noLinks(file);
 }
 function safeReport(value) {
+    if (/^DIRECT_LABEL\|status=(Returned|Failed)\|pre=(none|-?[0-9]{1,10})\|setport=(none|-?[0-9]{1,10})\|connect=(none|-?[0-9]{1,10})\|open=(none|-?[0-9]{1,10})\|disconnect=(none|-?[0-9]{1,10})\|closed=(none|-?[0-9]{1,10})\|send=(none|-?[0-9]{1,10})\|invoked=[01]\|completion=unknown\|printApiCalls=0\|rfidApiCalls=0$/.test(value)) return true;
     if (/^LABEL\|status=(Returned|Failed)\|pre=(none|-?[0-9]{1,10})\|setport=(none|-?[0-9]{1,10})\|connect=(none|-?[0-9]{1,10})\|open=(none|-?[0-9]{1,10})\|disconnect=(none|-?[0-9]{1,10})\|closed=(none|-?[0-9]{1,10})\|form=(none|-?[0-9]{1,10})\|invoked=[01]\|response=(parsed|invalid|none)\|native=(none|-?[0-9]{1,10})\|prefix=(empty|uid|unknown|none)\|length=(none|[0-9]{1,2})\|rfidApiCalls=0$/.test(value)) return true;
     if (/^CONNECTION\|transport=(usb|serial|tcp)\|status=(Passed|Failed)\|pre=(none|-?[0-9]{1,10})\|setport=(none|-?[0-9]{1,10})\|connect=(none|-?[0-9]{1,10})\|open=(none|-?[0-9]{1,10})\|disconnect=(none|-?[0-9]{1,10})\|closed=(none|-?[0-9]{1,10})\|printApiCalls=0\|rfidApiCalls=0$/.test(value)) return true;
     if (/^NATIVE_LOAD\|status=Failed\|code=NativeModuleConflict\|win32=(none|[0-9]{1,10})\|detail=(preload|postload):(system-import|app-local-system-import|vendor-module):(setupapi\.dll|kernel32\.dll|user32\.dll|gdi32\.dll|msimg32\.dll|winspool\.drv|advapi32\.dll|shell32\.dll|shlwapi\.dll|uxtheme\.dll|ole32\.dll|oleaut32\.dll|oledlg\.dll|crypt32\.dll|ws2_32\.dll|oleacc\.dll|gdiplus\.dll|imm32\.dll|winmm\.dll|blackfishnfclib\.dll|hfmodule\.dll):(system|sideBySide|other)$/.test(value)) return true;
@@ -67,6 +68,9 @@ function safeReport(value) {
 }
 function labelReturned(report) {
     return /^LABEL\|status=Returned\|pre=0\|setport=0\|connect=0\|open=1\|disconnect=-?[0-9]{1,10}\|closed=0\|form=0\|invoked=1\|response=parsed\|native=0\|prefix=(empty|uid|unknown)\|length=[0-9]{1,2}\|rfidApiCalls=0$/.test(report);
+}
+function directReturned(report) {
+    return /^DIRECT_LABEL\|status=Returned\|pre=0\|setport=0\|connect=0\|open=1\|disconnect=-?[0-9]{1,10}\|closed=0\|send=0\|invoked=1\|completion=unknown\|printApiCalls=0\|rfidApiCalls=0$/.test(report);
 }
 async function run(executable, stage, environment, taskkill, connection, labelTest) {
     return new Promise((resolve, reject) => {
@@ -150,6 +154,7 @@ async function main() {
     if (path.dirname(taskkill).toLowerCase() !== systemDirectory.toLowerCase()) throw new Error('HostPathMismatch');
     const evidence = { managedBuildCommit, configuration: 'Release', mode: options.labelTest ? 'label-diagnostic' : connection ? 'connection' : 'native-load', transport: connection ? connection.transport : null,
         labelTest: options.labelTest || null, results: [], rfidApiCalls: 0 };
+    if (options.labelTest === 'blackmark60x20direct') { evidence.mode = 'direct-label-diagnostic'; evidence.printApiCalls = 0; evidence.completion = 'unknown'; }
     if (!options.labelTest) evidence.printApiCalls = 0;
     for (const platform of options.labelTest ? [options.architecture] : ['x86', 'x64']) {
         const stage = path.join(runRoot, platform);
@@ -180,7 +185,7 @@ async function main() {
         if (connection && (result.exitCode !== 0 || !connectionPassed(result.report, connection))) break;
     }
     fs.writeFileSync(path.join(runRoot, 'evidence.json'), JSON.stringify(evidence, null, 2) + '\n', { flag: 'wx' });
-    if (evidence.results.some(r => r.exitCode !== 0 || (options.labelTest ? !labelReturned(r.report) : connection ? !connectionPassed(r.report, connection) : r.report !== passReport))) throw new Error('NativeLoadProbeFailed');
+    if (evidence.results.some(r => r.exitCode !== 0 || (options.labelTest === 'blackmark60x20direct' ? !directReturned(r.report) : options.labelTest ? !labelReturned(r.report) : connection ? !connectionPassed(r.report, connection) : r.report !== passReport))) throw new Error('NativeLoadProbeFailed');
 }
 module.exports = { parseArgs, safeReport, connectionPassed, labelReturned };
 if (require.main === module) main().catch(error => {

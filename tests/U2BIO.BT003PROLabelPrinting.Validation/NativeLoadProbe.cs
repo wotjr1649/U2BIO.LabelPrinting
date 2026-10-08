@@ -58,7 +58,7 @@ namespace U2BIO.BT003PROLabelPrinting.Validation
         }
         internal static int Run(Assembly library)
         { return RunWithNonce(library, ""); }
-        internal static int RunWithNonce(Assembly library, string nonce, string transport = null, string port = null, string ip = "", string labelForm = null)
+        internal static int RunWithNonce(Assembly library, string nonce, string transport = null, string port = null, string ip = "", string labelForm = null, bool directSend = false)
         {
             bool label = labelForm != null;
             string suffix = nonce.Length == 0 ? "" : "|nonce=" + nonce;
@@ -107,16 +107,21 @@ namespace U2BIO.BT003PROLabelPrinting.Validation
                             var bound = (IDictionary)sdk.GetField("functions", BindingFlags.NonPublic | BindingFlags.Static).GetValue(null);
                             if (bound == null || bound.Count != 41) { result = 7; report = "NATIVE_LOAD|status=Failed|code=ProbeBindingMismatch"; return; }
                             if (options != null) {
-                                object observed = sdk.GetMethod(label ? "ProbeLabel" : "ProbeConnection", BindingFlags.NonPublic | BindingFlags.Static)
+                                object observed = sdk.GetMethod(directSend ? "ProbeDirectLabel" : label ? "ProbeLabel" : "ProbeConnection", BindingFlags.NonPublic | BindingFlags.Static)
                                     .Invoke(null, label ? new[] { options, labelForm } : new[] { options });
                                 bool passed = (bool)observed.GetType().GetProperty("Passed", BindingFlags.NonPublic | BindingFlags.Instance).GetValue(observed);
                                 object response = label ? observed.GetType().GetField("Response", BindingFlags.NonPublic | BindingFlags.Instance).GetValue(observed) : null;
-                                report = label ? "LABEL|status=" + (response != null ? "Returned" : "Failed") : "CONNECTION|transport=" + transport + "|status=" + (passed ? "Passed" : "Failed");
+                                int? sent = directSend ? (int?)observed.GetType().GetField("SendCode", BindingFlags.NonPublic | BindingFlags.Instance).GetValue(observed) : null;
+                                report = directSend ? "DIRECT_LABEL|status=" + (sent.HasValue ? "Returned" : "Failed") : label ? "LABEL|status=" + (response != null ? "Returned" : "Failed") : "CONNECTION|transport=" + transport + "|status=" + (passed ? "Passed" : "Failed");
                                 foreach (string field in new[] { "Pre", "SetPort", "Connect", "Open", "Disconnect", "Closed" }) {
                                     int? value = (int?)observed.GetType().GetField(field, BindingFlags.NonPublic | BindingFlags.Instance).GetValue(observed);
                                     report += "|" + field.ToLowerInvariant() + "=" + (value.HasValue ? value.Value.ToString(System.Globalization.CultureInfo.InvariantCulture) : "none");
                                 }
-                                if (label) {
+                                if (directSend) {
+                                    bool invoked = (bool)observed.GetType().GetField("SendInvoked", BindingFlags.NonPublic | BindingFlags.Instance).GetValue(observed);
+                                    report += "|send=" + (sent.HasValue ? sent.Value.ToString(System.Globalization.CultureInfo.InvariantCulture) : "none") + "|invoked=" + (invoked ? "1" : "0") + "|completion=unknown|printApiCalls=0|rfidApiCalls=0";
+                                    result = passed && invoked && sent == 0 ? 0 : 12;
+                                } else if (label) {
                                     int? form = (int?)observed.GetType().GetField("FormCode", BindingFlags.NonPublic | BindingFlags.Instance).GetValue(observed);
                                     bool invoked = (bool)observed.GetType().GetField("PrintInvoked", BindingFlags.NonPublic | BindingFlags.Instance).GetValue(observed);
                                     int? native = response == null ? null : (int?)response.GetType().GetField("NativeCode", BindingFlags.NonPublic | BindingFlags.Instance).GetValue(response);

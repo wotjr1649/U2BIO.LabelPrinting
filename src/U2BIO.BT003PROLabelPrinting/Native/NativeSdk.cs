@@ -65,6 +65,8 @@ namespace U2BIO.BT003PROLabelPrinting.Native
         {
             internal int? Pre, SetPort, Connect, Open, Disconnect, Closed;
             internal int? FormCode;
+            internal int? SendCode;
+            internal bool SendInvoked;
             internal bool PrintInvoked;
             internal NativeLabelResponse Response;
             internal string ResponseError;
@@ -122,6 +124,37 @@ namespace U2BIO.BT003PROLabelPrinting.Native
                 try { result.Response = NativeLabelResponse.Capture(pointer => { result.PrintInvoked = true; print(1, pointer); }); }
                 catch (NativeSdkException error) { result.ResponseError = error.Code; }
             });
+        }
+        // Fixed ASCII AC diagnostic only. SendData's return does not establish print completion.
+        internal static UsbProbeResult ProbeDirectLabel(NativeConnectionOptions options, string validatedForm)
+        {
+            CheckDirectDiagnosticForm(validatedForm);
+            if (options == null || options.IfType != 1) throw new NativeSdkException("InvalidConnectionOptions");
+            lock (Sync) {
+                LoadForConnection();
+                return RunDirectLabelProbe(options, validatedForm, (NativeApi.SetPrinterPortDelegate)functions[typeof(NativeApi.SetPrinterPortDelegate)],
+                    (NativeApi.DeviceConnectDelegate)functions[typeof(NativeApi.DeviceConnectDelegate)],
+                    (NativeApi.CheckPrtConnectionDelegate)functions[typeof(NativeApi.CheckPrtConnectionDelegate)],
+                    (NativeApi.DeviceDisconnectDelegate)functions[typeof(NativeApi.DeviceDisconnectDelegate)],
+                    (NativeApi.SendDataDelegate)functions[typeof(NativeApi.SendDataDelegate)]);
+            }
+        }
+        internal static UsbProbeResult RunDirectLabelProbe(NativeConnectionOptions options, string validatedForm, NativeApi.SetPrinterPortDelegate setPort, NativeApi.DeviceConnectDelegate connect,
+            NativeApi.CheckPrtConnectionDelegate status, NativeApi.DeviceDisconnectDelegate disconnect, NativeApi.SendDataDelegate send)
+        {
+            CheckDirectDiagnosticForm(validatedForm);
+            if (options == null || options.IfType != 1) throw new NativeSdkException("InvalidConnectionOptions");
+            return RunConnectionCore(options, setPort, connect, status, disconnect, result => {
+                result.SendInvoked = true;
+                result.SendCode = send(validatedForm);
+            });
+        }
+        private static void CheckDirectDiagnosticForm(string value)
+        {
+            CheckDiagnosticForm(value);
+            foreach (char character in value) if (character > 127) throw new NativeSdkException("InvalidDiagnosticForm");
+            foreach (string line in value.Split('\n'))
+                if (line.TrimStart().StartsWith("AW,", StringComparison.Ordinal)) throw new NativeSdkException("InvalidDiagnosticForm");
         }
         private static void CheckDiagnosticForm(string value)
         {
