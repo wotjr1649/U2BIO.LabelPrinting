@@ -74,7 +74,7 @@ namespace U2BIO.BT003PROLabelPrinting.Validation
             var copied = removed.AddText(removed.TextElements[0]);
             var copiedOptions = removedOptions.WithLineAdvance(3, removedOptions.LineAdvances[0]);
             Check(copied.TextElements.Count == 4 && copiedOptions.LineAdvances.Count == 4);
-            Error("CoordinateOverflow", () => template.WithText(0, template.TextElements[0].WithPosition(0, int.MaxValue).WithPayload("a\nb")).ExpandFixedLines(options, out var ignored));
+            Error("CoordinateOverflow", () => template.WithText(0, template.TextElements[0].WithPosition(0, int.MaxValue).WithPayload("a\nb")).ExpandFixedLines(new BtplRenderOptions().WithLineAdvance(0, new BtplLineAdvance(0, 40)), out var ignored));
 
             foreach (string command in new[] { "AA", "AH", "AI", "AK", "AL", "AZ9", "VA", "VZ" })
                 Check(BtplTemplate.Parse(Header + command + ",1,2,1,1,0,0,x,y\nE").TextElements[0].Payload == "x,y");
