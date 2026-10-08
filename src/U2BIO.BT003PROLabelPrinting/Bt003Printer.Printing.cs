@@ -139,10 +139,8 @@ namespace U2BIO.BT003PROLabelPrinting
                 if (state != PrinterState.Connected) return Task.FromResult(Immediate(request, PrintStopReason.NotConnected, state == PrinterState.Faulted ? "PrinterFaulted" : "NotConnected"));
                 work = Start(PrintWork, PrinterState.Validating, new PrintingData(request, false, cancellationToken));
             }
-            return AwaitPrint(work.Completion.Task);
+            return work.PrintCompletion.Task;
         }
-        private static async Task<BatchPrintResult> AwaitPrint(Task<object> task)
-            => (BatchPrintResult)await task.ConfigureAwait(false);
         private string StopCode(Work work) => work.TimedOut ? "NativeCallTimeout" : disposed ? "Disposed" : "Cancelled";
         private static BatchPrintResult Immediate(BtplPrintRequest request, PrintStopReason reason, string resultCode)
             => new BatchPrintResult(reason, resultCode, Enumerable.Range(0, request.RowCount).Select(i => new RowPrintResult(i, PrintRowStatus.NotAttempted, reason, resultCode)));

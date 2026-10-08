@@ -32,6 +32,7 @@ namespace U2BIO.BT003PROLabelPrinting
         private sealed class Work
         {
             internal readonly TaskCompletionSource<object> Completion = new TaskCompletionSource<object>(TaskCreationOptions.RunContinuationsAsynchronously);
+            internal TaskCompletionSource<BatchPrintResult> PrintCompletion;
             internal readonly List<NativeCallResult> Calls = new List<NativeCallResult>();
             internal Func<Work, object> Body;
             internal PrintingData Printing;
@@ -68,6 +69,8 @@ namespace U2BIO.BT003PROLabelPrinting
         private Work Start(Func<Work, object> body, PrinterState activeState, PrintingData printing = null)
         {
             var work = new Work { Body = body, Printing = printing };
+            if (printing != null && !printing.PreflightOnly)
+                work.PrintCompletion = new TaskCompletionSource<BatchPrintResult>(TaskCreationOptions.RunContinuationsAsynchronously);
             working = true; state = disposed ? PrinterState.Disposed : activeState; next = work;
             if (worker == null) {
                 worker = new Thread(RunWorker) { IsBackground = true, Name = "BT003 SDK" };
@@ -96,8 +99,9 @@ namespace U2BIO.BT003PROLabelPrinting
                                     if (disposed && preflight != null)
                                         result = new PrintPreflightResult(preflight.IsReady ? "Disposed" : preflight.Code, preflight.ManagedValidation,
                                             preflight.DeviceValidation, PrinterState.Disposed, preflight.NativeFunction, preflight.NativeCode, preflight.NativeCallPending);
-                                    work.Completion.TrySetResult(result);
+                                    Complete(work, result);
                                 }
+                                else if (work.PrintCompletion != null) work.PrintCompletion.TrySetException(failure);
                                 else work.Completion.TrySetException(failure);
                             }
                             if (!processClaim) { worker = null; if (disposed) ready.Dispose(); return; }
@@ -111,6 +115,11 @@ namespace U2BIO.BT003PROLabelPrinting
         private void CheckStop(Work work)
         {
             lock (sync) if (work.TimedOut || disposed || (work.Printing != null && work.Printing.Cancellation.IsCancellationRequested)) throw new Stopped();
+        }
+        private static void Complete(Work work, object result)
+        {
+            if (work.PrintCompletion != null) work.PrintCompletion.TrySetResult((BatchPrintResult)result);
+            else work.Completion.TrySetResult(result);
         }
         private T Call<T>(Work work, string function, Func<T> call, bool cleaning = false, Action entered = null, bool receiveResult = false)
         {
@@ -131,7 +140,7 @@ namespace U2BIO.BT003PROLabelPrinting
                     work.TimedOut = true;
                     if (!work.Terminal) {
                         work.Terminal = true;
-                        work.Completion.TrySetResult(work.Printing == null ? (object)Result(work, "NativeCallTimeout", function) : TimeoutPrinting(work));
+                        Complete(work, work.Printing == null ? (object)Result(work, "NativeCallTimeout", function) : TimeoutPrinting(work));
                     }
                 }
             };
