@@ -20,6 +20,8 @@ namespace U2BIO.BT003PROLabelPrinting.Validation
             Check(run.GetParameters().Length == 9 && run.GetParameters()[1].ParameterType == typeof(string));
             string first = "^Q25,3\r\n^W50\r\n^H10\r\n^S2\r\n^P1\r\n^C1\r\n^R0\r\n^E0\r\n^D0\r\n^O0\r\n^L\r\nAC,24,24,1,1,0,0,U2BIO TEST\r\nE\r\n";
             string second = first.Replace("^Q25,3", "^Q40,5,7.5+").Replace("^W50", "^W70\r\n^G0").Replace("AC,24,24", "AC,80,24");
+            Check(LabelDiagnosticForms.Create("50x25gap3") == first);
+            Check(LabelDiagnosticForms.Create("blackmark60x20") == second);
             string[] names = { "Set", "Connect", "Status", "Disconnect", "Reset", "Form", "Print" };
             foreach (string selected in new[] { first, second })
             foreach (string mode in new[] { "ok", "pre", "set", "connect", "open", "form", "invalid", "throw" }) {

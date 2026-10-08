@@ -92,12 +92,15 @@ namespace U2BIO.BT003PROLabelPrinting.Native
             NativeApi.CheckPrtConnectionDelegate status, NativeApi.DeviceDisconnectDelegate disconnect)
         { return RunConnectionCore(options, setPort, connect, status, disconnect, null); }
 
-        internal static UsbProbeResult ProbeLabel50x25(NativeConnectionOptions options)
+        // Only the pinned diagnostic caller supplies reviewed print-only recipes here.
+        // Product template validation and public Print are later tasks; this is not a raw BTPL public API.
+        internal static UsbProbeResult ProbeLabel(NativeConnectionOptions options, string validatedForm)
         {
             if (options == null || options.IfType != 1) throw new NativeSdkException("InvalidConnectionOptions");
+            CheckDiagnosticForm(validatedForm);
             lock (Sync) {
                 LoadForConnection();
-                return RunLabelProbe(options, (NativeApi.SetPrinterPortDelegate)functions[typeof(NativeApi.SetPrinterPortDelegate)],
+                return RunLabelProbe(options, validatedForm, (NativeApi.SetPrinterPortDelegate)functions[typeof(NativeApi.SetPrinterPortDelegate)],
                     (NativeApi.DeviceConnectDelegate)functions[typeof(NativeApi.DeviceConnectDelegate)],
                     (NativeApi.CheckPrtConnectionDelegate)functions[typeof(NativeApi.CheckPrtConnectionDelegate)],
                     (NativeApi.DeviceDisconnectDelegate)functions[typeof(NativeApi.DeviceDisconnectDelegate)],
@@ -106,18 +109,24 @@ namespace U2BIO.BT003PROLabelPrinting.Native
                     (NativeApi.StartLabelPrintDelegate)functions[typeof(NativeApi.StartLabelPrintDelegate)]);
             }
         }
-        internal static UsbProbeResult RunLabelProbe(NativeConnectionOptions options, NativeApi.SetPrinterPortDelegate setPort, NativeApi.DeviceConnectDelegate connect,
+        internal static UsbProbeResult RunLabelProbe(NativeConnectionOptions options, string validatedForm, NativeApi.SetPrinterPortDelegate setPort, NativeApi.DeviceConnectDelegate connect,
             NativeApi.CheckPrtConnectionDelegate status, NativeApi.DeviceDisconnectDelegate disconnect, NativeApi.ResetFormDelegate reset,
             NativeApi.SetPrintFormStringDelegate form, NativeApi.StartLabelPrintDelegate print)
         {
             if (options == null || options.IfType != 1) throw new NativeSdkException("InvalidConnectionOptions");
+            CheckDiagnosticForm(validatedForm);
             return RunConnectionCore(options, setPort, connect, status, disconnect, result => {
                 reset();
-                result.FormCode = form("^Q25,3\r\n^W50\r\n^H10\r\n^S2\r\n^P1\r\n^C1\r\n^R0\r\n^E0\r\n^D0\r\n^O0\r\n^L\r\nAC,24,24,1,1,0,0,U2BIO TEST\r\nE\r\n");
+                result.FormCode = form(validatedForm);
                 if (result.FormCode != 0) return;
                 try { result.Response = NativeLabelResponse.Capture(pointer => { result.PrintInvoked = true; print(1, pointer); }); }
                 catch (NativeSdkException error) { result.ResponseError = error.Code; }
             });
+        }
+        private static void CheckDiagnosticForm(string value)
+        {
+            if (string.IsNullOrEmpty(value) || value.Length > 65536 || value.IndexOf('\0') >= 0)
+                throw new NativeSdkException("InvalidDiagnosticForm");
         }
         private static UsbProbeResult RunConnectionCore(NativeConnectionOptions options, NativeApi.SetPrinterPortDelegate setPort, NativeApi.DeviceConnectDelegate connect,
             NativeApi.CheckPrtConnectionDelegate status, NativeApi.DeviceDisconnectDelegate disconnect, Action<UsbProbeResult> connected)

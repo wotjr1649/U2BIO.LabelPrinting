@@ -31,7 +31,7 @@ function parseArgs(args) {
     if (transport === 'tcp' && net.isIP(ip) === 0) bad();
     const selected = { sdk: args[1], connection: { transport, port, ip } };
     if (fields['--label-test'] !== undefined || fields['--architecture'] !== undefined) {
-        if (transport !== 'usb' || fields['--label-test'] !== '50x25gap3' || !['x86', 'x64'].includes(fields['--architecture'])) bad();
+        if (transport !== 'usb' || !['50x25gap3', 'blackmark60x20'].includes(fields['--label-test']) || !['x86', 'x64'].includes(fields['--architecture'])) bad();
         selected.labelTest = fields['--label-test']; selected.architecture = fields['--architecture'];
     }
     return selected;
@@ -71,7 +71,8 @@ function labelReturned(report) {
 async function run(executable, stage, environment, taskkill, connection, labelTest) {
     return new Promise((resolve, reject) => {
         const nonce = crypto.randomBytes(16).toString('hex');
-        const args = connection ? [labelTest ? '--probe-label-50x25gap3' : '--probe-connection', connection.transport, connection.port, ...(connection.transport === 'tcp' ? [connection.ip] : []), nonce] : ['--probe-native-load', nonce];
+        const labelMode = labelTest === 'blackmark60x20' ? '--probe-label-blackmark60x20' : '--probe-label-50x25gap3';
+        const args = connection ? [labelTest ? labelMode : '--probe-connection', connection.transport, connection.port, ...(connection.transport === 'tcp' ? [connection.ip] : []), nonce] : ['--probe-native-load', nonce];
         const child = spawn(executable, args, { cwd: stage, env: environment, windowsHide: true, shell: false, stdio: ['ignore', 'pipe', 'pipe'] });
         const chunks = [];
         let bytes = 0, failure = '', cleanup;

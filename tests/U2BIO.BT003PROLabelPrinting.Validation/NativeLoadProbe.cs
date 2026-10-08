@@ -58,8 +58,9 @@ namespace U2BIO.BT003PROLabelPrinting.Validation
         }
         internal static int Run(Assembly library)
         { return RunWithNonce(library, ""); }
-        internal static int RunWithNonce(Assembly library, string nonce, string transport = null, string port = null, string ip = "", bool label = false)
+        internal static int RunWithNonce(Assembly library, string nonce, string transport = null, string port = null, string ip = "", string labelForm = null)
         {
+            bool label = labelForm != null;
             string suffix = nonce.Length == 0 ? "" : "|nonce=" + nonce;
             if (label && transport != "usb") { Console.WriteLine("NATIVE_LOAD|status=Failed|code=InvalidConnectionOptions" + suffix); return 2; }
             object options = null;
@@ -106,7 +107,8 @@ namespace U2BIO.BT003PROLabelPrinting.Validation
                             var bound = (IDictionary)sdk.GetField("functions", BindingFlags.NonPublic | BindingFlags.Static).GetValue(null);
                             if (bound == null || bound.Count != 41) { result = 7; report = "NATIVE_LOAD|status=Failed|code=ProbeBindingMismatch"; return; }
                             if (options != null) {
-                                object observed = sdk.GetMethod(label ? "ProbeLabel50x25" : "ProbeConnection", BindingFlags.NonPublic | BindingFlags.Static).Invoke(null, new[] { options });
+                                object observed = sdk.GetMethod(label ? "ProbeLabel" : "ProbeConnection", BindingFlags.NonPublic | BindingFlags.Static)
+                                    .Invoke(null, label ? new[] { options, labelForm } : new[] { options });
                                 bool passed = (bool)observed.GetType().GetProperty("Passed", BindingFlags.NonPublic | BindingFlags.Instance).GetValue(observed);
                                 object response = label ? observed.GetType().GetField("Response", BindingFlags.NonPublic | BindingFlags.Instance).GetValue(observed) : null;
                                 report = label ? "LABEL|status=" + (response != null ? "Returned" : "Failed") : "CONNECTION|transport=" + transport + "|status=" + (passed ? "Passed" : "Failed");

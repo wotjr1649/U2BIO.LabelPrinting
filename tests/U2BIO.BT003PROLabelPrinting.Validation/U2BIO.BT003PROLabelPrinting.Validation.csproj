@@ -35,6 +35,7 @@
     <Compile Include="ConnectionTests.cs" />
     <Compile Include="LabelResponseTests.cs" />
     <Compile Include="LabelPrintTests.cs" />
+    <Compile Include="LabelDiagnosticForms.cs" />
     <Compile Include="NativeLoadProbe.cs" />
     <ProjectReference Include="..\..\src\U2BIO.BT003PROLabelPrinting\U2BIO.BT003PROLabelPrinting.csproj">
       <Project>{8815635E-D90E-460C-A732-7161E758FCA5}</Project>
