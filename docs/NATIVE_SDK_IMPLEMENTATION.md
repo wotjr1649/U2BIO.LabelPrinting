@@ -233,7 +233,7 @@ SDK 일일 로그에서는 자체 합성 요소를 두 번 확인했다. 첫 기
 
 다음 단일 진단은 Black-Mark 반복 주기 40 mm·마크 폭 5 mm를 기준으로 Q의 offset까지 다루고, 전체 뒷종이 기준 폭 70 mm와 흰 라벨 60 mm의 좌우 여백을 구분하는 후보로 준비한다. 반사 센서 G0의 해당 모델 적용과 SDK 가공 후 명령 보존도 확인해야 한다. 원문 BTPL의 센서/마크 offset과 SDK Registry 변경 함수 SetLabelSetting은 서로 다른 경로다. Registry를 대체 설정으로 쓰지 않는다.
 
-사용자는 마크 앞·뒤 흰 뒷종이가 각각 7.5 mm라고 확정했고, 이 규격은 이번 시험에만 적용하며 공통 DLL에 고정하지 않도록 지시했다. 실측 거리를 BTPL offset과 동일시하기 전에 원문의 기준점·부호와 SDK의 명령 처리 경로를 확인해야 한다. 아래 후보는 관리 전달 시험을 통과했지만 실제 인쇄는 실행하지 않았다. 실제 한 장·한글·RFID 저장 데이터 전후 일치 조건은 계속 열어 둔다.
+사용자는 마크 앞·뒤 흰 뒷종이가 각각 7.5 mm라고 확정했고, 이 규격은 이번 시험에만 적용하며 공통 DLL에 고정하지 않도록 지시했다. 실측 거리를 BTPL offset과 동일시하기 전에 원문의 기준점·부호와 SDK의 명령 처리 경로를 확인해야 한다. `7600257` 작성 시점에는 후보의 관리 전달만 검사했다. 후속 단일 실기 결과는 문서 마지막 절을 따른다. 실제 한 장·한글·RFID 저장 데이터 전후 일치 조건은 계속 열어 둔다.
 
 ## 공통 DLL의 서식 전달 보완과 Black-Mark 후보 한계
 
@@ -252,3 +252,29 @@ supervisor의 현재 관리 코드 핀은 `c163e24`이며 Release 산출물은 �
 | DLL, x86/x64 공통 | `93bde4f28db91a90ed9f9d4058d916a61aa968ac903aa20f68dc1256cef15e95` |
 | x86 validation exe | `2e3ce12f7f9dc869584a63c15e76ce79221ca081d4a6173fcbe89171373b924d` |
 | x64 validation exe | `fea68e382e1152f092397a82ad0db59270f692db671cdeca6c62a79da2b61287` |
+
+## Black-Mark 후보의 단일 실기: 응답 timeout, 이송·출력 없음
+
+후속 정적 확인에서 Q가 이미 있을 때 원문 행을 보존하고, FONT/AUID/AW 외 일반 행에 CRLF를 붙여 전송 buffer에 append하는 경로를 확인했다. Q의 세 번째 값을 내부 metadata로 읽지 않는 관측을 프린터 전송 누락으로 확대하지 않는다. [추가 분석](START_LABEL_PRINT_ANALYSIS.md)의 후속 확인 절에 주소와 USB WriteFile·응답 대기 경로를 기록했다.
+
+2026-10-08 11:35:28 KST, `7600257`에서 현재 관리 코드 핀 `c163e24`를 사용해 다음 명령을 한 번 실행했다. 실행 전 네 Release 산출물과 제조사 DLL 쌍의 해시 일치, SDK 로그 대상의 reparse point 부재, 기존 task probe 프로세스 0을 확인했다. SDK 로그 생성·추가 기록은 이전 사용자 허용 범위이며 재요청하지 않았다.
+
+```text
+node tools/probe-native-load.js --sdk-directory <SDK의 라이브러리 폴더> --connection usb --port 0 --label-test blackmark60x20 --architecture x86
+```
+
+| 항목 | 관측 결과 |
+| --- | --- |
+| 연결·서식 | Pre=0, SetPort=0, Connect=0, Open=1, Form=0 |
+| 요청 | StartLabelPrint(1) 1회, Q40,5,7.5+·W70·G0·P1·C1, 합성 ASCII U2BIO TEST |
+| 응답 | response=parsed, native=101, prefix=empty, length=4 |
+| 정리·종료 | Disconnect raw=0, Closed=0; child exit 11, supervisor exit 1, 잔여 task probe 0 |
+| 물리적 결과 | 사용자가 용지 움직임과 출력 모두 없음을 확인 |
+
+근거는 `.work/native-load/1791426928556/evidence.json`이다. Rev.1.3의 오류표에서 101은 Response timeout이다. host 제한시간 초과가 아니라 SDK가 반환한 응답 오류이며 보호된 응답 문법 검사 자체는 통과했다. 오류를 성공으로 바꾸지 않았고 x64 또는 같은 서식으로 재시도하지 않았다. 이 시험에서 관리 코드의 RFID API 호출은 0이며 저장 데이터 보존을 검증한 것은 아니다.
+
+Windows에서 BT-003 Pro의 USB 관련 두 PnP 항목과 FTDI COM3은 OK 상태로 열거됐다. 해당 이름에 앞쪽 공백이 있어 exact-name 조회가 누락될 수 있으며 열거 결과를 연결·출력 성공으로 대체하지 않는다. USB 출력 경로는 SDK 내부 WriteFile로 연결되고 Open은 handle 보유 검사다. 사용자는 본체 FEED가 정상 이송되고 오류 표시가 없음을 확인했다. 따라서 용지 규격만으로 현재 무이송 원인을 확정하지 않는다. SDK 로그의 최근 자체 합성 요소를 기준으로 Q40,5,7.5+·W70·G0·L의 보존도 확인했으나 실제 프린터 수신 증거로 사용하지 않는다. raw 로그와 다른 데이터는 출력·복사하지 않았다.
+
+다음 진단은 동일 용지 후보에서 텍스트 명령만 제조사 샘플의 AW 형태로 바꾸어 native AC와 SDK의 AW 그림 변환 경로를 구분한다. AC 미지원이 원인으로 확인된 것은 아니며 AW 인수의 보편 계약도 확정하지 않는다. 합성 문구만 사용하고 위치/센서/용지 설정을 동시에 바꾸지 않는다.
+
+추가 USB 경로 분석에서 SDK가 `SetPrinterPort` 중 사용자별 USB 연결 캐시를 삭제·재등록하는 별도 효과를 확인했다. 대상은 `HKCU\Software\BitekTechnology\AXBT003`의 USBn 값이다. 현재 USB 프린터 열거 수와 캐시 값은 각각 1이며 USB1의 vendor VID/PID·USB printer interface class 일치를 내용 공개 없이 확인했다. 정확한 주소와 Registry API는 [정적 분석](START_LABEL_PRINT_ANALYSIS.md)의 USB 캐시 절을 따른다. 이 효과는 SDK 자체 로그 기록 허용과 별도이며, 발견 이후 추가 native 연결·인쇄 호출은 하지 않는다. 다음 실기의 현재 대상 USB1 삭제·재등록/갱신에 대한 명시 허용이 필요하다. root에서 Registry를 수동 수정하거나 SetLabelSetting을 호출하지 않았다. TASK-02 조건 3·5·6·7과 TASK-03 착수는 계속 열어 둔다.

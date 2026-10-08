@@ -75,7 +75,23 @@ dumpbin /ERRORREPORT:NONE /DISASM:NOBYTES /OUT:<task-output.txt> <BlackfishNfcLi
 - 원문 세 번째 field가 중간 가공 서식에 남을 가능성과 내부 geometry에 반영되는지는 별개다. 이후 큰 `0xAB90`에서 생성한 buffer를 transport에 넘기므로, 서식 로그에 offset이 보인다는 사실만으로 실제 프린터에 동일 값이 전달됐다고 판단하지 않는다.
 - `^G0` literal의 해당 처리 경로와 모델 지원은 아직 확인하지 않았다. 프린터의 센서 설정이 반영되었거나 후보가 인쇄 원점을 보정한다고 선언하지 않는다.
 
-따라서 현재 시험 후보는 관리 코드의 서로 다른 서식 전달을 검사하는 데이터일 뿐이다. 공통 DLL에 용지 규격을 고정하지 않았고, 보정 실기를 실행하지 않았다. 다음 분석 대상은 생성되는 전송 buffer의 용지/센서 헤더와 원점이며, 원본 DLL 패치·Registry 변경·raw transport 호출로 검증 경계를 우회하지 않는다.
+`7600257` 작성 시점에는 시험 후보의 관리 전달만 검사했고 보정 실기를 실행하지 않았다. 공통 DLL에 용지 규격을 고정하지 않았다. 이후 원문 명령 전달 경로의 추가 분석과 단일 실기는 아래와 같이 구분한다.
+
+### 후속 확인: 내부 metadata와 원문 전송은 별도 경로
+
+Q-present 분기의 metadata 관측을 offset 전송 누락으로 확대하지 않는다. x86 `0x9898`–`0x98A4`에서 Q가 발견되면 `0x9956`으로 이동하여 인수 substring을 읽는다. 이 경로는 원문 Q 행을 대체하거나 삭제하지 않는다. 반대로 Q가 없을 때만 `0x98AA`–`0x9951`에서 기본 Q 문자열을 만든다. `0xA44C`–`0xA49E`는 기본값 prefix와 남은 원문을 결합하여 결과 문자열에 저장한다.
+
+큰 출력 함수의 두 번째 행 반복은 `0xBEED`부터 시작한다. FONT/AUID/AW 처리를 지나 `0xC155`에서 AW가 아닌 행은 `0xD644`로 이동한다. `0xD644`–`0xD690`은 해당 원문 행에 CRLF를 붙여 전송 buffer에 append한다. 고정 후보의 Q/W/G/AC/E는 이 일반 행 경로를 따른다. `0xD697`–`0xD6A9`에서 E 행을 만나면 누적 buffer를 전송한다. 따라서 내부 metadata에서 z를 사용하지 않는 것과 원문의 z 문자열이 전송 buffer에 남는 것은 양립한다. 이 확인은 프린터가 소수 offset·G0를 지원하거나 용지 원점을 맞췄다는 실기 증거가 아니다.
+
+USB 전송 helper `0x66B0`은 객체 `+0x214`의 vtable `+0x0C`를 호출한다. 원본 PE의 vtable `0x3A1160`을 읽어 `0x1CFB0`으로 대조했고, 이 함수의 IAT `0x32F590`은 WriteFile이다. 연결 검사 `0x1D2B0`은 handle 필드 `+0x0C`의 nonzero 여부를 반환한다. Open=1을 프린터의 용지·센서·수신 준비 상태로 확대하지 않는다.
+
+인쇄 helper `0xA510`은 전송 후 응답 문자열의 `total print`를 기다린다(`0xA631`–`0xA6A9`, literal `0x3A0188`). 이를 못 찾으면 ERROR 응답 검사 뒤 연결 상태를 확인하고 연결이 남아 있는 경우 `0xA724`에서 101을 반환한다. Rev.1.3 오류표의 101은 Response timeout이다. 이 오류로 WriteFile 실패·문법 오류·센서 오류 중 하나를 단독 원인으로 확정할 수 없으며, 실제 출력 여부는 별도로 관측한다.
+
+### USB 연결 캐시의 별도 효과
+
+SetPrinterPort의 USB 분기 `0xF459`는 `0x42B0`을 호출하고 이 함수의 `0x434C`은 USB 경로 탐색 `0x4580`으로 이어진다. `0x4580`은 HKLM의 usbprint 열거와 USB printer interface class를 읽고, 사용자별 `Software\BitekTechnology\AXBT003` 캐시도 갱신한다. `0x4744`–`0x477A`는 이전 USBn 값을 삭제한다. 삭제 wrapper `0x259A0`의 IAT `0x32F02C`는 원본 PE import에서 RegDeleteValueA로 대조했다. `0x4C89`/`0x4D24`는 `0x5E30`을 통해 새 USBn 값을 저장하며 `0x26B30` 계열은 RegSetValueExA를 사용한다.
+
+이것은 출력용 용지 설정을 저장하는 SetLabelSetting과 다른 연결 캐시 효과다. 현재 캐시 USB1과 USB print 열거 각각 1개, vendor VID/PID와 interface class 일치만 관측했다. 실제 경로·instance 식별자를 출력하거나 저장하지 않았다. SDK 로그 허용을 Registry 갱신 허용으로 확대하지 않는다. 추가 native 호출 전에는 현재 USB1의 SDK 삭제·재등록/갱신에 대한 정확한 허용을 받아야 하며, 캐시를 수동 수정하거나 SDK를 패치해 다른 경로로 실행하지 않는다.
 
 ## SDK 자체 로그의 별도 효과
 
