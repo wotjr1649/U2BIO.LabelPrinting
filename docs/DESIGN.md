@@ -520,7 +520,7 @@ SDK 확인은 작은 범위에서 수행하고, 확인되지 않은 응답이나
 | 기존 라벨 경로 | Layout/Object 서식과 DataRow의 Tag 컬럼 바인딩, Bixolon 출력 확인 |
 | DPI | 지정 SDK 샘플의 .cs/.csproj에서 별도 DPI 설정을 찾지 못함. 최종 사용자 결정으로 설정·검사 요건에서 제외 |
 | 인쇄 함수 | 제공 x86/x64 DLL에서 `StartLabelPrint` export 확인. 인쇄 전용 실제 동작은 미검증 |
-| 연결 | 매뉴얼의 `DeviceConnect()` 설명은 프린터와 RFID 모듈 연결을 함께 언급. 프린터만 연결하는 실제 조건 확인 필요 |
+| 연결 | 후속 TASK-02에서 USB "0"과 SetRfidPort 미호출로 x86/x64 연결·해제를 확인. 다른 포트·장치 조건은 별도 검증 |
 | 응답 버퍼 | 매뉴얼의 `ReadResponseMessage`는 확인한 x86/x64 DLL에서 export되지 않음 |
 | 연결 상태 | `CheckPrtConnection()`은 포트 연결 여부. 용지·리본·헤드 상태를 확인한 것으로 처리하지 않음 |
 | 문자열 ABI | 샘플·매뉴얼의 ANSI/Unicode 선언 차이, 반환 버퍼 크기를 실제 기준 DLL과 대조해야 함 |
