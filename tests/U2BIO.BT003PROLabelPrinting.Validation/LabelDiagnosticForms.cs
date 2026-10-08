@@ -16,6 +16,8 @@ namespace U2BIO.BT003PROLabelPrinting.Validation
                 // User-confirmed test stock/form; these settings are not common DLL defaults.
                 media = "^Q40,5,7.5+\r\n^W70\r\n^G0\r\n";
                 settings = "^E7\r\n^S5\r\n^H19\r\n^P1\r\n^C1\r\n^L\r\n";
+                if (recipe == "blackmark60x20")
+                    settings = "^S5\r\n^H19\r\n^P1\r\n^C1\r\n^R0\r\n^E15\r\n^L\r\n";
                 text = (recipe == "blackmark60x20" ? "AW" : "AC") + ",80,120,1,1,0,0,U2BIO TEST2\r\n";
             } else throw new ArgumentException("InvalidDiagnosticRecipe");
             return media + settings + text + "E\r\n";
