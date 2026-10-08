@@ -34,6 +34,7 @@
     <Compile Include="Native\NativeImage.cs" />
     <Compile Include="Native\NativeSdk.cs" />
     <Compile Include="Native\NativeConnectionOptions.cs" />
+    <Compile Include="Native\NativeLabelResponse.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <Target Name="ReportBuildSettings" AfterTargets="Build">
