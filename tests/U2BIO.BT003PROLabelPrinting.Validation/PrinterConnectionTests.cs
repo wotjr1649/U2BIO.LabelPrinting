@@ -2,6 +2,8 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
+using System.Security.Cryptography;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using U2BIO.BT003PROLabelPrinting;
@@ -39,7 +41,15 @@ namespace U2BIO.BT003PROLabelPrinting.Validation
                 return Mode == "connect-fail" ? 9 : 0;
             }
             internal int Status() { Add("Status"); return Mode == "conflict" ? Port : Port; }
-            internal int Disconnect() { Add("Disconnect"); if (Mode != "stay-open") Port = 0; return 7; }
+            internal int Disconnect() {
+                Add("Disconnect");
+                if (Mode == "disconnect-throw") {
+                    var type = typeof(Bt003ConnectionOptions).Assembly.GetType("U2BIO.BT003PROLabelPrinting.Native.NativeSdkException", true);
+                    throw (Exception)Activator.CreateInstance(type, BindingFlags.NonPublic | BindingFlags.Instance, null,
+                        new object[] { "NativeLoadFailed", (int?)5, "DeviceDisconnect" }, null);
+                }
+                if (Mode != "stay-open") Port = 0; return 7;
+            }
             internal void Reset() { Add("Reset"); }
             internal int Form(string form) { Add("Form"); return 0; }
             internal void Print(ushort copies, IntPtr pointer) { throw new InvalidOperationException("Connection tests must not print."); }
@@ -134,6 +144,37 @@ namespace U2BIO.BT003PROLabelPrinting.Validation
                 Check(SpinWait.SpinUntil(() => active.GetConnectionStatus().ResourcesReleased, 3000));
                 Check(active.GetConnectionStatus().State == PrinterState.Disposed && disposing.Calls.Count(x => x == "Disconnect") == 1);
             } finally { disposing.Release.Set(); active.Dispose(); }
+            foreach (int initial in new[] { 1, 0 }) {
+                string target = "synthetic-abandoned-" + initial;
+                string hash;
+                using (var sha = SHA256.Create()) hash = BitConverter.ToString(sha.ComputeHash(Encoding.UTF8.GetBytes("USB:" + target))).Replace("-", "").ToLowerInvariant();
+                using (var abandoned = new Mutex(false, @"Local\U2BIO.BT003PROLabelPrinting.Target." + hash)) {
+                    var owner = new Thread(() => abandoned.WaitOne()); owner.Start(); Check(owner.Join(1000));
+                    var f = new Fixture { Port = initial };
+                    using (var p = f.Printer()) {
+                        var result = p.Connect(Bt003ConnectionOptions.Usb(target));
+                        if (initial == 1) {
+                            Check(result.Code == "SdkStateConflict" && !f.Calls.Contains("Set") && !f.Calls.Contains("Connect") && !f.Calls.Contains("Disconnect"));
+                            f.Port = 0; Check(p.Disconnect().IsSuccess);
+                        } else Check(result.IsSuccess && f.Calls.IndexOf("Status") < f.Calls.IndexOf("Set"));
+                    }
+                }
+            }
+            var failingClose = new Fixture { Mode = "disconnect-throw" };
+            using (var p = failingClose.Printer()) {
+                Check(p.Connect(Bt003ConnectionOptions.Usb("synthetic-close-error")).IsSuccess);
+                var result = p.Disconnect();
+                Check(!result.IsSuccess && result.NativeFunction == "DeviceDisconnect" && result.NativeCode == null && result.SystemErrorCode == 5);
+                Check(result.Calls.Any(x => x.Function == "DeviceDisconnect" && x.NativeCode == null));
+                failingClose.Mode = null; Check(p.Disconnect().IsSuccess);
+            }
+            for (int attempt = 0; attempt < 200; attempt++) {
+                var f = new Fixture(); var p = f.Printer();
+                var connect = Task.Run(() => p.Connect(Bt003ConnectionOptions.Usb("synthetic-finalize")));
+                Check(SpinWait.SpinUntil(() => p.GetConnectionStatus().NativeCallPending || connect.IsCompleted, 1000));
+                p.Dispose(); Check(connect.Wait(2000));
+                Check(SpinWait.SpinUntil(() => p.GetConnectionStatus().ResourcesReleased, 1000));
+            }
             Console.WriteLine("PASS: owned connection dispatch, SDK worker, no queue, partial failure, conflict, timeout and late Dispose cleanup; synthetic SDK only");
         }
     }
