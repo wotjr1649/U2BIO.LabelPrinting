@@ -303,7 +303,7 @@ USB·TCP/IP·RS-232 연결은 `SetPrinterPort()`의 인터페이스 종류와 �
 
 `SetPrintFormVariableData`, `SetRfidPort`, `SetRfidProtocol`, `SetWritingDataType(0 포함)`, `StartPrintWithRfid` 등은 이 경로에 넣지 않는다. UID-only도 RFID API이므로 인쇄 전용 증명으로 대체할 수 없다. `SetLabelSetting`은 Registry에 값을 저장하므로 기본 연결·출력에서 호출하지 않는다. 인쇄 설정은 BTPL에 명시한다. `SendData`, 응답 버퍼 설정도 결과 확인의 대체 경로로 추가하지 않는다.
 
-`StartLabelPrint`의 응답 문법·완료 의미·RFID 무기록 여부는 현재 확정할 근거가 없다. 원형과 export 존재만 확인했다. **전용 파서와 정상 판정 구현은 실기/제조사 계약 확보 후 완료한다.** 미확정 상태의 코드가 응답을 무조건 성공으로 판정하는 구현은 허용하지 않는다.
+`StartLabelPrint`는 TASK-02에서 고정 SDK 정상 경로의 ASCII/NUL 응답 문법·42-byte 분석 상한과 x86/x64 ANSI949 실기를 확인했다. 유효한 코드0은 SdkResponse 근거이며 물리적 배출 완료를 뜻하지 않는다. timeout101·잘못된 응답·native 종료는 Unknown으로 처리한다. 제조사 문서에 없는 항목은 버전 고정 분석·실측·경계값 검사와 명시된 제한으로 확정할 수 있다. 상세 근거는 [구현·검증 상태](NATIVE_SDK_IMPLEMENTATION.md)의 채택 계약을 따른다. **제품 전용 파서·실행 경계의 통합은 TASK-05에서 완료하며, native 초과 쓰기·timeout의 호출자 보호 검증 전 PrintContractUnverified 게이트를 유지한다.** RFID API·기록 명령 미사용 검토와 저장 데이터 전후 실측을 구분한다.
 
 ### 수량·대기 제한
 
@@ -500,7 +500,7 @@ WithSetting은 허용 명령의 기존 하나를 그 위치에서 교체하고, 
 | 단계 | 작업 | 완료 증거 |
 | --- | --- | --- |
 | 1 | 제공 API와 DLL 원형·export·아키텍처 대조 | 정적 대조표·기준 해시 작성 완료. 실제 내부 선언과 ABI 실기 검증은 다음 구현 단계 |
-| 2 | USB 인쇄 전용 ABI·연결·응답 계약 확인 | 제조사 계약 및 작은 진단 harness의 실제 BT-003 Pro 고정 서식 한 건 결과. 생산 공개 API의 PrintContractUnverified 게이트를 우회하지 않음 |
+| 2 | USB 인쇄 전용 ABI·연결·응답 계약 확인 | 제공 선언·고정 SDK 정적 분석·격리 진단 및 x86/x64 실측의 지원 범위 확정. 생산 공개 API의 PrintContractUnverified 게이트를 우회하지 않음 |
 | 3 | 서식 해석, JSON 바인딩, 검사·결과 모델 구현 | DB·프린터 없는 실행 가능한 검증 |
 | 4 | 공통 DLL의 한 건·일괄·취소·사용 중 처리 | 자동 검사와 필요한 실기 결과 |
 | 5 | DevExpress 테스트 프로그램 구현 | 샘플 데이터 편집부터 결과 표시까지의 동작 확인 |
@@ -519,14 +519,14 @@ SDK 확인은 작은 범위에서 수행하고, 확인되지 않은 응답이나
 | phase2 플랫폼 | Checkup·SmartCheckup 프로젝트에서 .NET Framework 4.6.1, DevExpress 20.2.6 참조 확인 |
 | 기존 라벨 경로 | Layout/Object 서식과 DataRow의 Tag 컬럼 바인딩, Bixolon 출력 확인 |
 | DPI | 지정 SDK 샘플의 .cs/.csproj에서 별도 DPI 설정을 찾지 못함. 최종 사용자 결정으로 설정·검사 요건에서 제외 |
-| 인쇄 함수 | 제공 x86/x64 DLL에서 `StartLabelPrint` export 확인. 인쇄 전용 실제 동작은 미검증 |
+| 인쇄 함수 | TASK-02에서 내부 wrapper의 x86/x64 AW 인쇄를 확인. 제품 공개 흐름은 TASK-05 |
 | 연결 | 후속 TASK-02에서 USB "0"과 SetRfidPort 미호출로 x86/x64 연결·해제를 확인. 다른 포트·장치 조건은 별도 검증 |
 | 응답 버퍼 | 매뉴얼의 `ReadResponseMessage`는 확인한 x86/x64 DLL에서 export되지 않음 |
 | 연결 상태 | `CheckPrtConnection()`은 포트 연결 여부. 용지·리본·헤드 상태를 확인한 것으로 처리하지 않음 |
-| 문자열 ABI | 샘플·매뉴얼의 ANSI/Unicode 선언 차이, 반환 버퍼 크기를 실제 기준 DLL과 대조해야 함 |
-| 출력 수량·응답 | 서식 수량과 SDK 매수 인수의 관계, StartLabelPrint 응답 형식·완료 의미 확인 필요 |
-| BTPL 상세 규격 | 새 가이드로 일반 명령 구문이 보완됨. SDK 폴더의 원문 25·40쪽 이미지로 글꼴 표와 ~HE를 직접 확인. 전체 63쪽 PDF는 현재 저장 위치를 확인하지 못했고, AW 상세·수량/응답·모델 지원은 미확정 |
-| 실기 | 실제 인쇄, RFID 값 보존 확인, 장비 오류 시험은 아직 수행하지 않음 |
+| 문자열 ABI | 고정 SDK의 ANSI949 입력·ASCII/NUL 응답·정상42-byte 분석 상한 및 격리 진단 확인. 다른 버전/환경은 재검증 |
+| 출력 수량·응답 | TASK-02에서 copies1/^P1/^C1의 한 장 및 전용 응답을 확인. 코드0은 SdkResponse이며 배출 완료와 구분. 제품 통합·반복 수명은 TASK-05/06 |
+| BTPL 상세 규격 | 새 가이드로 일반 명령 구문이 보완됨. SDK 폴더의 원문 25·40쪽 이미지로 글꼴 표와 ~HE를 직접 확인. 전체 63쪽 PDF는 현재 저장 위치를 확인하지 못했고, AW size10/weight1·한 장·응답은 현재 장치에서 확인, 다른 조합/모델은 미검증 |
+| 실기 | TASK-02 x86/x64 합성 한글·한 장·별도 M/B 이동 확인. firmware 미확인, 저장 데이터 전후 실측은 사용자 제외, 모든 장비 오류·반복 인쇄는 미검증 |
 
 BTPL 규격과 실기 항목은 검증 과제이며, 사용자 정책을 추가로 결정해야 하는 항목과 구분한다. 이 문서 작성 자체를 DLL 구현·인쇄 시험 완료로 간주하지 않는다.
 

@@ -13,7 +13,7 @@
 
 일부 오류 분기에서 형식 상수 `Unknown,%d`와 결과 정수 102 또는 103을 확인했다. x86/x64 최종 결과 구성 경로의 `%02X`, `:`, `%s,%d` 상수도 원본 바이너리에서 대조했다. 이는 코드의 형식 상수와 분기에 대한 관측이며 실제 장치 응답이나 코드별 물리적 완료 의미의 검증이 아니다. 기존 RFID 응답 파서를 인쇄 전용 파서에 적용하지 않는다.
 
-## 정상 상태의 응답 상한 후보
+## 고정 SDK 정상 상태의 응답 상한
 
 Blackfish뿐 아니라 고정된 HFModule 쌍의 해시를 확인하고 UID 길이의 저장 경로와 concrete getter dispatch를 추적했다. 별도 검토자가 추가 setter와 초기화를 대조했다. 아래 주소는 모듈 기준 RVA다.
 
@@ -28,14 +28,14 @@ Blackfish뿐 아니라 고정된 HFModule 쌍의 해시를 확인하고 UID 길�
 
 formatter는 각 바이트를 zero-extend하여 두 자리 uppercase hex로 구성한다. 정상 상태에서 가장 긴 prefix는 10바이트 UID의 29 ASCII bytes다. 여기에 쉼표 1, signed int32 decimal 최대 표시 길이 11, 종료 NUL 1을 더하면 **42 bytes**다. `Unknown` 오류 prefix는 이보다 짧다.
 
-이는 **해시를 고정한 정상 경로의 진단 후보 상한**이다. formatter에 길이 clamp가 없고 최종 복사에도 대상 길이 비교가 없으므로 상태 손상·native 내부 오류까지 포함한 제조사 보편 안전 계약이라고 선언하지 않는다.
+이는 **해시를 고정한 SDK의 정상 경로에 한정한 42-byte 분석 상한**이다. 제조사 추가 문서를 기다리는 대신 아래 격리 진단과 실기·경계값 검사로 이 범위의 응답 계약을 채택한다. formatter에 길이 clamp가 없고 최종 복사에도 대상 길이 비교가 없으므로 상태 손상·native 내부 오류까지 포함한 보편적 in-process 안전 보장은 아니다.
 
 ## 확인된 것과 남은 경계
 
 - 관측한 출력 복사는 1-byte 단위이며 종료 NUL도 대상에 쓴다. 일반적인 출력 인코딩 계약과 모든 예외·오류 경로까지 확인한 것은 아니다.
 - native 함수에 대상 길이 인수가 없고 관측한 복사 루프에도 대상 상한 검사가 없다. 샘플의 `SizeConst=100`은 native 쓰기 상한을 설정하지 않는다.
 - 내부 정상 길이 설정 경로와 42-byte 후보를 위와 같이 확인했다. 손상된 상태를 포함하는 보편 상한은 검증하지 않았다. 따라서 100 bytes 또는 임의의 큰 버퍼를 안전 상한으로 선언하지 않는다.
-- RFID를 변경하지 않는 모든 내부 경로, 성공·실패 응답의 전체 문법, 정상 반환과 실제 라벨 출력 완료의 관계는 아직 확인하지 않았다.
+- 호출 경로의 RFID API·BTPL 기록 명령 미사용은 검토했으나 저장 데이터 전후 일치는 시험하지 않았다. 실제 응답0·101과 formatter 문법을 구분하고, 모든 오류의 물리 효과 또는 정상 반환과 배출 완료의 일치는 주장하지 않는다.
 - DeviceConnect=0과 별도로 CheckPrtConnection=1을 요구하는 기존 연결 판정은 유지한다. 연결 성공은 인쇄 준비·인쇄 완료의 증거가 아니다.
 
 분석 명령은 다음 형태이며 제조사 DLL의 명령을 실행하지 않는다.
@@ -45,7 +45,7 @@ dumpbin /ERRORREPORT:NONE /EXPORTS <BlackfishNfcLib.dll>
 dumpbin /ERRORREPORT:NONE /DISASM:NOBYTES /OUT:<task-output.txt> <BlackfishNfcLib.dll>
 ```
 
-## 다음 검사
+## 채택한 진단 경계
 
 `NativeLabelResponse`는 정확히 42 bytes 내 NUL과 printable ASCII, canonical signed int32, 빈/Unknown/지원 길이 UID prefix를 검사한다. 결과에는 코드·길이·prefix 종류만 남기고 실제 UID를 보존하지 않는다. 이 파서는 반환 이후 검사이며 native 쓰기 보호를 대신하지 않는다.
 

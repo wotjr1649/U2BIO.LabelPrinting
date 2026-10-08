@@ -52,7 +52,7 @@
 | `CheckRFConnection` | `int CheckRFConnection()` | O / O | RFID 내부 전용; 출력에서 호출 금지 | 1=연결, 0=닫힘; 태그 감지 아님 |
 | `DeviceConnect` | `int DeviceConnect()` | O / O | 연결·인쇄 후보 | 문서의 정상값 0만으로 연결을 판정하지 않으며 CheckPrtConnection=1도 요구. SetRfidPort 미호출 USB 실기와 정적 근거는 구현·검증 문서 참조 |
 | `DeviceDisconnect` | `int DeviceDisconnect()` | O / O | 연결·인쇄 후보 | int 원형, 의미 있는 반환값 미정의. CheckPrtConnection으로 해제 확인 |
-| `StartLabelPrint` | 샘플: `void StartLabelPrint(ushort iCopies, StringBuilder strReturn)` / LPStr, SizeConst=100 | — / O | 인쇄 전용 후보; 실기 계약 확인 전 사용 확정 아님 | copies·응답·RFID 무기록 동작 미확인 |
+| `StartLabelPrint` | 샘플: `void StartLabelPrint(ushort iCopies, StringBuilder strReturn)` / LPStr, SizeConst=100 | — / O | 인쇄 전용 wrapper 진단 확인; 제품 통합은 TASK-05 | 고정 SDK의 copies1·ANSI949·ASCII/NUL 응답 및 x86/x64 한글 실기 확인. 42-byte 정상 분석 상한·격리 경계는 구현 문서 참조. 응답0은 SDK 정상 응답이며 배출 완료 아님. RFID API/기록 명령 미사용 검토, 저장 데이터 전후 실측 제외 |
 
 ### 원형을 알 수 없거나 export가 없는 항목
 
@@ -65,7 +65,7 @@
 
 ## 2. ABI와 배포
 
-헤더의 `USHORT`→`ushort`, `BYTE`→`byte`, `int`→`int`를 유지한다. 호출 규약은 제공 선언의 StdCall이다. 샘플의 문자열은 ANSI/LPStr이며 헤더의 LPCTSTR/LPTSTR만 보고 Unicode로 변경하지 않는다. 새 DLL 구현은 설계 5절의 절대경로 로더가 반환한 module handle과 GetProcAddress로 내부 delegate를 바인딩한다. 샘플 DllImport의 이름 재검색 경로와 혼합하지 않는다. 문자 ABI의 실기 검증은 남아 있다. 결과 버퍼의 실제 바이트 상한·종료 규칙은 제조사 계약으로 확인해야 하며 `SizeConst=100`을 안전성 증거로 보지 않는다.
+헤더의 `USHORT`→`ushort`, `BYTE`→`byte`, `int`→`int`를 유지한다. 호출 규약은 제공 선언의 StdCall이다. 샘플의 문자열은 ANSI/LPStr이며 헤더의 LPCTSTR/LPTSTR만 보고 Unicode로 변경하지 않는다. 새 DLL 구현은 설계 5절의 절대경로 로더가 반환한 module handle과 GetProcAddress로 내부 delegate를 바인딩한다. 샘플 DllImport의 이름 재검색 경로와 혼합하지 않는다. ANSI949의 문자 ABI는 x86/x64 한글 실기로 확인했다. 결과는 고정 SDK의 정상 경로에서 ASCII·NUL 포함42 bytes로 분석했고, 격리 진단·경계값 검사로 지원 범위를 정한다. 다른 버전이나 native 상태 손상까지 포함한 in-process 보장은 아니며 `SizeConst=100`을 안전성 증거로 보지 않는다. 제품 호출 경계는 TASK-05에서 검증하기 전 차단을 유지한다.
 
 문서의 두 보안 함수는 반환을 C/C++ `long`으로 표기하지만 헤더/샘플은 int다. Windows native long도 32-bit이므로 .NET `long`(Int64)으로 바꾸지 않는다. 모든 원형에서 문자열의 입력·출력 방향도 유지하고 x86 장식 이름과 실제 인수 크기를 대조한다.
 

@@ -54,11 +54,11 @@
 
 - [x] SDK_API_COVERAGE의 원형 확인 대상 41개를 내부 래핑한다. StartPrintWithRfid2와 없는 ReadResponseMessage 원형은 추정하지 않는다.
 - [x] 기준 BlackfishNfcLib.dll·HFModule.dll 쌍에 대해 아키텍처·해시·로드 충돌·export를 검사하고 절대경로의 제한된 검색 로더를 구현한다.
-- [ ] 문자열 ANSI 전달, 입출력 방향, StdCall, 반환 버퍼의 바이트 상한·종료 규칙을 제조사 계약 및 x86/x64 증거로 확인한다.
+- [ ] 문자열 ANSI 전달, 입출력 방향, StdCall을 제공 선언·고정 SDK 분석과 x86/x64 실기로 확인한다. 정상 응답의 42-byte/NUL 계약과 격리 진단 경계를 검증하고, 미보장 in-process 호출은 TASK-05의 보호 경계 검증 전 차단한다.
 - [x] USB 식별 문자열과 SetRfidPort 미호출 상태의 연결·해제를 실제 장치로 확인한다. 물리적 케이블 연결 조건은 별도 기록한다.
-- [ ] StartLabelPrint의 인수·전용 응답 형식·완료 의미와 오류 판정을 확인한다. SendData 성공이나 RFID 응답 형식으로 대체하지 않는다.
+- [ ] StartLabelPrint의 인수·전용 응답 문법과 실제0·101, 합성 경계값 검사를 기록한다. 코드0은 SDK 정상 응답 근거로 한정하고 timeout·미정의 응답은 Unknown/후속 중단으로 정의한다. SendData 성공이나 RFID 응답 형식으로 대체하지 않는다.
 - [x] 합성 문구의 한글과 사용할 BTPL 글꼴·인수 조합, 한 행 한 장을 x86/x64 실제 장치로 확인한다. 인쇄 경로의 RFID API·BTPL 기록 명령 미사용을 검토한다. 사용자 확정 범위에 따라 RFID 리더·앱·새 태깅 시험과 저장 데이터 전후 실측은 제외하고 그 한계를 기록한다.
-- [ ] 장치·펌웨어·DLL 해시·시험 일시·결과와 미확인 항목을 기록한다. 안전한 버퍼 계약 등 핵심 미확정 상태에서는 완료 처리하지 않는다.
+- [ ] 장치·펌웨어(미확인 허용)·DLL 해시·시험 일시·결과와 미실측 항목을 기록한다. 고정 버전의 분석·격리 실측 범위와 제품 게이트·TASK-05/06 통합 조건을 구분하며, 근거 없는 범용 안전·물리 완료를 주장하지 않는다.
 
 근거: DESIGN 5·8절, SDK_API_COVERAGE. C20·C21. 현재 구현·실행 결과와 남은 조건은 [NATIVE_SDK_IMPLEMENTATION.md](NATIVE_SDK_IMPLEMENTATION.md)에 기록한다. TASK-02 전체 완료 후 TASK-03을 시작한다.
 
@@ -103,7 +103,7 @@
 - [ ] USB 우선 연결과 TCP/IP·RS-232의 공개 연결 옵션·API 및 내부 SDK 경로를 구현한다. 미검증 transport를 실기 성공으로 표시하지 않는다.
 - [ ] 연결 상태·프로세스 SDK 점유·대상 장치 mutex와 소유권을 구현하고 Busy 요청을 대기열 없이 거절한다.
 - [ ] ValidateForPrint는 관리 검사 뒤 장치 검사를 수행하고 ResetForm·서식 등록·인쇄를 호출하지 않는다. Port Open을 용지·리본·헤드 준비로 해석하지 않는다.
-- [ ] 미검증 ABI·글꼴·명령 조합은 PrintContractUnverified 또는 DeviceSupportUnverified로 차단한다.
+- [ ] 미검증 ABI·글꼴·명령 조합은 PrintContractUnverified 또는 DeviceSupportUnverified로 차단한다. TASK-02의 진단 지원 범위를 제품 흐름에 통합하고 native 초과 쓰기·종료·timeout의 호출자 보호를 검증한 뒤 해당 게이트를 해제한다.
 - [ ] Print는 매번 사전검사를 하고 ResetForm→서식 등록→StartLabelPrint→전용 응답 판정 순서로 진행한다. RFID 함수는 호출하지 않는다.
 - [ ] 실행 단계·PrintInvoked·함수별 raw 코드·정리 결과를 반환하고 연결 실패/부분 연결/해제 미확인/Dispose 뒤 상태를 계약대로 처리한다.
 - [ ] C01/C05/C14/C15/C16 및 USB 단건 정상·오류를 검증하고 TCP/IP·RS-232의 API 검사와 실기 여부를 각각 기록한다.
