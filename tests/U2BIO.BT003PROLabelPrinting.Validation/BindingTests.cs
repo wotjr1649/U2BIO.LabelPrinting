@@ -129,6 +129,9 @@ namespace U2BIO.BT003PROLabelPrinting.Validation
             Check(Has(BtplProcessor.Render(BtplPrintRequest.FromTable(single, fallback, deleted), 0), "InvalidDataRow"));
             var longText = Template(new string('x', 5000));
             Check(BtplProcessor.Render(BtplPrintRequest.Fixed(longText), 0).IsValid);
+            var variableFont = BtplTemplate.Parse(Header + "VA,0,0,1,1,0,0," + string.Concat(Enumerable.Repeat("^V03", 60)) + "\nE");
+            Check(BtplProcessor.Render(One(variableFont, fallback, "a", typeof(string)), 0).TextElements[0].Payload.Length == 60);
+            Check(Has(BtplProcessor.Render(One(variableFont, fallback, "1234", typeof(string)), 0), "TextCommandLimit"));
             Files(bindings);
             Console.WriteLine("PASS: bindings C01/C02/C19-offline, strict schema, immutable table snapshots, nullText, formats, all-row validation and partial preview; no DB/device calls");
         }
