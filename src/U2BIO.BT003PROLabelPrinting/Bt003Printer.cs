@@ -37,6 +37,7 @@ namespace U2BIO.BT003PROLabelPrinting
             internal Func<Work, object> Body;
             internal PrintingData Printing;
             internal bool Terminal, TimedOut, InCall, CleanupAttempted;
+            internal long NativeReturnedAt;
             internal int Generation;
             internal string Function;
             internal string CleanupFailureFunction;
@@ -65,6 +66,10 @@ namespace U2BIO.BT003PROLabelPrinting
         }
         private PrinterOperationResult Busy()
             => new PrinterOperationResult("Busy", Snapshot(true, false));
+        private bool OtherOwner
+        {
+            get { lock (ProcessSync) return processOwner != null && !ReferenceEquals(processOwner, this); }
+        }
 
         private Work Start(Func<Work, object> body, PrinterState activeState, PrintingData printing = null)
         {
@@ -121,22 +126,27 @@ namespace U2BIO.BT003PROLabelPrinting
             if (work.PrintCompletion != null) work.PrintCompletion.TrySetResult((BatchPrintResult)result);
             else work.Completion.TrySetResult(result);
         }
+        private static void NativeReturned(Work work)
+        {
+            if (Volatile.Read(ref work.NativeReturnedAt) == 0)
+                Volatile.Write(ref work.NativeReturnedAt, Stopwatch.GetTimestamp());
+        }
         private T Call<T>(Work work, string function, Func<T> call, bool cleaning = false, Action entered = null, bool receiveResult = false)
         {
             int generation; long started;
             lock (sync) {
                 if (!cleaning) CheckStop(work);
                 entered?.Invoke();
-                work.Function = function; work.InCall = true; generation = ++work.Generation;
+                work.Function = function; work.InCall = true; work.NativeReturnedAt = 0; generation = ++work.Generation;
                 pending = true; started = Stopwatch.GetTimestamp();
             }
             Timer deadlineTimer = null;
-            Action timeout = () => {
+            Action<long?> timeout = returnedAt => {
                 lock (sync) {
-                    if (!work.InCall || work.Generation != generation) return;
-                    double elapsed = (Stopwatch.GetTimestamp() - started) * 1000.0 / Stopwatch.Frequency;
+                    if (work.Generation != generation || (!returnedAt.HasValue && (!work.InCall || Volatile.Read(ref work.NativeReturnedAt) != 0))) return;
+                    double elapsed = (returnedAt.GetValueOrDefault(Stopwatch.GetTimestamp()) - started) * 1000.0 / Stopwatch.Frequency;
                     if (elapsed < waitMilliseconds) {
-                        deadlineTimer.Change((int)Math.Ceiling(waitMilliseconds - elapsed), Timeout.Infinite);
+                        if (!returnedAt.HasValue) deadlineTimer.Change((int)Math.Ceiling(waitMilliseconds - elapsed), Timeout.Infinite);
                         return;
                     }
                     state = disposed ? PrinterState.Disposed : PrinterState.Faulted;
@@ -148,18 +158,19 @@ namespace U2BIO.BT003PROLabelPrinting
                     }
                 }
             };
-            using (var timer = new Timer(_ => timeout(), null, Timeout.Infinite, Timeout.Infinite)) {
+            using (var timer = new Timer(_ => timeout(null), null, Timeout.Infinite, Timeout.Infinite)) {
                 deadlineTimer = timer;
                 timer.Change(waitMilliseconds, Timeout.Infinite);
                 T value;
                 try { value = call(); }
                 catch (Exception error) when (Recoverable(error)) {
+                    NativeReturned(work);
                     lock (sync) work.Calls.Add(new NativeCallResult(function, null, (error as NativeSdkException)?.SystemErrorCode));
                     throw;
                 }
                 finally {
-                    timeout();
-                    lock (sync) { work.InCall = false; pending = false; }
+                    NativeReturned(work);
+                    lock (sync) { work.InCall = false; pending = false; timeout(Volatile.Read(ref work.NativeReturnedAt)); }
                 }
                 lock (sync) work.Calls.Add(new NativeCallResult(function, value is int ? (int?)(int)(object)value : null));
                 if (!cleaning) {
@@ -336,7 +347,7 @@ namespace U2BIO.BT003PROLabelPrinting
         {
             Work work;
             lock (sync) {
-                RequireAlive(); if (working) return Busy();
+                RequireAlive(); if (working || OtherOwner) return Busy();
                 if (Released) { state = PrinterState.Disconnected; port = PrinterPortState.Closed; code = "Ok"; return Result(null, "Ok"); }
                 work = Start(DisconnectCore, PrinterState.Disconnecting);
             }

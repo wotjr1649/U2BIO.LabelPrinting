@@ -52,7 +52,7 @@ namespace U2BIO.BT003PROLabelPrinting
             Work work;
             lock (sync) {
                 RequireAlive(); if (request == null) throw new ArgumentNullException(nameof(request));
-                if (working) return new PrintPreflightResult("Busy", null, null, state);
+                if (working || OtherOwner) return new PrintPreflightResult("Busy", null, null, state);
                 if (state != PrinterState.Connected) return new PrintPreflightResult("NotConnected", null, null, state);
                 work = Start(PreflightWork, PrinterState.Validating, new PrintingData(request, true));
             }
@@ -98,7 +98,7 @@ namespace U2BIO.BT003PROLabelPrinting
                     rows.Add(new RowValidationResult(i, issues));
                     CheckStop(work);
                 }
-                int status = Status(work);
+                int status = Status(work, receiveResult: true);
                 if (status != 1) {
                     common.Add(new ValidationIssue(status == 0 ? "NotConnected" : "StatusUnavailable", null));
                     lock (sync) state = PrinterState.Faulted;
@@ -134,7 +134,7 @@ namespace U2BIO.BT003PROLabelPrinting
             Work work;
             lock (sync) {
                 RequireAlive(); if (request == null) throw new ArgumentNullException(nameof(request));
-                if (working) return Task.FromResult(Immediate(request, PrintStopReason.Busy, "Busy"));
+                if (working || OtherOwner) return Task.FromResult(Immediate(request, PrintStopReason.Busy, "Busy"));
                 if (cancellationToken.IsCancellationRequested) return Task.FromResult(Immediate(request, PrintStopReason.Cancelled, "Cancelled"));
                 if (state != PrinterState.Connected) return Task.FromResult(Immediate(request, PrintStopReason.NotConnected, state == PrinterState.Faulted ? "PrinterFaulted" : "NotConnected"));
                 work = Start(PrintWork, PrinterState.Validating, new PrintingData(request, false, cancellationToken));
@@ -215,7 +215,8 @@ namespace U2BIO.BT003PROLabelPrinting
                         data.Stage = PrintExecutionStage.PrintInvocation;
                         var response = Call(work, "StartLabelPrint", () => NativeLabelResponse.Capture(pointer => {
                             lock (sync) { CheckStop(work); data.Invoked = true; }
-                            sdk.Print(1, pointer);
+                            try { sdk.Print(1, pointer); }
+                            finally { NativeReturned(work); }
                             lock (sync) data.Stage = PrintExecutionStage.ResponseValidation;
                         }), receiveResult: true);
                         data.Stage = PrintExecutionStage.ResponseValidation;
