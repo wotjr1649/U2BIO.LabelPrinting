@@ -102,15 +102,17 @@
 
 완료 조건:
 
-- [ ] USB 우선 연결과 TCP/IP·RS-232의 공개 연결 옵션·API 및 내부 SDK 경로를 구현한다. 미검증 transport를 실기 성공으로 표시하지 않는다.
-- [ ] 연결 상태·프로세스 SDK 점유·대상 장치 mutex와 소유권을 구현하고 Busy 요청을 대기열 없이 거절한다.
-- [ ] ValidateForPrint는 관리 검사 뒤 장치 검사를 수행하고 ResetForm·서식 등록·인쇄를 호출하지 않는다. Port Open을 용지·리본·헤드 준비로 해석하지 않는다.
-- [ ] 미검증 ABI·글꼴·명령 조합은 PrintContractUnverified 또는 DeviceSupportUnverified로 차단한다. TASK-02의 확인된 SDK·인수·응답 범위를 제품 wrapper 흐름에 통합하고 검사·호출 순서·결과·timeout/pending 정리를 검증한 구현에서만 허용한다. native 초과 쓰기·프로세스 종료의 격리 보장은1차에 포함하지 않으며 #10에 미검증으로 남긴다.
-- [ ] Print는 매번 사전검사를 하고 ResetForm→서식 등록→StartLabelPrint→전용 응답 판정 순서로 진행한다. string/template/request 입력은 같은 경로로 처리하며 기본 string/template 사용에 DataTable·JSON을 요구하지 않는다. RFID 함수는 호출하지 않는다.
-- [ ] 실행 단계·PrintInvoked·함수별 raw 코드·정리 결과를 반환하고 연결 실패/부분 연결/해제 미확인/Dispose 뒤 상태를 계약대로 처리한다.
+- [x] USB 우선 연결과 TCP/IP·RS-232의 공개 연결 옵션·API 및 내부 SDK 경로를 구현한다. 미검증 transport를 실기 성공으로 표시하지 않는다.
+- [x] 연결 상태·프로세스 SDK 점유·대상 장치 mutex와 소유권을 구현하고 Busy 요청을 대기열 없이 거절한다.
+- [x] ValidateForPrint는 관리 검사 뒤 장치 검사를 수행하고 ResetForm·서식 등록·인쇄를 호출하지 않는다. Port Open을 용지·리본·헤드 준비로 해석하지 않는다.
+- [x] 미검증 ABI·글꼴·명령 조합은 PrintContractUnverified 또는 DeviceSupportUnverified로 차단한다. TASK-02의 확인된 SDK·인수·응답 범위를 제품 wrapper 흐름에 통합하고 검사·호출 순서·결과·timeout/pending 정리를 검증한 구현에서만 허용한다. native 초과 쓰기·프로세스 종료의 격리 보장은1차에 포함하지 않으며 #10에 미검증으로 남긴다.
+- [x] Print는 매번 사전검사를 하고 ResetForm→서식 등록→StartLabelPrint→전용 응답 판정 순서로 진행한다. string/template/request 입력은 같은 경로로 처리하며 기본 string/template 사용에 DataTable·JSON을 요구하지 않는다. RFID 함수는 호출하지 않는다.
+- [x] 실행 단계·PrintInvoked·함수별 raw 코드·정리 결과를 반환하고 연결 실패/부분 연결/해제 미확인/Dispose 뒤 상태를 계약대로 처리한다.
 - [ ] C01/C05/C14/C15/C16 및 USB 단건 정상·오류를 검증하고 TCP/IP·RS-232의 API 검사와 실기 여부를 각각 기록한다.
 
 근거: DESIGN 3~5·11절. 단건 성공은 TASK-02의 실제 응답 계약을 근거로 판단한다.
+
+2026-10-09 구현 근거: 동기 API와 합성 SDK 검사는 [제품 API 가이드](PRINTER_API.ko.md)를 따른다. 새 제품 USB 정상/오류 실기는 미실행이므로 마지막 조건과 TASK-05 이슈는 열린 상태다. 다음 TASK-06 소프트웨어 확장은 이 구현을 재사용하며 실제 장치 증거를 대체하지 않는다.
 
 ## TASK-06: 일괄 인쇄·취소·시간 제한·실패 결과 구현
 
