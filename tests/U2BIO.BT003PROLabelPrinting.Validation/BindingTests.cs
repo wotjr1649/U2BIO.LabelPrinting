@@ -30,6 +30,35 @@ namespace U2BIO.BT003PROLabelPrinting.Validation
             internal static int Calls;
             public override string ToString() { Calls++; throw new InvalidOperationException("PRIVATE"); }
         }
+        private static void TooLarge(Action action)
+        {
+            try { action(); }
+            catch (BtplFormatException e) { Check(e.Code == "BindingsTooLarge"); return; }
+            throw new InvalidOperationException("JSON document budget was not enforced.");
+        }
+        private static void DocumentBudget()
+        {
+            const int limit = 4 * 1024 * 1024;
+            string json = "{\"variables\":{\"^V03\":{\"column\":\"Value\",\"nullText\":\"가\"}}}";
+            string exact = json + new string(' ', limit - Encoding.UTF8.GetByteCount(json));
+            Check(BtplBindings.Parse(exact).Variables["^V03"].NullText == "가");
+            TooLarge(() => BtplBindings.Parse(exact + " "));
+            var huge = BtplBindings.Parse("{\"variables\":{}}").WithVariable("^V03", new BtplBinding("Value", nullText: new string('\n', limit / 2)));
+            TooLarge(() => huge.ToJson());
+            var mapping = BtplBindings.Parse("{\"variables\":{\"^V03\":{\"column\":\"Value\"}}}");
+            Check(BtplProcessor.Render(One(Template("^V03"), mapping, new string('x', limit + 1), typeof(string)), 0).TextElements[0].Payload.Length == limit + 1);
+            string directory = Path.Combine(Path.GetTempPath(), "binding-budget-" + Guid.NewGuid().ToString("N")); Directory.CreateDirectory(directory);
+            try {
+                string file = Path.Combine(directory, "bindings.json");
+                File.WriteAllText(file, exact, new UTF8Encoding(false));
+                Check(BtplBindings.Load(file).Variables["^V03"].NullText == "가");
+                using (var stream = new FileStream(file, FileMode.Open, FileAccess.Write)) stream.SetLength(limit + 1);
+                TooLarge(() => BtplBindings.Load(file));
+                string destination = Path.Combine(directory, "save.json"); File.WriteAllText(destination, "KEEP");
+                TooLarge(() => huge.Save(destination));
+                Check(File.ReadAllText(destination) == "KEEP" && Directory.GetFiles(directory).Length == 2);
+            } finally { foreach (string file in Directory.GetFiles(directory)) File.Delete(file); Directory.Delete(directory); }
+        }
         internal static void Run()
         {
             var bindings = BtplBindings.Parse("{\"variables\":{\"^V03\":{\"column\":\"Value\"},\"^V01\":{\"column\":\"Date\",\"format\":\"yy-MM-dd\"}}}");
@@ -133,6 +162,7 @@ namespace U2BIO.BT003PROLabelPrinting.Validation
             Check(BtplProcessor.Render(One(variableFont, fallback, "a", typeof(string)), 0).TextElements[0].Payload.Length == 60);
             Check(Has(BtplProcessor.Render(One(variableFont, fallback, "1234", typeof(string)), 0), "TextCommandLimit"));
             Files(bindings);
+            DocumentBudget();
             Console.WriteLine("PASS: bindings C01/C02/C19-offline, strict schema, immutable table snapshots, nullText, formats, all-row validation and partial preview; no DB/device calls");
         }
         private static void Files(BtplBindings bindings)
