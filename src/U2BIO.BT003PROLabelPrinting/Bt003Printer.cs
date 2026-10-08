@@ -130,11 +130,15 @@ namespace U2BIO.BT003PROLabelPrinting
                 work.Function = function; work.InCall = true; generation = ++work.Generation;
                 pending = true; started = Stopwatch.GetTimestamp();
             }
+            Timer deadlineTimer = null;
             Action timeout = () => {
                 lock (sync) {
                     if (!work.InCall || work.Generation != generation) return;
                     double elapsed = (Stopwatch.GetTimestamp() - started) * 1000.0 / Stopwatch.Frequency;
-                    if (elapsed < waitMilliseconds) return;
+                    if (elapsed < waitMilliseconds) {
+                        deadlineTimer.Change((int)Math.Ceiling(waitMilliseconds - elapsed), Timeout.Infinite);
+                        return;
+                    }
                     state = disposed ? PrinterState.Disposed : PrinterState.Faulted;
                     port = PrinterPortState.Unknown; nativeCode = null; code = "NativeCallTimeout"; cleanup = cleaning ? "Timeout" : "Pending";
                     work.TimedOut = true;
@@ -144,7 +148,9 @@ namespace U2BIO.BT003PROLabelPrinting
                     }
                 }
             };
-            using (var timer = new Timer(_ => timeout(), null, waitMilliseconds, Timeout.Infinite)) {
+            using (var timer = new Timer(_ => timeout(), null, Timeout.Infinite, Timeout.Infinite)) {
+                deadlineTimer = timer;
+                timer.Change(waitMilliseconds, Timeout.Infinite);
                 T value;
                 try { value = call(); }
                 catch (Exception error) when (Recoverable(error)) {
