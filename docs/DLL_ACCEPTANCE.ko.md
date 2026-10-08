@@ -10,7 +10,7 @@
 
 | ID | 기대 계약 | 실제 실행 근거·결과 | 판정·남은 확인 |
 | --- | --- | --- | --- |
-| C01 | offline preview 가능, 미확인 장치 조합은 NNN | BindingTests의 offline preview; PrinterPrintingTests의 AW size1은 DeviceSupportUnverified/N/인쇄0회 | 부분: 세 행의 정확한 조합 사례 및 제품 실기 |
+| C01 | offline preview 가능, 미확인 장치 조합은 NNN | 추가 합성 검사에서 AW size1 세 행 NNN/DeviceSupportUnverified, offline Render 가능/인쇄0회 | 관리·합성 통과 |
 | C02 | 중간 빈 값에서 valid=[true,false,true], NNN | PrinterBatchTests에서 같은 결과, DeviceValidation=null/SDK0회 | 관리·합성 통과 |
 | C03 | 사전 취소 NNN/미검사 null | PrinterBatchTests, 연결 전 사전 취소도 Cancelled | 관리·합성 통과 |
 | C04 | Busy NNN/자기 SDK0회/pending=false | 동시 요청 및 OtherOwner에서 Busy, 미검사 null | 관리·합성 통과 |
@@ -26,16 +26,18 @@
 | C14 | Connect 실패 후 Closed/부분 해제 | PrinterConnectionTests의 connect-fail/partial cleanup | 합성 통과 |
 | C15 | Disconnect 후 Open이면 Faulted/미해제 | stay-open, DisconnectUnconfirmed/소유 유지 | 합성 통과 |
 | C16 | pending/Disposed 조회는 cached | PrinterConnectionTests와 PrinterPrintingTests의 pending·Dispose·상태 조회 및 표준 예외 | 관리·합성 통과 |
-| C17 | literal 줄 확장·다음 요소 인덱스/옵션/변수 보존 | BtplTemplateTests의 3줄 확장·옵션 재매핑·^Vxx·재해석 좌표 보존 | 부분: 설계의 정확한 2줄 저장 조합은 별도 확인 |
+| C17 | literal 줄 확장·다음 요소 인덱스/옵션/변수 보존 | 기존 검사와 정확한 2줄 추가 검사: 인덱스1→2·옵션/^Vxx 보존·저장/재로드 Y=[120,160,200] | 관리 통과 |
 | C18 | 삭제/끝 복사/교체의 옵션 유지 | BtplTemplateTests의 RemoveText/WithRemovedText/WithLineAdvance/WithText | 관리 통과 |
-| C19 | 세션 간 가변 LF 옵션 없음은 오류/NNN | BindingTests에서 새 요청의 MissingLineAdvance, BTPL=null | 부분: 실제 재시작/다른 서식 전환 및 제품 NNN 시나리오 |
+| C19 | 세션 간 가변 LF 옵션 없음은 오류/NNN | 새 프린터 객체·재로드한 서식의 요청에서 MissingLineAdvance/NNN/DeviceValidation=null/SDK0회 | 관리·합성 통과: OS 프로세스 재시작은 별도 |
 | C20 | native 누락/비트/해시/모듈 충돌 구분 | NativeTests의 missing/architecture/version 및 system-module 경로 분류; 고정 쌍 PE 검사 | 부분: 실제 vendor 모듈 선점 충돌·runtime 로드 |
 | C21 | loader flag/export 오류와 fallback 금지 | NativeTests의 UnsupportedLoaderPlatform 분류, 고정 쌍41 export 확인 | 부분: 실제 flag 불가·GetProcAddress 누락 실패 주입 |
 | C22 | 중복·명령 위치·프레임 오류 거절 | BtplTemplateTests의 DuplicateSetting/CommandPosition/프레임 오류 | 관리 통과 |
 | C23 | P1/C1/R0/E0 기본 생성·명시값 보존 | BtplTemplateTests의 기본값·중복 없음·보존; 합성 StartLabelPrint(1) | 관리·합성 통과: 실제 한 행 한 장은 미실행 |
 | C24 | strict 저장·충돌·I/O·연속 저장·UI 차단 | BtplTemplateTests/BindingTests의 strict 인코딩·해시 충돌·파일 잠금·연속 Save | 부분: Tester 미저장 표시·UI 출력 차단은 TASK-08 |
 
-관리/합성 판정 18개, 부분 판정 6개다. 부분 항목이 없는 C01~C24 전체 제품 인수 완료라고 선언하지 않는다. 실제 출력·모든 장비 오류·시간 제한·다중 앱 점유·해제 후 재연결의 제품 실기는 추가 근거가 필요하다.
+관리/합성 판정 21개, 부분 판정 3개다. 부분 항목이 없는 C01~C24 전체 제품 인수 완료라고 선언하지 않는다. 실제 출력·모든 장비 오류·시간 제한·다중 앱 점유·해제 후 재연결의 제품 실기는 추가 근거가 필요하다.
+
+C01/C17/C19의 추가 검사는 로컬 `.work/devflow/i7/contracts/Program.cs`로 Release x86/x64에서 실행했다. 제품 DLL과 기존 합성 Fixture만 사용하고 실제 SDK는 미로드다. 검사 프로그램은 task 전용 서식 두 개만 저장/재로드하며 새 프린터 객체에서 이전 요청의 줄 간격 옵션이 전달되지 않음을 확인한다. OS 프로세스 재시작이나 UI 세션 전환을 실행한 것으로 주장하지 않는다. 이 추가 검사는 제품 소스 변경이 아니다.
 
 ## 연결 방식별 지원
 
@@ -70,7 +72,7 @@ examples\OfflineSmoke\bin\x64\Release\U2BIO.LabelPrinting.OfflineSmoke.exe --exp
 
 두 비트 수의 빌드·실행은 모두 종료0이며 `nativeSDK=not-loaded; no DB/UI/device`를 확인했다. 이 예제에는 `Bt003NativePlatform`을 지정하지 않는다. DB/DevExpress provider를 참조하지 않으며 일반 Framework 타입만 사용한다.
 
-독립 verifier/reviewer는 `7de27b0..34d4fe7`을 검토하고 위 두 비트 수의 예제 빌드·실행과 Release 전체 관리 검사를 재실행해 모두 종료0을 확인했다. 전체 검사 증거는 로컬 `.work/foundation/Release-1791476324048/evidence.json`이며 기존 사용자 솔루션 변경을 보존했다. 문서의 18개 관리/합성·6개 부분 집계와 상대 링크를 대조했다. 완료 조건 표와 본 증거를 연결하는 후속 변경은 문서 전용이다.
+독립 verifier/reviewer는 `7de27b0..34d4fe7`을 검토하고 위 두 비트 수의 예제 빌드·실행과 Release 전체 관리 검사를 재실행해 모두 종료0을 확인했다. 전체 검사 증거는 로컬 `.work/foundation/Release-1791476324048/evidence.json`이며 기존 사용자 솔루션 변경을 보존했다. 당시의 18개 관리/합성·6개 부분 집계와 상대 링크를 대조했다. 이후 C01/C17/C19의 추가 관리/합성 검사를 위에 구분해 기록했다. 완료 조건 표와 본 증거를 연결하는 후속 변경은 문서 전용이다.
 
 ## 다음 완료 조건
 
