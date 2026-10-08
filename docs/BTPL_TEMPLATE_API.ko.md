@@ -69,3 +69,17 @@ ToBtpl 검사와 strict 인코딩을 끝낸 뒤 같은 폴더에 고유 임시 �
 ## 검증 범위
 
 Validation 프로젝트의 BtplTemplateTests가 C17/C18/C22/C23와 C24의 BTPL 관리 조건을 실행한다. CP949/UTF-8·BOM 불일치·잘못된 바이트·표현 불가 문자, 외부 변경/삭제, 잠긴 파일 교체 실패, 임시 파일 정리 및 연속 저장을 검사한다. 실제 출력과 새 SDK/글꼴 조합 검증을 대신하지 않는다. native 인쇄 차단은 유지한다.
+
+
+### TASK-03 실행 근거 (2026-10-08)
+
+최초 fb70301의 공개 템플릿 타입 부재로 build 실패를 관측해 시험을 잠갔다. 좌표 overflow 테스트의 잘못된 옵션 인덱스만 수정했고, 이후9397871의 부호 있는 AW 원문 보존 실패를 관측한 뒤 signed Int32 구문으로 수정했다. 최종 테스트 잠금은9397871이며 인덱스·overflow·실패 검사를 삭제하지 않았다.
+
+제품 구현 d9b85c9를 독립 verifier/reviewer가 Release/Debug × x86/x64로 빌드·실행했다. 두 CLI 검사·repository/doctor·diff도 exit0이다. 검사 로그는 nativeSDK=not-loaded 및 vendor code not executed를 확인한다. 직접 SDK probe·장치 연결·출력·Registry 접근을 하지 않았다. 원문 센서 ^G 허용을 명시한 설계·README 후속 커밋은 문서만 변경했다.
+
+| 구성 | 로컬 실행 근거 | DLL SHA-256 (x86/x64 공통) |
+| --- | --- | --- |
+| Release | `.work/foundation/Release-1791454980629/evidence.json` | `52e16dc049e31c319214cd9dffd9c100bafc791f2282ad736adcdad187c45c1f` |
+| Debug | `.work/foundation/Debug-1791454987621/evidence.json` | `195d541943b1038adc9225242a1948d049c88447751c0500146dfccb61e35e35` |
+
+근거의 gitCommit은 d9b85c9, workingTreeDirty=true다. 사용자 솔루션 metadata를 보존했으며 clean tree로 보고하지 않는다. root가 보존 산출물의 해시 일치를 재대조했다. JSON 저장/파일 쌍·DataTable·UI 미저장 상태는 후속 TASK-04/08이고 제품 연결/인쇄 API의 완료를 의미하지 않는다. 동시 writer에 대한 CAS·프로세스 종료 복구 보장도 검증 범위 밖이다.
