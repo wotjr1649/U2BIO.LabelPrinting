@@ -77,3 +77,5 @@ examples\OfflineSmoke\bin\x64\Release\U2BIO.LabelPrinting.OfflineSmoke.exe --exp
 ## 다음 완료 조건
 
 TASK-07 조건1·4·5·6은 증거/부분 상태 표·독립 호출·지원/배포 안내의 범위다. 조건2(제품 USB 실기), 조건3의 runtime 로드/ABI, 조건7(Tester 착수 전 필수 검사)는 아직 미완료다. TASK-05 조건7도 열린다. 출력 금지 상태에서는 이 미검증 조건을 그대로 유지한다. TASK-08/09는 TASK-07 완료 조건을 충족한 뒤 진행한다.
+
+C24 전체 사례의 UI 부분은 TASK-08에서 검사한다. TASK-07은 이미 실행한 DLL 저장/충돌/I/O/연속 저장 계약을 확인하며 화면 구현 전 UI 버튼/표시 검사를 선행 조건으로 요구하지 않는다. 표의 C24 부분 판정은 전체 사례의 UI 검증이 아직 남았다는 뜻이다. 이 구분은 전체 프로젝트의 UI 검사 의무나 필수 USB/runtime ABI 검사를 제거하지 않는다.
