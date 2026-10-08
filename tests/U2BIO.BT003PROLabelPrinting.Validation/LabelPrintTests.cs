@@ -63,7 +63,7 @@ namespace U2BIO.BT003PROLabelPrinting.Validation
                 Check(fixture.Calls == expected);
                 Check(!(bool)result.GetType().GetField("PrintInvoked", Instance).GetValue(result));
                 Check(result.GetType().GetField("Response", Instance).GetValue(result) == null);
-                Check((int?)result.GetType().GetField("SendCode", Instance).GetValue(result) == (mode == "ok" ? (int?)0 : mode == "send" ? 9 : null));
+                Check((int?)result.GetType().GetField("SendCode", Instance).GetValue(result) == (mode == "ok" ? (int?)0 : mode == "send" ? (int?)9 : null));
             }
             foreach (string bad in new[] { null, "", "bad\0data", second, third.Replace("TEST2", "한글") }) {
                 var fixture = new Fixture { Mode = "ok", ExpectedForm = bad };
