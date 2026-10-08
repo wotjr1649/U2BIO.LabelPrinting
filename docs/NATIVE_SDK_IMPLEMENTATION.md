@@ -2,10 +2,12 @@
 
 기준: v0.1.1-design, SDK_API_COVERAGE.md의 두 native 배포 쌍. .NET Framework 4.6.1 관리 DLL은 AnyCPU이며 제조사 바이너리는 저장소에 포함하지 않는다.
 
+최신 판정은 마지막 [이번 실기 판정과 남은 계약](#이번-실기-판정과-남은-계약)을 기준으로 한다. 앞선 실행·미확인·다음 작업 기록은 각 시험 시점의 이력이며 현재 상태로 읽지 않는다. 제조사 추가 문서의 부재는 중단 사유에서 제외하되 제품 인쇄 차단은 유지한다.
+
 ## 구현 범위
 
 - `NativeApi`는 헤더 40개와 샘플의 StartLabelPrint를 합한 41개 내부 delegate를 선언한다. StdCall, ANSI 입력 LPStr, ushort/U2·byte/U1·int32를 보존한다. x86은 기준 DLL에 실제 존재하는 `_Name@N`, x64는 실제 비장식 이름으로 바인딩한다. 현재 인수는 모두 x86에서 4-byte stack slot이며 지원 타입 외에는 이름을 추정하지 않는다.
-- GetUidValue·StartPrintWithRfid·StartLabelPrint의 출력 인수는 caller-owned LPTSTR 주소 후보인 `[Out] IntPtr`다. 선언 자체가 버퍼 계약 확인을 뜻하지 않는다. 최대 쓰기 바이트·종료 규칙·문자 인코딩은 미확정이며 메모리를 할당하거나 이 함수를 호출하지 않는다. 샘플 SizeConst=100은 안전 상한으로 사용하지 않는다.
+- GetUidValue·StartPrintWithRfid·StartLabelPrint의 출력 인수는 caller-owned 주소의 `[Out] IntPtr`다. RFID 함수는 선언만 하고 호출하지 않는다. StartLabelPrint의 정상42-byte/NUL 분석 계약은 별도 격리 진단에서만 사용하며 제품 호출은 차단한다. 샘플 SizeConst=100은 안전 상한으로 사용하지 않는다.
 - StartPrintWithRfid2와 ReadResponseMessage는 선언·호출하지 않는다. public P/Invoke, raw SendData, RFID API 또는 검증 우회 옵션은 없다. `GetFunction<T>()`는 이 구현 버전에서 항상 PrintContractUnverified로 거부한다.
 - `NativeImage`는 길이 제한·offset/RVA 범위 검사로 PE와 명명 export·일반 import를 읽는다. DLL을 map하거나 실행하지 않는다. 아키텍처·고정 해시·41개 exact export와 forwarder 여부를 대조한다. 기준 외 delay import·private import는 거부한다.
 - `LoadForConnection()`은 AppDomain.BaseDirectory의 로컬 드라이브 한 쌍만 대상으로 한다. 부모 reparse 경로, 파일/아키텍처/해시, 사전 로드된 vendor 모듈, 앱 폴더의 시스템 DLL 가림을 검사한다. 파일 핸들의 최종 경로를 대조하고 부모 디렉터리에는 목록 읽기·share-delete 금지 lease를 유지한다. 절대경로 LoadLibraryExW(0x900), 모듈 경로 재검사, exact GetProcAddress를 사용하며 검색 경로 fallback·PATH 변경·COM 등록·unload는 하지 않는다. OS import의 기존/후속 모듈은 현재 프로세스 시스템 디렉터리(WOW64 실제 경로 포함)만 허용한다. acquired 모듈과 delegate는 process lifetime으로 유지하고 부분 로드 이후 재시도도 막으며 최초 실패의 코드·함수·Win32 오류를 보존한다.
