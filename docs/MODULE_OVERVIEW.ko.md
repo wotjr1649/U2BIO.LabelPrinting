@@ -1,6 +1,6 @@
 # U2BIO.BT003PROLabelPrinting의 역할과 확장 범위
 
-2026-10-08 사용자 정정에 따라 모듈의 기본 사용을 다시 정리했다. 구현 기준 태그 v0.1.1-design은 보존한다. 2026-10-09 TASK-05에서 아래 동기 연결·사전검사·인쇄 API를 구현하고 synthetic SDK로 검증했다. [현재 사용법·지원 조건·실기 미검증](PRINTER_API.ko.md)을 구분하며 PrintAsync/취소/일괄 인수 검증은 TASK-06이다.
+2026-10-08 사용자 정정에 따라 모듈의 기본 사용을 다시 정리했다. 구현 기준 태그 v0.1.1-design은 보존한다. 2026-10-09 TASK-05에서 연결·사전검사·인쇄 API를, TASK-06에서 PrintAsync·취소·일괄 결과를 구현하고 synthetic SDK로 검증했다. [현재 사용법·지원 조건·실기 미검증](PRINTER_API.ko.md)을 구분한다.
 
 ## 모듈의 정의
 
@@ -26,7 +26,8 @@ HFModule.dll은 원본 x86/x64 Blackfish의 PE import에서 확인한 제조사 
 | ValidateForPrint(...) | 관리 검사, 인코딩·지원 조합 검사, CheckPrtConnection | 출력 없이 검사. ResetForm/등록/용지 이송 호출 없음 |
 | Print(string btpl) | 같은 private Print 경로의 ResetForm → SetPrintFormString → StartLabelPrint(1) → 전용 응답 판정 | 별도 요청/바인딩 객체를 요구하지 않는 한 장 편의 API |
 | Print(BtplTemplate template) | 같은 경로 | 편집·저장한 템플릿의 완성 문구를 한 장 출력 |
-| Print(BtplPrintRequest request) | 같은 경로 | 선택한 바인딩·다건 입력 사용. 일괄 계약은 TASK-06 |
+| Print(BtplPrintRequest request) | 같은 경로 | 선택한 바인딩·다건 입력 사용. 전체 사전검사 뒤 입력 순서대로 실행 |
+| PrintAsync(string/template/request, token) | 같은 SDK worker와 인쇄 경로 | UI를 점유하지 않는 단건·일괄 처리와 취소·건별 결과 |
 | Disconnect()/Dispose() | 소유한 연결의 DeviceDisconnect → CheckPrtConnection | 연결 해제·사용 자원 정리; 다른 소유자의 연결을 해제하지 않음 |
 
 Print(string)/Print(template)는 입력을 Parse 또는 Fixed 요청으로 변환하고 같은 Print(request) 경로를 재사용한다. 별도 인쇄 엔진을 만들지 않는다. Print(string)의 string은 기존 파서가 지원하는 텍스트 전용 BTPL이다. 임의 SendData나 RFID 명령을 통과시키는 API가 아니다. 구문 오류의 위치·Code는 기존 BtplFormatException 계약을 따르며 실제 SDK 실행 실패·불명은 결과 객체로 구분한다.
@@ -40,7 +41,7 @@ SDK 선언을 그대로 public static으로 복제하는 방식 대신 위 기�
 | 텍스트 좌표·문구·요소 개수·용지 설정 편집 | BtplTemplate, BtplTextElement, BtplSetting | BTPL을 이미 준비했다면 선택 |
 | 연결 없이 검사·참고 미리보기 모델 생성 | BtplProcessor.Validate/Render, BtplPrintRequest.Fixed | UI가 필요할 때 선택 |
 | DB 조회 결과의 컬럼 자동 매핑·format·nullText | BtplBindings + FromRow/FromTable | 선택. DB 조회는 호출 프로그램 책임 |
-| 템플릿 하나와 여러 건의 인쇄·건별 결과 | 기존 BtplPrintRequest, 동일 Print 경로 | TASK-06에서 완성 |
+| 템플릿 하나와 여러 건의 인쇄·건별 결과 | BtplPrintRequest, 동일 Print/PrintAsync 경로 | 다건 입력에 사용. TASK-06에서 구현 |
 | 수치 편집·프린터 연결·출력 시험 화면 | 별도 WinForms/DevExpress Tester | DLL 사용에 불필요 |
 
 직접 문구 방식은 호출 프로그램이 완성한 문자열을 텍스트 요소에 전달한다. DLL은 업무 필드가 무엇인지 추측하지 않는다. 개별 DB 필드의 누락·nullText·형식화를 자동 검사하려면 선택 바인딩 경로를 사용한다. 바인딩을 사용하는 요청의 기존 NULL/빈 값 규칙을 바꾸지 않는다.

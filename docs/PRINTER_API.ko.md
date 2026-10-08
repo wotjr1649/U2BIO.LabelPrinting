@@ -1,6 +1,6 @@
-# 연결·사전검사·단건 인쇄 API
+# 연결·사전검사·단건·일괄 인쇄 API
 
-2026-10-09 TASK-05에서 `Bt003Printer`의 동기 연결·상태·사전검사·인쇄·해제를 구현했다. 아래 API는 컴파일 가능하며 합성 SDK로 검증했다. 새 제품 경로의 실제 장치 출력은 이번 작업에서 실행하지 않았고 TASK-02의 과거 실기와 구분한다. TASK-06의 `PrintAsync`·취소·일괄 인수 검증은 다음 단계다.
+2026-10-09 TASK-05에서 `Bt003Printer`의 연결·상태·사전검사·인쇄·해제를, TASK-06에서 `PrintAsync`·취소·일괄 결과를 구현했다. 아래 API는 컴파일 가능하며 합성 SDK로 검증했다. 새 제품 경로의 실제 장치 출력은 이번 작업에서 실행하지 않았고 TASK-02의 과거 실기와 구분한다.
 
 ## 기본 사용
 
@@ -24,7 +24,27 @@ using (var printer = new Bt003Printer())
 }
 ```
 
-이 코드는 메서드 내부에서 사용하는 예다. 서식에는 텍스트 요소가 두 개 이상 있어야 한다. 문자열 BTPL을 이미 준비했다면 `Print(btpl)` 또는 `ValidateForPrint(btpl)`를 사용한다. DataTable·JSON은 필수가 아니다. `BtplPrintRequest`도 같은 private 실행 경로를 사용하며 여러 건의 완료 증거는 TASK-06에서 정리한다. 동기 API를 UI 이벤트에서 직접 오래 실행하지 않는다.
+이 코드는 메서드 내부에서 사용하는 예다. 서식에는 텍스트 요소가 두 개 이상 있어야 한다. 문자열 BTPL을 이미 준비했다면 `Print(btpl)` 또는 `ValidateForPrint(btpl)`를 사용한다. DataTable·JSON은 필수가 아니다. 동기 API를 UI 이벤트에서 직접 오래 실행하지 않는다.
+
+## 비동기·일괄·취소
+
+`PrintAsync(string|BtplTemplate|BtplPrintRequest, CancellationToken)`은 같은 worker에서 실행한다. 동기 `Print`도 같은 작업의 결과를 기다린다. 비동기 호출은 대기열에 넣지 않으며 사용 중이면 즉시 `Busy` 결과를 반환한다. token은 생략할 수 있다. 이미 Disposed인 객체와 null 요청은 표준 예외이며 정상 취소는 예외 대신 건별 결과를 반환한다.
+
+```csharp
+// 호출자가 준비한 DataTable과 JSON 매핑이 필요한 경우에만 사용한다.
+var request = BtplPrintRequest.FromTable(template, bindings, rows);
+BatchPrintResult result = await printer.PrintAsync(request, cancellationToken);
+foreach (var row in result.Rows)
+{
+    // RowIndex는 입력 순서다. Status, StopReason, PrintInvoked를 호출 UI에 반영한다.
+}
+```
+
+템플릿 하나의 전체 행을 먼저 검사한다. 한 행이라도 관리/장치 오류가 있으면 인쇄를 시작하지 않는다. 실행 중 첫 `Failed`/`Unknown` 뒤에는 새 인쇄를 호출하지 않으며 나머지는 `NotAttempted`다. 행 수와 네 상태의 집계 합계는 입력 건수와 같다.
+
+진입 순서는 Disposed/null 계약 확인 → Busy → 사전 취소 → 연결 확인이다. 검사 전 종료하면 batch/row 검사는 null이다. 관리 검사 도중 취소하면 batch `Validation=null`이고 이미 완료한 행의 `Validation`만 보존한다. 관리 검사를 완료했다면 장치 검사 도중 중단돼도 관리 결과를 보존하며 미완료 `DeviceValidation`은 null이다.
+
+취소는 현재 native 호출을 강제로 중단하지 않는다. 인쇄 호출 중 취소/Dispose 뒤 정상 응답이 돌아오면 현재 행은 `Succeeded`, 다음 행부터 미시도다. 확인된 실패/불명/timeout이 취소보다 우선한다. 마지막 행까지 완료했다면 뒤늦은 취소로 `StopReason=None`을 바꾸지 않는다. 정상 취소 후 정리가 성공하면 연결을 유지한다.
 
 ## 연결
 
@@ -70,6 +90,6 @@ SDK 모듈은 프로세스 수명 동안 유지한다. mutex는 취득한 worker
 
 ## 실행 증거와 남은 작업
 
-Release/Debug × x86/x64에서 기존 관리 검사와 synthetic 연결/충돌/부분 실패/abandoned/Dispose 경합·late loader, 출력 없는 preflight·단건 호출 순서·긴 두 줄 문구·오류/불명 응답·late 등록/인쇄를 검증했다. 정상 검증은 `nativeSDK=not-loaded`이며 실제 장치 성공 증거로 사용하지 않는다.
+Release/Debug × x86/x64에서 기존 관리 검사와 synthetic 연결/충돌/부분 실패/abandoned/Dispose 경합·late loader, 출력 없는 preflight·단건 호출 순서·긴 두 줄 문구·오류/불명 응답·late 등록/인쇄 및 C02~C13/C16 일괄 계약을 검증한다. 정상 검증은 `nativeSDK=not-loaded`이며 실제 장치 성공 증거로 사용하지 않는다. TASK-06에는 관리 검사 중 취소와 등록 중 취소의 추가 검사가 포함된다.
 
-TASK-05의 새로운 실제 USB 정상/오류 검증은 미실행이다. 자동 배출/원점 복귀·일괄/취소의 제품 계약, 다른 SDK·환경·글꼴/transport·native 장애 경계는 TASK-06/07 및 후속 #10에서 추적한다. TASK-02의 M15/B15 진단을 자동 제품 기능으로 선언하지 않는다. 배포는 [SDK 배포 가이드](SDK_DEPLOYMENT.ko.md)를 따른다.
+TASK-05의 새로운 실제 USB 정상/오류 검증과 TASK-07의 제품 실기는 미실행이다. 자동 배출/원점 복귀, 다른 SDK·환경·글꼴/transport·native 장애 경계는 TASK-07 및 후속 #10에서 추적한다. TASK-02의 M15/B15 진단을 자동 제품 기능으로 선언하지 않는다. 배포는 [SDK 배포 가이드](SDK_DEPLOYMENT.ko.md)를 따른다.
