@@ -110,7 +110,7 @@ namespace U2BIO.BT003PROLabelPrinting
         }
         private void CheckStop(Work work)
         {
-            lock (sync) if (work.TimedOut || disposed) throw new Stopped();
+            lock (sync) if (work.TimedOut || disposed || (work.Printing != null && work.Printing.Cancellation.IsCancellationRequested)) throw new Stopped();
         }
         private T Call<T>(Work work, string function, Func<T> call, bool cleaning = false, Action entered = null, bool receiveResult = false)
         {

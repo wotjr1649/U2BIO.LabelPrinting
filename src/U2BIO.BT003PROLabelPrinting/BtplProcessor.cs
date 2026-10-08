@@ -38,7 +38,7 @@ namespace U2BIO.BT003PROLabelPrinting
         internal static readonly Regex Variables = BtplSyntax.Variables;
         private static ValidationIssue Issue(string code, int? row, int? line, string variable = null, string column = null, ValidationSeverity severity = ValidationSeverity.Error)
             => new ValidationIssue(code, line, row, variable, column, severity);
-        private static List<ValidationIssue> Common(BtplPrintRequest request)
+        internal static List<ValidationIssue> Common(BtplPrintRequest request)
         {
             var issues = new List<ValidationIssue>();
             try { request.Template.CheckSettings(); }
@@ -74,7 +74,7 @@ namespace U2BIO.BT003PROLabelPrinting
             try { return ((IFormattable)value).ToString(binding.Format, CultureInfo.InvariantCulture); }
             catch (FormatException) { throw new BtplFormatException("InvalidFormat"); }
         }
-        private static BtplRenderResult RenderCore(BtplPrintRequest request, int rowIndex, List<ValidationIssue> common)
+        internal static BtplRenderResult RenderCore(BtplPrintRequest request, int rowIndex, List<ValidationIssue> common)
         {
             var issues = new List<ValidationIssue>(common); var row = request.Rows[rowIndex];
             var values = new Dictionary<string, string>(StringComparer.Ordinal);

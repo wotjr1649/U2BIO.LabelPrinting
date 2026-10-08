@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using System.Text;
+using System.Threading;
+using System.Threading.Tasks;
 using U2BIO.BT003PROLabelPrinting.Native;
 
 namespace U2BIO.BT003PROLabelPrinting
@@ -15,6 +17,8 @@ namespace U2BIO.BT003PROLabelPrinting
             internal readonly BtplPrintRequest Request;
             internal readonly bool PreflightOnly;
             internal readonly RowPrintResult[] Rows;
+            internal readonly RowValidationResult[] PartialManaged;
+            internal readonly CancellationToken Cancellation;
             internal BatchValidationResult Managed;
             internal DeviceValidationResult Device;
             internal BtplRenderResult[] Rendered;
@@ -24,8 +28,12 @@ namespace U2BIO.BT003PROLabelPrinting
             internal PrintStopReason StopReason;
             internal string Code = "Ok", Function;
             internal int? NativeCode;
-            internal PrintingData(BtplPrintRequest request, bool preflightOnly)
-            { Request = request; PreflightOnly = preflightOnly; Rows = new RowPrintResult[request.RowCount]; }
+            internal PrintingData(BtplPrintRequest request, bool preflightOnly, CancellationToken cancellation = default(CancellationToken))
+            {
+                Request = request; PreflightOnly = preflightOnly; Cancellation = cancellation;
+                Rows = new RowPrintResult[request.RowCount]; PartialManaged = new RowValidationResult[request.RowCount];
+                Rendered = new BtplRenderResult[request.RowCount];
+            }
         }
         private BtplPrintRequest Prepare(string btpl)
         {
@@ -60,7 +68,15 @@ namespace U2BIO.BT003PROLabelPrinting
             var data = work.Printing;
             try {
                 CheckStop(work); data.Stage = PrintExecutionStage.ManagedValidation;
-                var managed = BtplProcessor.Validate(data.Request);
+                var managedCommon = BtplProcessor.Common(data.Request);
+                for (int i = 0; i < data.Rows.Length; i++) {
+                    CheckStop(work);
+                    var renderedRow = BtplProcessor.RenderCore(data.Request, i, managedCommon);
+                    lock (sync) { data.Rendered[i] = renderedRow; data.PartialManaged[i] = renderedRow.Validation; }
+                    CheckStop(work);
+                }
+                CheckStop(work);
+                var managed = new BatchValidationResult(managedCommon, data.PartialManaged);
                 lock (sync) data.Managed = managed;
                 if (!managed.IsValid) return PreflightResult(work, data.Request.RowCount == 0 ? "NoData" : "ValidationFailed");
                 CheckStop(work); data.Stage = PrintExecutionStage.DeviceValidation;
@@ -69,9 +85,9 @@ namespace U2BIO.BT003PROLabelPrinting
                 if (Encoding.Default.CodePage != 949) common.Add(new ValidationIssue("EncodingNotSupported", null));
                 var encoding = Encoding.GetEncoding(949, EncoderFallback.ExceptionFallback, DecoderFallback.ExceptionFallback);
                 var rows = new List<RowValidationResult>();
-                var rendered = new BtplRenderResult[data.Request.RowCount];
+                var rendered = data.Rendered;
                 for (int i = 0; i < rendered.Length; i++) {
-                    CheckStop(work); rendered[i] = BtplProcessor.Render(data.Request, i);
+                    CheckStop(work);
                     var issues = new List<ValidationIssue>();
                     foreach (var text in rendered[i].TextElements) {
                         if (text.Command != "AW" || !text.Arguments.Select(x => int.Parse(x, CultureInfo.InvariantCulture)).SequenceEqual(new[] { 10, 1, 0, 0 }))
@@ -80,8 +96,8 @@ namespace U2BIO.BT003PROLabelPrinting
                     try { encoding.GetByteCount(rendered[i].BtplText); }
                     catch (EncoderFallbackException) { issues.Add(new ValidationIssue("EncodingNotSupported", null, i)); }
                     rows.Add(new RowValidationResult(i, issues));
+                    CheckStop(work);
                 }
-                data.Rendered = rendered;
                 int status = Status(work);
                 if (status != 1) {
                     common.Add(new ValidationIssue(status == 0 ? "NotConnected" : "StatusUnavailable", null));
@@ -90,7 +106,7 @@ namespace U2BIO.BT003PROLabelPrinting
                 lock (sync) data.Device = new DeviceValidationResult(common, rows, port);
                 return PreflightResult(work, status == 0 ? "NotConnected" : status != 1 ? "StatusUnavailable" : data.Device.IsValid ? "Ok" : "ValidationFailed",
                     "CheckPrtConnection", status);
-            } catch (Stopped) { return PreflightResult(work, disposed ? "Disposed" : "NativeCallTimeout", work.Function); }
+            } catch (Stopped) { return PreflightResult(work, StopCode(work), work.Function); }
             catch (Exception error) when (Recoverable(error)) {
                 lock (sync) { state = disposed ? PrinterState.Disposed : PrinterState.Faulted; port = PrinterPortState.Unknown; nativeCode = null; }
                 return PreflightResult(work, "StatusUnavailable", work.Function);
@@ -108,17 +124,26 @@ namespace U2BIO.BT003PROLabelPrinting
         }
         public BatchPrintResult Print(string btpl) => Print(Prepare(btpl));
         public BatchPrintResult Print(BtplTemplate template) => Print(Prepare(template));
-        public BatchPrintResult Print(BtplPrintRequest request)
+        public BatchPrintResult Print(BtplPrintRequest request) => PrintAsync(request, CancellationToken.None).GetAwaiter().GetResult();
+        public Task<BatchPrintResult> PrintAsync(string btpl, CancellationToken cancellationToken = default(CancellationToken))
+            => PrintAsync(Prepare(btpl), cancellationToken);
+        public Task<BatchPrintResult> PrintAsync(BtplTemplate template, CancellationToken cancellationToken = default(CancellationToken))
+            => PrintAsync(Prepare(template), cancellationToken);
+        public Task<BatchPrintResult> PrintAsync(BtplPrintRequest request, CancellationToken cancellationToken = default(CancellationToken))
         {
             Work work;
             lock (sync) {
                 RequireAlive(); if (request == null) throw new ArgumentNullException(nameof(request));
-                if (working) return Immediate(request, PrintStopReason.Busy, "Busy");
-                if (state != PrinterState.Connected) return Immediate(request, PrintStopReason.NotConnected, state == PrinterState.Faulted ? "PrinterFaulted" : "NotConnected");
-                work = Start(PrintWork, PrinterState.Validating, new PrintingData(request, false));
+                if (working) return Task.FromResult(Immediate(request, PrintStopReason.Busy, "Busy"));
+                if (cancellationToken.IsCancellationRequested) return Task.FromResult(Immediate(request, PrintStopReason.Cancelled, "Cancelled"));
+                if (state != PrinterState.Connected) return Task.FromResult(Immediate(request, PrintStopReason.NotConnected, state == PrinterState.Faulted ? "PrinterFaulted" : "NotConnected"));
+                work = Start(PrintWork, PrinterState.Validating, new PrintingData(request, false, cancellationToken));
             }
-            return (BatchPrintResult)work.Completion.Task.GetAwaiter().GetResult();
+            return AwaitPrint(work.Completion.Task);
         }
+        private static async Task<BatchPrintResult> AwaitPrint(Task<object> task)
+            => (BatchPrintResult)await task.ConfigureAwait(false);
+        private string StopCode(Work work) => work.TimedOut ? "NativeCallTimeout" : disposed ? "Disposed" : "Cancelled";
         private static BatchPrintResult Immediate(BtplPrintRequest request, PrintStopReason reason, string resultCode)
             => new BatchPrintResult(reason, resultCode, Enumerable.Range(0, request.RowCount).Select(i => new RowPrintResult(i, PrintRowStatus.NotAttempted, reason, resultCode)));
         private static PrintStopReason Reason(string resultCode)
@@ -128,6 +153,7 @@ namespace U2BIO.BT003PROLabelPrinting
                 case "NotConnected": return PrintStopReason.NotConnected;
                 case "NoData": return PrintStopReason.NoData;
                 case "Disposed": return PrintStopReason.Disposed;
+                case "Cancelled": return PrintStopReason.Cancelled;
                 case "NativeCallTimeout": case "SdkTimeout": return PrintStopReason.Timeout;
                 case "StatusUnavailable": case "FormRegistrationFailed": case "PrintFailed": case "NativeCallFailed": return PrintStopReason.SdkFailure;
                 case "InvalidPrintResponse": case "UnrecognizedPrintResponse": return PrintStopReason.ResponseUnknown;
@@ -146,7 +172,7 @@ namespace U2BIO.BT003PROLabelPrinting
                 var data = work.Printing;
                 var reason = status == PrintRowStatus.Unknown && resultCode == "NativeCallFailed" ? PrintStopReason.ResponseUnknown : Reason(resultCode);
                 data.Rows[data.CurrentRow] = new RowPrintResult(data.CurrentRow, status, reason, resultCode,
-                    data.Managed?.Rows[data.CurrentRow], data.Device?.Rows[data.CurrentRow], data.Stage, data.Invoked, function, value, evidence);
+                    data.PartialManaged[data.CurrentRow], data.Device?.Rows[data.CurrentRow], data.Stage, data.Invoked, function, value, evidence);
                 if (status != PrintRowStatus.Succeeded) { StopPrinting(work, resultCode, function, value); data.StopReason = reason; }
             }
         }
@@ -155,7 +181,7 @@ namespace U2BIO.BT003PROLabelPrinting
             lock (sync) {
                 var data = work.Printing;
                 return new BatchPrintResult(data.StopReason, data.Code, Enumerable.Range(0, data.Rows.Length).Select(i => data.Rows[i] ??
-                    new RowPrintResult(i, PrintRowStatus.NotAttempted, data.StopReason, data.Code, data.Managed?.Rows[i], data.Device?.Rows[i])),
+                    new RowPrintResult(i, PrintRowStatus.NotAttempted, data.StopReason, data.Code, data.PartialManaged[i], data.Device?.Rows[i])),
                     data.Managed, data.Device, data.Function, data.NativeCode, pending, cleanup, work.Calls);
             }
         }
@@ -205,7 +231,7 @@ namespace U2BIO.BT003PROLabelPrinting
                     }
                 }
             } catch (Stopped) {
-                if (!work.TimedOut) StopPrinting(work, "Disposed");
+                if (!work.TimedOut) StopPrinting(work, StopCode(work));
             } catch (Exception error) when (Recoverable(error)) {
                 if (data.CurrentRow >= 0) Row(work, data.Invoked ? PrintRowStatus.Unknown : PrintRowStatus.Failed,
                     data.Invoked ? error is NativeSdkException && ((NativeSdkException)error).Code == "PrintResponseInvalid" ? "InvalidPrintResponse" : "NativeCallFailed" : "NativeCallFailed", work.Function);
