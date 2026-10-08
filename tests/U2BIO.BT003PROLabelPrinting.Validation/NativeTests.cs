@@ -51,6 +51,7 @@ namespace U2BIO.BT003PROLabelPrinting.Validation
         {
             ConnectionTests.Run(library);
             LabelResponseTests.Run(library);
+            LabelPrintTests.Run(library);
             Type probe = typeof(NativeTests).Assembly.GetType("U2BIO.BT003PROLabelPrinting.Validation.NativeLoadProbe", true);
             Type job = typeof(NativeTests).Assembly.GetType("U2BIO.BT003PROLabelPrinting.Validation.NativeLoadProbe+JobLimits", true);
             Check(Marshal.SizeOf(job) == (Environment.Is64BitProcess ? 144 : 112));
