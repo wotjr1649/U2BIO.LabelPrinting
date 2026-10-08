@@ -16,10 +16,21 @@ namespace U2BIO.BT003PROLabelPrinting
     {
         internal static byte[] Hash(byte[] bytes) { using (var sha = SHA256.Create()) return sha.ComputeHash(bytes); }
         internal static Encoding StrictEncoding(int codePage) => Encoding.GetEncoding(codePage, EncoderFallback.ExceptionFallback, DecoderFallback.ExceptionFallback);
-        internal static string Read(string filePath, int codePage, out BtplFileOrigin origin)
+        internal static string Read(string filePath, int codePage, out BtplFileOrigin origin, int? maximumBytes = null)
         {
             string path = System.IO.Path.GetFullPath(filePath);
-            byte[] bytes = File.ReadAllBytes(path);
+            byte[] bytes;
+            if (maximumBytes == null) bytes = File.ReadAllBytes(path);
+            else {
+                using (var file = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read)) {
+                    if (file.Length > maximumBytes.Value) throw new BtplFormatException("BindingsTooLarge");
+                    int length = (int)file.Length;
+                    using (var reader = new BinaryReader(file)) {
+                        bytes = reader.ReadBytes(length);
+                        if (bytes.Length != length || file.ReadByte() != -1) throw new IOException("File changed while reading.");
+                    }
+                }
+            }
             origin = new BtplFileOrigin(path, bytes);
             var encoding = StrictEncoding(codePage);
             int offset = 0;
@@ -46,11 +57,14 @@ namespace U2BIO.BT003PROLabelPrinting
                     created = true; file.Write(bytes, 0, bytes.Length); file.Flush(true);
                 }
                 if (origin != null && string.Equals(path, origin.Path, StringComparison.OrdinalIgnoreCase)) {
-                    byte[] current;
-                    try { current = File.ReadAllBytes(path); }
+                    byte[] currentHash;
+                    try {
+                        using (var file = File.OpenRead(path))
+                        using (var sha = SHA256.Create()) currentHash = sha.ComputeHash(file);
+                    }
                     catch (FileNotFoundException) { throw new BtplSaveConflictException(); }
                     catch (DirectoryNotFoundException) { throw new BtplSaveConflictException(); }
-                    if (!Hash(current).SequenceEqual(origin.Hash)) throw new BtplSaveConflictException();
+                    if (!currentHash.SequenceEqual(origin.Hash)) throw new BtplSaveConflictException();
                 }
                 if (File.Exists(path)) File.Replace(temporary, path, null, false);
                 else File.Move(temporary, path);

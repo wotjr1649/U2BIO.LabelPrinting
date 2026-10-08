@@ -24,6 +24,21 @@ namespace U2BIO.BT003PROLabelPrinting
 
     public sealed class BtplBindings
     {
+        private const int MaxJsonBytes = 4 * 1024 * 1024;
+        private static readonly Encoding Utf8 = new UTF8Encoding(false, true);
+        private sealed class JsonBuffer : MemoryStream
+        {
+            public override void Write(byte[] buffer, int offset, int count)
+            {
+                if (Position + count > MaxJsonBytes) throw new BtplFormatException("BindingsTooLarge");
+                base.Write(buffer, offset, count);
+            }
+            public override void WriteByte(byte value)
+            {
+                if (Position >= MaxJsonBytes) throw new BtplFormatException("BindingsTooLarge");
+                base.WriteByte(value);
+            }
+        }
         public IReadOnlyDictionary<string, BtplBinding> Variables { get; }
         private readonly BtplFileOrigin origin;
         internal BtplBindings(IDictionary<string, BtplBinding> variables, BtplFileOrigin source = null)
@@ -78,10 +93,11 @@ namespace U2BIO.BT003PROLabelPrinting
         public static BtplBindings Parse(string json)
         {
             if (json == null) throw new ArgumentNullException(nameof(json));
-            CheckEnvelope(json);
             try {
-                var quotas = new XmlDictionaryReaderQuotas { MaxDepth = 4, MaxStringContentLength = int.MaxValue };
-                using (var reader = JsonReaderWriterFactory.CreateJsonReader(new UTF8Encoding(false, true).GetBytes(json), quotas)) {
+                if (Utf8.GetByteCount(json) > MaxJsonBytes) throw new BtplFormatException("BindingsTooLarge");
+                CheckEnvelope(json);
+                var quotas = new XmlDictionaryReaderQuotas { MaxDepth = 4, MaxStringContentLength = MaxJsonBytes };
+                using (var reader = JsonReaderWriterFactory.CreateJsonReader(Utf8.GetBytes(json), quotas)) {
                     var document = new XmlDocument { XmlResolver = null }; document.Load(reader);
                     var root = Object(document.DocumentElement);
                     if (root.Count != 1 || !root.ContainsKey("variables")) throw new BtplFormatException("InvalidBindings");
@@ -103,7 +119,7 @@ namespace U2BIO.BT003PROLabelPrinting
         public static BtplBindings Load(string filePath)
         {
             if (filePath == null) throw new ArgumentNullException(nameof(filePath));
-            BtplFileOrigin source; var parsed = Parse(BtplFileStore.Read(filePath, 65001, out source));
+            BtplFileOrigin source; var parsed = Parse(BtplFileStore.Read(filePath, 65001, out source, MaxJsonBytes));
             return new BtplBindings(parsed.Variables.ToDictionary(x => x.Key, x => x.Value, StringComparer.Ordinal), source);
         }
         private static void WriteString(XmlDictionaryWriter writer, string name, string value)
@@ -113,8 +129,17 @@ namespace U2BIO.BT003PROLabelPrinting
         }
         public string ToJson()
         {
-            using (var stream = new MemoryStream()) {
-                using (var writer = JsonReaderWriterFactory.CreateJsonWriter(stream, new UTF8Encoding(false, true), false, true, "  ")) {
+            long minimumBytes = 0;
+            try {
+                foreach (var item in Variables) {
+                    minimumBytes += Utf8.GetByteCount(item.Value.Column);
+                    if (item.Value.Format != null) minimumBytes += Utf8.GetByteCount(item.Value.Format);
+                    if (item.Value.NullText != null) minimumBytes += Utf8.GetByteCount(item.Value.NullText);
+                    if (minimumBytes > MaxJsonBytes) throw new BtplFormatException("BindingsTooLarge");
+                }
+            } catch (EncoderFallbackException) { throw new BtplFormatException("InvalidBindings"); }
+            using (var stream = new JsonBuffer()) {
+                using (var writer = JsonReaderWriterFactory.CreateJsonWriter(stream, Utf8, false, true, "  ")) {
                     writer.WriteStartElement("root"); writer.WriteAttributeString("type", "object");
                     writer.WriteStartElement("variables"); writer.WriteAttributeString("type", "object");
                     foreach (var item in Variables.OrderBy(x => x.Key, StringComparer.Ordinal)) {
@@ -126,7 +151,7 @@ namespace U2BIO.BT003PROLabelPrinting
                     }
                     writer.WriteEndElement(); writer.WriteEndElement();
                 }
-                return new UTF8Encoding(false, true).GetString(stream.ToArray());
+                return Utf8.GetString(stream.ToArray());
             }
         }
         public BtplBindings Save(string filePath)

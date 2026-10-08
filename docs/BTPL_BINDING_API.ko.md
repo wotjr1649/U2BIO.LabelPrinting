@@ -44,6 +44,7 @@ var preview = BtplProcessor.Render(request, 0);
 - 최상위는 variables 하나만 허용한다. 키는 정확한 ^V00~^V99이며 각 값은 필수 문자열 column, 선택 문자열 format, 선택 문자열/null인 nullText다. 빈/공백 컬럼명·중복 키·알 수 없는 키·잘못된 자료형·객체 뒤 추가 내용은 오류다. format:null은 문자열 타입 오류이며 nullText:null은 대체값 없음으로 처리한다.
 - 위치·글꼴·DPI·SQL·연결 정보·표현식·스크립트를 JSON에 넣거나 실행하지 않는다. 미사용 매핑은 UnusedBinding 경고로 처리하며 없는 컬럼도 사용하지 않으면 출력 차단 오류로 만들지 않는다.
 - 파일은 strict UTF-8, BOM 없음, 두 칸 들여쓰기다. UTF-8 BOM이 있는 파일은 읽을 수 있다. Load/Save는 TASK-03의 단일 파일 해시 충돌/임시 파일 교체 계약을 재사용한다. BTPL과 JSON을 하나의 원자 트랜잭션으로 저장하지 않는다.
+- JSON 문서 전체는 UTF-8 기준 최대 4 MiB(4,194,304 바이트)다. Parse는 인코딩 전 크기를 검사하고, Load는 같은 열린 파일에서 크기를 검사한 뒤 제한된 바이트만 읽는다. 파일 상한에는 BOM도 포함한다. ToJson/Save는 들여쓰기·이스케이프를 포함한 생성 결과에도 상한을 적용하며 초과 시 BindingsTooLarge다. 저장 준비 전 오류로 기존 대상 파일을 보존한다. JSON에 들어가는 nullText도 이 문서 상한에 포함되지만 DataTable의 실제 인쇄 문자열에는 별도 길이 제한을 추가하지 않는다.
 
 JSON은 .NET 기본 JsonReaderWriterFactory를 이용하고 중복 멤버를 따로 검사한다. 기본 reader가 무시하는 객체 뒤 내용과 __type 메타데이터도 거절한다. 선택한 overload의 .NET Framework 4.6.1 참조 컴파일·실행을 확인했으며 패키지나 전역 설정을 추가하지 않았다. 참고: [Microsoft JSON reader/writer](https://learn.microsoft.com/en-us/dotnet/api/system.runtime.serialization.json.jsonreaderwriterfactory), [JSON 처리 규칙](https://learn.microsoft.com/en-us/dotnet/framework/wcf/feature-details/mapping-between-json-and-xml).
 
