@@ -31,7 +31,7 @@ function parseArgs(args) {
     if (transport === 'tcp' && net.isIP(ip) === 0) bad();
     const selected = { sdk: args[1], connection: { transport, port, ip } };
     if (fields['--label-test'] !== undefined || fields['--architecture'] !== undefined) {
-        if (transport !== 'usb' || !['50x25gap3', 'blackmark60x20', 'blackmark60x20ac', 'blackmark60x20direct', 'present15'].includes(fields['--label-test']) || !['x86', 'x64'].includes(fields['--architecture'])) bad();
+        if (transport !== 'usb' || !['50x25gap3', 'blackmark60x20', 'blackmark60x20ac', 'blackmark60x20direct', 'present15', 'return15'].includes(fields['--label-test']) || !['x86', 'x64'].includes(fields['--architecture'])) bad();
         selected.labelTest = fields['--label-test']; selected.architecture = fields['--architecture'];
     }
     return selected;
@@ -117,7 +117,7 @@ async function run(executable, stage, environment, taskkill, connection, labelTe
 async function main() {
     if (process.platform !== 'win32') throw new Error('ProbeUsage');
     const options = parseArgs(process.argv.slice(2)), connection = options.connection;
-    const directDiagnostic = options.labelTest === 'blackmark60x20direct' || options.labelTest === 'present15';
+    const directDiagnostic = ['blackmark60x20direct', 'present15', 'return15'].includes(options.labelTest);
     const sdk = path.resolve(options.sdk);
     if (!/^[A-Za-z]:\\/.test(sdk)) throw new Error('LocalSdkPathRequired');
     noLinks(root); noLinks(sdk);
@@ -155,7 +155,7 @@ async function main() {
     if (path.dirname(taskkill).toLowerCase() !== systemDirectory.toLowerCase()) throw new Error('HostPathMismatch');
     const evidence = { managedBuildCommit, configuration: 'Release', mode: options.labelTest ? 'label-diagnostic' : connection ? 'connection' : 'native-load', transport: connection ? connection.transport : null,
         labelTest: options.labelTest || null, results: [], rfidApiCalls: 0 };
-    if (directDiagnostic) { evidence.mode = options.labelTest === 'present15' ? 'presentation-diagnostic' : 'direct-label-diagnostic'; evidence.printApiCalls = 0; evidence.completion = 'unknown'; }
+    if (directDiagnostic) { evidence.mode = options.labelTest === 'blackmark60x20direct' ? 'direct-label-diagnostic' : 'presentation-diagnostic'; evidence.printApiCalls = 0; evidence.completion = 'unknown'; }
     if (!options.labelTest) evidence.printApiCalls = 0;
     for (const platform of options.labelTest ? [options.architecture] : ['x86', 'x64']) {
         const stage = path.join(runRoot, platform);

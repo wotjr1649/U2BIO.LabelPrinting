@@ -9,6 +9,7 @@ namespace U2BIO.BT003PROLabelPrinting.Validation
         {
             // Movement only: no layout, E print trigger, RFID command or common DLL default.
             if (recipe == "present15") return "^M15\r\n";
+            if (recipe == "return15") return "^B15\r\n";
             string media, text, settings;
             if (recipe == "50x25gap3") {
                 media = "^Q25,3\r\n^W50\r\n";
