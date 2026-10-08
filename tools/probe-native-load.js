@@ -1,9 +1,10 @@
 'use strict';
 
-// Task-only SDK diagnostics: default mode binds only; USB mode invokes the four buffer-free connection primitives.
+// Task-only SDK diagnostics: default mode binds only; connection mode requires an explicit transport and port.
 const fs = require('node:fs');
 const path = require('node:path');
 const crypto = require('node:crypto');
+const net = require('node:net');
 const { spawn, spawnSync } = require('node:child_process');
 const root = path.resolve(__dirname, '..');
 // This diagnostic manifest identifies the reviewed Release build, not an arbitrary current bin directory.
@@ -13,8 +14,27 @@ const managedHashes = {
     x64: ['5278c12c29f6e007d47603365bed1376994a76b0b2b1ef84d44abac7ea477091', 'b0d649e17b97dd806c388f2863476274f32f3a83953bf496d8ea3cf8fdaf6495']
 };
 const passReport = 'NATIVE_LOAD|status=Passed|bound=41|deviceDelegatesInvoked=0';
-const usb = process.argv.length === 5 && process.argv[4] === '--usb-connection';
-const usbPassed = /^USB_CONNECTION\|status=Passed\|pre=0\|setport=0\|connect=0\|open=1\|disconnect=-?[0-9]{1,10}\|closed=0\|printApiCalls=0\|rfidApiCalls=0$/;
+function parseArgs(args) {
+    const bad = () => { throw new Error('ProbeUsage'); };
+    const clean = value => typeof value === 'string' && value.length > 0 && value === value.trim() && !/[\u0000-\u001f\u007f-\u009f\ud800-\udfff]/.test(value);
+    if (args[0] !== '--sdk-directory' || !clean(args[1]) || args.length % 2 !== 0) bad();
+    if (args.length === 2) return { sdk: args[1], connection: null };
+    const fields = Object.create(null);
+    for (let i = 2; i < args.length; i += 2) {
+        if (!['--connection', '--port', '--ip'].includes(args[i]) || fields[args[i]] !== undefined || !clean(args[i + 1])) bad();
+        fields[args[i]] = args[i + 1];
+    }
+    const transport = fields['--connection'], port = fields['--port'], ip = fields['--ip'] || '';
+    if (!['usb', 'serial', 'tcp'].includes(transport) || !port || (transport !== 'tcp' && ip)) bad();
+    const digits = transport === 'serial' ? port.replace(/^COM/i, '') : port;
+    if (transport !== 'usb' && (!/^[0-9]+$/.test(digits) || Number(digits) < 1 || Number(digits) > (transport === 'tcp' ? 65535 : 2147483647))) bad();
+    if (transport === 'tcp' && net.isIP(ip) === 0) bad();
+    return { sdk: args[1], connection: { transport, port, ip } };
+}
+function connectionPassed(report, connection) {
+    return report.startsWith('CONNECTION|transport=' + connection.transport + '|') &&
+        /^CONNECTION\|transport=(usb|serial|tcp)\|status=Passed\|pre=0\|setport=0\|connect=0\|open=1\|disconnect=-?[0-9]{1,10}\|closed=0\|printApiCalls=0\|rfidApiCalls=0$/.test(report);
+}
 const files = ['BlackfishNfcLib.dll', 'HFModule.dll'];
 const hashes = {
     x86: ['fed09bae47835dcf78f58579e3cfb9382561799b369e54fd9fa0902e5b89dbf5', 'bb2721801bc853ead75e647608c6b36a5a3a75f344095e4e29ffc35e822319d4'],
@@ -34,15 +54,16 @@ function directory(file) {
     noLinks(file);
 }
 function safeReport(value) {
-    if (/^USB_CONNECTION\|status=(Passed|Failed)\|pre=(none|-?[0-9]{1,10})\|setport=(none|-?[0-9]{1,10})\|connect=(none|-?[0-9]{1,10})\|open=(none|-?[0-9]{1,10})\|disconnect=(none|-?[0-9]{1,10})\|closed=(none|-?[0-9]{1,10})\|printApiCalls=0\|rfidApiCalls=0$/.test(value)) return true;
+    if (/^CONNECTION\|transport=(usb|serial|tcp)\|status=(Passed|Failed)\|pre=(none|-?[0-9]{1,10})\|setport=(none|-?[0-9]{1,10})\|connect=(none|-?[0-9]{1,10})\|open=(none|-?[0-9]{1,10})\|disconnect=(none|-?[0-9]{1,10})\|closed=(none|-?[0-9]{1,10})\|printApiCalls=0\|rfidApiCalls=0$/.test(value)) return true;
     if (/^NATIVE_LOAD\|status=Failed\|code=NativeModuleConflict\|win32=(none|[0-9]{1,10})\|detail=(preload|postload):(system-import|app-local-system-import|vendor-module):(setupapi\.dll|kernel32\.dll|user32\.dll|gdi32\.dll|msimg32\.dll|winspool\.drv|advapi32\.dll|shell32\.dll|shlwapi\.dll|uxtheme\.dll|ole32\.dll|oleaut32\.dll|oledlg\.dll|crypt32\.dll|ws2_32\.dll|oleacc\.dll|gdiplus\.dll|imm32\.dll|winmm\.dll|blackfishnfclib\.dll|hfmodule\.dll):(system|sideBySide|other)$/.test(value)) return true;
     return /^NATIVE_LOAD\|status=Passed\|bound=41\|deviceDelegatesInvoked=0$/.test(value) ||
-        /^NATIVE_LOAD\|status=Failed\|code=(NativeLibraryMissing|NativeArchitectureMismatch|NativeVersionMismatch|NativeModuleConflict|UnsupportedLoaderPlatform|NativeLoadFailed|NativeEntryPointMissing|PrintContractUnverified|ProbeInternalError|ProbeSlotAbandoned|ProbeSlotBusy|ProbeSlotDenied|ProbeReservationFailed|ProbeTimeout|ProbeBindingMismatch|ProbeJobUnavailable)(\|win32=(none|[0-9]{1,10}))?$/.test(value);
+        /^NATIVE_LOAD\|status=Failed\|code=(InvalidConnectionOptions|NativeLibraryMissing|NativeArchitectureMismatch|NativeVersionMismatch|NativeModuleConflict|UnsupportedLoaderPlatform|NativeLoadFailed|NativeEntryPointMissing|PrintContractUnverified|ProbeInternalError|ProbeSlotAbandoned|ProbeSlotBusy|ProbeSlotDenied|ProbeReservationFailed|ProbeTimeout|ProbeBindingMismatch|ProbeJobUnavailable)(\|win32=(none|[0-9]{1,10}))?$/.test(value);
 }
-async function run(executable, stage, environment, taskkill) {
+async function run(executable, stage, environment, taskkill, connection) {
     return new Promise((resolve, reject) => {
         const nonce = crypto.randomBytes(16).toString('hex');
-        const child = spawn(executable, [usb ? '--probe-usb-connection' : '--probe-native-load', nonce], { cwd: stage, env: environment, windowsHide: true, shell: false, stdio: ['ignore', 'pipe', 'pipe'] });
+        const args = connection ? ['--probe-connection', connection.transport, connection.port, ...(connection.transport === 'tcp' ? [connection.ip] : []), nonce] : ['--probe-native-load', nonce];
+        const child = spawn(executable, args, { cwd: stage, env: environment, windowsHide: true, shell: false, stdio: ['ignore', 'pipe', 'pipe'] });
         const chunks = [];
         let bytes = 0, failure = '', cleanup;
         const stop = reason => {
@@ -80,8 +101,9 @@ async function run(executable, stage, environment, taskkill) {
     });
 }
 async function main() {
-    if (process.platform !== 'win32' || (!usb && process.argv.length !== 4) || process.argv[2] !== '--sdk-directory') throw new Error('ProbeUsage');
-    const sdk = path.resolve(process.argv[3]);
+    if (process.platform !== 'win32') throw new Error('ProbeUsage');
+    const options = parseArgs(process.argv.slice(2)), connection = options.connection;
+    const sdk = path.resolve(options.sdk);
     if (!/^[A-Za-z]:\\/.test(sdk)) throw new Error('LocalSdkPathRequired');
     noLinks(root); noLinks(sdk);
     const work = path.join(root, '.work');
@@ -116,7 +138,8 @@ async function main() {
     const taskkill = fs.realpathSync(path.join(systemDirectory, 'taskkill.exe'));
     noLinks(taskkill);
     if (path.dirname(taskkill).toLowerCase() !== systemDirectory.toLowerCase()) throw new Error('HostPathMismatch');
-    const evidence = { managedBuildCommit, configuration: 'Release', mode: usb ? 'usb-connection' : 'native-load', results: [], printApiCalls: 0, rfidApiCalls: 0 };
+    const evidence = { managedBuildCommit, configuration: 'Release', mode: connection ? 'connection' : 'native-load', transport: connection ? connection.transport : null,
+        results: [], printApiCalls: 0, rfidApiCalls: 0 };
     for (const platform of ['x86', 'x64']) {
         const stage = path.join(runRoot, platform);
         directory(stage);
@@ -139,16 +162,17 @@ async function main() {
         }
         directory(path.join(stage, 'tmp'));
         const result = await run(path.join(stage, 'U2BIO.BT003PROLabelPrinting.Validation.exe'), stage,
-            { ...environment, TEMP: path.join(stage, 'tmp'), TMP: path.join(stage, 'tmp') }, taskkill);
+            { ...environment, TEMP: path.join(stage, 'tmp'), TMP: path.join(stage, 'tmp') }, taskkill, connection);
         evidence.results.push({ platform, ...result, managedDllSha256: digest(path.join(stage, 'U2BIO.BT003PROLabelPrinting.dll')), managedExeSha256: digest(path.join(stage, 'U2BIO.BT003PROLabelPrinting.Validation.exe')) });
         process.stdout.write(`${platform}: ${result.report}; exit=${result.exitCode}\n`);
-        // A failed USB attempt must not trigger another architecture's connection to uncertain device state.
-        if (usb && (result.exitCode !== 0 || !usbPassed.test(result.report))) break;
+        // A failed connection must not trigger another architecture's attempt against uncertain device state.
+        if (connection && (result.exitCode !== 0 || !connectionPassed(result.report, connection))) break;
     }
     fs.writeFileSync(path.join(runRoot, 'evidence.json'), JSON.stringify(evidence, null, 2) + '\n', { flag: 'wx' });
-    if (evidence.results.some(r => r.exitCode !== 0 || (usb ? !usbPassed.test(r.report) : r.report !== passReport))) throw new Error('NativeLoadProbeFailed');
+    if (evidence.results.some(r => r.exitCode !== 0 || (connection ? !connectionPassed(r.report, connection) : r.report !== passReport))) throw new Error('NativeLoadProbeFailed');
 }
-main().catch(error => {
+module.exports = { parseArgs, safeReport, connectionPassed };
+if (require.main === module) main().catch(error => {
     const allowed = ['LinkedPathRejected', 'StageAlreadyExists', 'TerminationUnconfirmed', 'ChildExitUnconfirmed', 'ProbeSupervisorTimeout',
         'ProbeOutputLimit', 'ProbeStartFailed', 'ProbeReportInvalid', 'ProbeUsage', 'LocalSdkPathRequired', 'GitUnavailable', 'RevisionInvalid',
         'SdkBaselineMismatch', 'SdkCopyMismatch', 'NativeLoadProbeFailed', 'ManagedBuildMismatch', 'ManagedCopyMismatch', 'HostPathMismatch'];
