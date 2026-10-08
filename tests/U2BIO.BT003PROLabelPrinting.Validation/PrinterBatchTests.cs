@@ -3,6 +3,7 @@ using System.Data;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Runtime.CompilerServices;
+using System.Reflection;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -43,6 +44,38 @@ namespace U2BIO.BT003PROLabelPrinting.Validation
             Check(result.Rows.Select(x => x.RowIndex).SequenceEqual(Enumerable.Range(0, result.Rows.Count)));
             foreach (var row in result.Rows.Where(x => x.Status == PrintRowStatus.NotAttempted)) Check(!row.PrintInvoked && row.NativeFunction == null && row.NativeCode == null);
         }
+        private static void PartialValidation()
+        {
+            var table = new DataTable(); table.Columns.Add("Text", typeof(string));
+            for (int i = 0; i < 10000; i++) table.Rows.Add(new string('A', 2048));
+            var template = PrinterTests.Request().Template;
+            template = template.WithText(0, template.TextElements[0].WithPayload("^V00"));
+            var request = BtplPrintRequest.FromTable(template, BtplBindings.Parse("{\"variables\":{\"^V00\":{\"column\":\"Text\"}}}"), table);
+            var f = Fixture();
+            using (var p = f.Printer()) using (var token = new CancellationTokenSource()) {
+                Open(p, f);
+                var flags = BindingFlags.Instance | BindingFlags.NonPublic;
+                var gate = typeof(Bt003Printer).GetField("sync", flags).GetValue(p);
+                Task<BatchPrintResult> task; Array partial;
+                lock (gate) {
+                    task = p.PrintAsync(request, token.Token);
+                    var work = typeof(Bt003Printer).GetField("next", flags).GetValue(p);
+                    var data = work.GetType().GetField("Printing", flags).GetValue(work);
+                    partial = (Array)data.GetType().GetField("PartialManaged", flags).GetValue(data);
+                }
+                Check(SpinWait.SpinUntil(() => {
+                    lock (gate) {
+                        if (partial.GetValue(0) == null) return false;
+                        Check(partial.GetValue(partial.Length - 1) == null);
+                        token.Cancel(); return true;
+                    }
+                }, 3000));
+                Check(task.Wait(3000)); var result = task.Result;
+                Check(result.StopReason == PrintStopReason.Cancelled && result.Validation == null && result.DeviceValidation == null);
+                Check(result.Rows.Count == request.RowCount && result.NotAttemptedCount == request.RowCount);
+                Check(result.Rows[0].Validation != null && result.Rows.Last().Validation == null && f.Calls.Count == 0);
+            }
+        }
         internal static void Run()
         {
             var request = Request(); var f = Fixture();
@@ -56,7 +89,15 @@ namespace U2BIO.BT003PROLabelPrinting.Validation
                     States(cancelled, "NNN", PrintStopReason.Cancelled);
                     Check(cancelled.Validation == null && cancelled.DeviceValidation == null && f.Calls.Count == 0);
                 }
+                var table = new DataTable();
+                var empty = p.Print(BtplPrintRequest.FromTable(request.Template, BtplBindings.Parse("{\"variables\":{}}"), table));
+                Check(empty.StopReason == PrintStopReason.NoData && empty.Rows.Count == 0 && !empty.Validation.IsValid && empty.DeviceValidation == null && f.Calls.Count == 0);
             }
+            using (var p = new Bt003Printer()) using (var token = new CancellationTokenSource()) {
+                token.Cancel(); States(p.PrintAsync(request, token.Token).Result, "NNN", PrintStopReason.Cancelled);
+                Check(p.GetConnectionStatus().ResourcesReleased);
+            }
+            PartialValidation();
             foreach (string mode in new[] { "row-closed", "form-second-fail", "reset-cleanup-fail" }) {
                 f = Fixture();
                 using (var p = f.Printer()) {
@@ -71,14 +112,14 @@ namespace U2BIO.BT003PROLabelPrinting.Validation
                     }
                 }
             }
-            foreach (string mode in new[] { "cancel-success", "cancel-fail", "dispose", "last-cancel", "second-timeout", "form-timeout", "preflight-timeout" }) {
+            foreach (string mode in new[] { "cancel-success", "cancel-fail", "cancel-form", "dispose", "last-cancel", "second-timeout", "form-timeout", "preflight-timeout" }) {
                 Console.WriteLine("CHECK: synthetic batch " + mode);
                 f = Fixture();
                 var p = f.Printer(mode.EndsWith("timeout", StringComparison.Ordinal) ? 50 : 1000);
                 using (var token = new CancellationTokenSource()) {
                     try {
                         Open(p, f);
-                        if (mode == "form-timeout") f.Mode = "form-pending";
+                        if (mode == "form-timeout" || mode == "cancel-form") f.Mode = "form-pending";
                         if (mode == "preflight-timeout") f.Mode = "status-pending";
                         f.Printed = (copies, pointer) => {
                             Check(copies == 1);
@@ -99,6 +140,7 @@ namespace U2BIO.BT003PROLabelPrinting.Validation
                         Check(task.Wait(3000)); var result = task.Result;
                         if (mode == "cancel-success") States(result, "SNN", PrintStopReason.Cancelled);
                         if (mode == "cancel-fail") States(result, "FNN", PrintStopReason.SdkFailure);
+                        if (mode == "cancel-form") { States(result, "NNN", PrintStopReason.Cancelled); Check(f.PrintNumber == 0 && f.FormNumber == 1 && result.Validation.IsValid); }
                         if (mode == "dispose") States(result, "SNN", PrintStopReason.Disposed);
                         if (mode == "last-cancel") States(result, "SSS", PrintStopReason.None);
                         if (mode == "second-timeout") States(result, "SUN", PrintStopReason.Timeout);
