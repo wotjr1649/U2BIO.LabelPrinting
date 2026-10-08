@@ -70,6 +70,8 @@ examples\OfflineSmoke\bin\x64\Release\U2BIO.LabelPrinting.OfflineSmoke.exe --exp
 
 두 비트 수의 빌드·실행은 모두 종료0이며 `nativeSDK=not-loaded; no DB/UI/device`를 확인했다. 이 예제에는 `Bt003NativePlatform`을 지정하지 않는다. DB/DevExpress provider를 참조하지 않으며 일반 Framework 타입만 사용한다.
 
+독립 verifier/reviewer는 `7de27b0..34d4fe7`을 검토하고 위 두 비트 수의 예제 빌드·실행과 Release 전체 관리 검사를 재실행해 모두 종료0을 확인했다. 전체 검사 증거는 로컬 `.work/foundation/Release-1791476324048/evidence.json`이며 기존 사용자 솔루션 변경을 보존했다. 문서의 18개 관리/합성·6개 부분 집계와 상대 링크를 대조했다. 완료 조건 표와 본 증거를 연결하는 후속 변경은 문서 전용이다.
+
 ## 다음 완료 조건
 
 TASK-07 조건1·4·5·6은 증거/부분 상태 표·독립 호출·지원/배포 안내의 범위다. 조건2(제품 USB 실기), 조건3의 runtime 로드/ABI, 조건7(Tester 착수 전 필수 검사)는 아직 미완료다. TASK-05 조건7도 열린다. 출력 금지 상태에서는 이 미검증 조건을 그대로 유지한다. TASK-08/09는 TASK-07 완료 조건을 충족한 뒤 진행한다.
