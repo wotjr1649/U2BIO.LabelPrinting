@@ -19,8 +19,8 @@ namespace U2BIO.BT003PROLabelPrinting.Validation
             Check(run != null);
             Check(run.GetParameters().Length == 9 && run.GetParameters()[1].ParameterType == typeof(string));
             string first = "^Q25,3\r\n^W50\r\n^H10\r\n^S2\r\n^P1\r\n^C1\r\n^R0\r\n^E0\r\n^D0\r\n^O0\r\n^L\r\nAC,24,24,1,1,0,0,U2BIO TEST\r\nE\r\n";
-            string second = "^Q40,5,7.5+\r\n^W70\r\n^G0\r\n^E7\r\n^S5\r\n^H19\r\n^P1\r\n^C1\r\n^L\r\nAW,80,120,1,1,0,0,U2BIO TEST2\r\nE\r\n";
-            string third = second.Replace("AW,80,120", "AC,80,120");
+            string second = "^Q40,5,7.5+\r\n^W70\r\n^G0\r\n^S5\r\n^H19\r\n^P1\r\n^C1\r\n^R0\r\n^E15\r\n^L\r\nAW,80,120,1,1,0,0,U2BIO TEST2\r\nE\r\n";
+            string third = "^Q40,5,7.5+\r\n^W70\r\n^G0\r\n^E7\r\n^S5\r\n^H19\r\n^P1\r\n^C1\r\n^L\r\nAC,80,120,1,1,0,0,U2BIO TEST2\r\nE\r\n";
             Check(LabelDiagnosticForms.Create("50x25gap3") == first);
             Check(LabelDiagnosticForms.Create("blackmark60x20") == second);
             Check(LabelDiagnosticForms.Create("blackmark60x20ac") == third);
