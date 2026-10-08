@@ -43,6 +43,8 @@ BTPL은 레이아웃과 실제 프린터 명령의 기준이다. 위치, 글꼴,
 
 JSON은 BTPL 변수와 `DataTable` 컬럼을 연결하는 부가 설정이다. 임의의 SQL, 연결 정보, 스크립트나 표현식을 실행하는 기능을 넣지 않는다.
 
+TASK-04에서 확정한 JSON 자원 경계는 문서 전체 UTF-8 기준 4 MiB(4,194,304 바이트)다. Parse/Load와 ToJson/Save의 들여쓰기·이스케이프를 포함한 결과에 적용하며 초과는 BindingsTooLarge다. 파일은 BOM도 상한에 포함한다. JSON의 nullText도 포함되지만 DataTable의 실제 인쇄 문자열에는 별도 길이 제한을 추가하지 않는다. API와 실행 근거는 [BTPL_BINDING_API.ko.md](BTPL_BINDING_API.ko.md)를 따른다.
+
 ```text
 BTPL 파일 또는 문자열 + 바인딩 JSON + DataTable
     → 서식 해석 및 변수 매핑
@@ -106,7 +108,7 @@ Save/ToBtpl는 payload에 리터럴 CR/LF가 남아 있으면 `UnexpandedTextLin
 
 저장할 문자열/바이트는 대상 파일을 열기 전에 완성·검사한다. Load는 원본 경로와 SHA-256을 내부에 보관하고 With/Add/Remove 파생 객체에 전달한다. 같은 원본 경로로 Save할 때 교체 직전 현재 해시를 비교하여 변경/삭제를 발견하면 BtplSaveConflictException(IOException 파생, Code=SourceChanged)을 반환한다. UI에서 덮어쓰기로 자동 우회하지 않고 재로드/다른 이름 저장으로 안내한다. 새로 Parse한 객체와 다른 이름 저장은 사용자가 선택한 대상의 명시적 저장이며 원본 해시 비교는 없다.
 
-대상과 같은 폴더의 고유 임시 파일에 기록·닫은 뒤, 기존 대상은 File.Replace(source,target,null,false), 새 대상은 File.Move로 확정한다. 성공하면 Save는 실제 저장 경로/바이트 해시를 새 원본 기준으로 가진 새 템플릿(또는 바인딩)을 반환한다. 호출 측은 반환 객체로 현재 편집 상태를 교체하여 다음 저장을 자기 이전 저장과 충돌로 판정하지 않게 한다. 기존 불변 객체의 원본 해시는 변경하지 않는다. 교체 실패를 원본 삭제+이동으로 우회하지 않는다. 실패 시 원본을 직접 truncate하지 않고 task-created 임시 파일만 정리하며 I/O 예외를 반환한다. 해시 확인과 교체 사이 외부 프로그램까지 완전히 잠그는 CAS는 아니며 파일 시스템 실패·프로세스 종료까지 복구를 보증하지 않는다. File.Replace의 기존 파일 교체·볼륨 제약은 [Microsoft 문서](https://learn.microsoft.com/en-us/dotnet/api/system.io.file.replace?view=netframework-4.8.1)를 대조했다. 관련 API의 정확한 .NET 4.6.1 참조 컴파일은 2026-10-07 확인했다(검증 assembly 미실행). 본 DLL 저장 구현·대상 파일 시스템 동작 검증은 아직 수행하지 않았다.
+대상과 같은 폴더의 고유 임시 파일에 기록·닫은 뒤, 기존 대상은 File.Replace(source,target,null,false), 새 대상은 File.Move로 확정한다. 성공하면 Save는 실제 저장 경로/바이트 해시를 새 원본 기준으로 가진 새 템플릿(또는 바인딩)을 반환한다. 호출 측은 반환 객체로 현재 편집 상태를 교체하여 다음 저장을 자기 이전 저장과 충돌로 판정하지 않게 한다. 기존 불변 객체의 원본 해시는 변경하지 않는다. 교체 실패를 원본 삭제+이동으로 우회하지 않는다. 실패 시 원본을 직접 truncate하지 않고 task-created 임시 파일만 정리하며 I/O 예외를 반환한다. 해시 확인과 교체 사이 외부 프로그램까지 완전히 잠그는 CAS는 아니며 파일 시스템 실패·프로세스 종료까지 복구를 보증하지 않는다. File.Replace의 기존 파일 교체·볼륨 제약은 [Microsoft 문서](https://learn.microsoft.com/en-us/dotnet/api/system.io.file.replace?view=netframework-4.8.1)를 대조했다. 실제 DLL 저장·충돌·교체 실패·연속 저장의 관리 코드 검증은 TASK-03 및 TASK-04의 검사 범위를 따르며, 모든 파일 시스템이나 프로세스 종료 복구의 증거로 확대하지 않는다.
 
 BTPL과 바인딩 JSON은 독립 파일이다. 두 파일을 하나의 원자적 트랜잭션으로 저장했다고 주장하지 않는다. UI는 각각의 저장 성공/실패·미저장 상태를 표시하고 저장 실패가 남아 있으면 출력 버튼을 차단한다. 재로드 뒤에는 둘의 매핑을 다시 검사한다. 바인딩 Save도 위의 단일 파일 저장 규칙과 UTF-8/BOM 없음/들여쓰기 정책을 적용한다.
 

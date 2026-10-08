@@ -79,3 +79,31 @@ Render는 선택 행의 참고 미리보기·후보 생성용이다. 제품 Prin
 TASK-02의 미검증 제품 경계·장치 지원은 [#10](https://github.com/wotjr1649/U2BIO.LabelPrinting/issues/10)에서 기존 TASK-05/06/07 결과와 연결한다. #10은 TASK-04 관리 처리의 선행 장애가 아니다. 사용자 제외 RFID 실측을 필수 시험으로 복원하지 않는다.
 
 BindingTests가 C01/C02/C19의 오프라인 조건, 모든 지원 타입과 오류·nullText·컬럼 일치·스냅샷·반복 치환·부분 미리보기·가변 줄 배치·JSON 연속 저장/충돌 및 JSON만 저장 실패를 검사한다. 기존 BTPL 관리 검사는 유지한다. DB 연결·실제 프린터/SDK·UI 그림·장치 지원 검사는 이번 범위 밖이다.
+
+## 실행 근거 — 2026-10-08
+
+제품 구현은 bec4e59, 변수 표식/실제 Vt 문자 수 구분의 재현 시험은8a035fa, JSON 자원 경계 재현 시험은1a0a55e, 최종 제품 보완은56b6aca다. 최초 API 부재와 JSON 상한 미적용 상태에서 실패를 확인하고 구현 뒤 동일 검사를 통과했다. 시험 잠금 명령의 DEVFLOW_ROOT 누락으로 발생한 repository 실패도 있었으며 제품 시험 실패와 구분한다.
+
+최종 제품 revision `56b6acaf873573d2cda0cbd283dac93d65424bdb`에서 독립 verifier가 다음을 실행했다. 뒤의 문서 변경 커밋을 제품 빌드 revision으로 표시하지 않는다.
+
+| 검사 | 관찰 결과 |
+| --- | --- |
+| `node tools/verify-build.js` | Release x86/x64 빌드·실행, exit0 |
+| `node tools/verify-build.js --configuration Debug` | Debug x86/x64 빌드·실행, exit0 |
+| `node tools/verify-repository.js`, devflow-doctor, `git diff --check` | exit0. 기존 솔루션 작업 트리 CRLF 경고 보존 |
+| `node tests/label-probe-cli.test.js`, `node tests/connection-probe-cli.test.js` | root에서 동일 revision으로 exit0. 옵션·보고 문법만 검사, child/SDK 미실행 |
+
+Release/Debug 각각 `.work/foundation/Release-1791459307252/evidence.json`, `.work/foundation/Debug-1791459316390/evidence.json`을 로컬에 보존했다. 둘 다 result=passed, workingTreeDirty=true이며 기존 사용자 솔루션 metadata와 문서 동시 편집을 포함하므로 깨끗한 작업 트리 증거로 표시하지 않는다. 실제 제품 소스·시험 파일은 위 커밋과 같다. DLL은 AnyCPU/v4.6.1, 검증 exe는 실제 x86/x64·Prefer32Bit=false다.
+
+| 구성 | 산출물 | SHA-256 |
+| --- | --- | --- |
+| Release | DLL, x86/x64 공통 | `d34ee16abbb23acd0dddc883d291f8ba4aa928f7dc3ed18d4bad520e4e01eac3` |
+| Release | x86 validation exe | `4c88cf1e3fa76cacbf9b6401b30706feb53dd163a43cfd5747f3435622a72994` |
+| Release | x64 validation exe | `7f3176cba57414c2e3c7b3a1b3c83f1cad9e182a996c65090050bab559d2f54e` |
+| Debug | DLL, x86/x64 공통 | `8a816c8c9a17f5f886204d0a0ff2a50c1da4504051f28b6af798f92a64bf5f9b` |
+| Debug | x86 validation exe | `a46cc4cff5fc452469b75d8cfa40293fa8ac6e1cf46b2c01d53c582e97378f4e` |
+| Debug | x64 validation exe | `eeeca2bdae5fbc9b3b6f6c622732bb98e5ae3b4fd439851eb7a4df50be860878` |
+
+4MiB의 정확한 UTF-8 입력과 한글 바이트 수,1바이트 초과 Parse/Load, JSON 이스케이프로 생성 결과가 커지는 ToJson/Save, 실패 시 기존 파일 보존을 실행했다. DataTable의 4MiB보다 긴 실제 문자열도 관리 렌더링이 통과했다. 파일 BOM 크기 산입은 제한 읽기 구현에서 확인했으며 BOM 경계값 전용 재현 시험은 추가하지 않았다.
+
+verifier의 잘못된 위치 인자 `node tools/verify-build.js Release`는 사용법 오류(exit1)였고, 첫 TTY 생성도 실패했다. 유효 명령의 실행 결과와 구분하며 실패를 숨기거나 native 실행으로 대체하지 않았다. `NativeLibraryMissing`는 SDK 없는 오프라인 negative fixture의 기대 결과이고 검증 프로세스는 exit0이다. 장치 지원·실제 인쇄·UI 그림·RFID 저장값 실측은 이 관리 코드 통과의 의미가 아니다.
