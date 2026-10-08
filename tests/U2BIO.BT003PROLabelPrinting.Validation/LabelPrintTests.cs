@@ -24,6 +24,7 @@ namespace U2BIO.BT003PROLabelPrinting.Validation
             Check(LabelDiagnosticForms.Create("50x25gap3") == first);
             Check(LabelDiagnosticForms.Create("blackmark60x20") == second);
             Check(LabelDiagnosticForms.Create("blackmark60x20ac") == third);
+            Check(LabelDiagnosticForms.Create("blackmark60x20direct") == third);
             string[] names = { "Set", "Connect", "Status", "Disconnect", "Reset", "Form", "Print" };
             foreach (string selected in new[] { first, second, third })
             foreach (string mode in new[] { "ok", "pre", "set", "connect", "open", "form", "invalid", "throw" }) {
@@ -51,7 +52,28 @@ namespace U2BIO.BT003PROLabelPrinting.Validation
                 catch (TargetInvocationException error) { rejected = error.InnerException.Message == "InvalidDiagnosticForm"; }
                 Check(rejected && fixture.Calls == "");
             }
-            Console.WriteLine("PASS: three caller-provided diagnostic forms with ordering/short-circuit/cleanup and42byte response; vendor code not executed");
+            MethodInfo direct = library.GetType("U2BIO.BT003PROLabelPrinting.Native.NativeSdk", true).GetMethod("RunDirectLabelProbe", Static);
+            Check(direct != null);
+            string[] directNames = { "Set", "Connect", "Status", "Disconnect", "Send" };
+            foreach (string mode in new[] { "ok", "pre", "set", "connect", "open", "send" }) {
+                var fixture = new Fixture { Mode = mode, ExpectedForm = third };
+                object[] args = new[] { options, third }.Concat(direct.GetParameters().Skip(2).Select((p, n) => (object)Delegate.CreateDelegate(p.ParameterType, fixture, fixture.GetType().GetMethod(directNames[n])))).ToArray();
+                object result = direct.Invoke(null, args);
+                string expected = mode == "pre" ? "?" : mode == "set" ? "?S" : mode == "connect" ? "?SCD?" : mode == "open" ? "?SC?D?" : "?SC?TD?";
+                Check(fixture.Calls == expected);
+                Check(!(bool)result.GetType().GetField("PrintInvoked", Instance).GetValue(result));
+                Check(result.GetType().GetField("Response", Instance).GetValue(result) == null);
+                Check((int?)result.GetType().GetField("SendCode", Instance).GetValue(result) == (mode == "ok" ? (int?)0 : mode == "send" ? 9 : null));
+            }
+            foreach (string bad in new[] { null, "", "bad\0data", second, third.Replace("TEST2", "한글") }) {
+                var fixture = new Fixture { Mode = "ok", ExpectedForm = bad };
+                object[] args = new[] { options, bad }.Concat(direct.GetParameters().Skip(2).Select((p, n) => (object)Delegate.CreateDelegate(p.ParameterType, fixture, fixture.GetType().GetMethod(directNames[n])))).ToArray();
+                bool rejected = false;
+                try { direct.Invoke(null, args); }
+                catch (TargetInvocationException error) { rejected = error.InnerException.Message == "InvalidDiagnosticForm"; }
+                Check(rejected && fixture.Calls == "");
+            }
+            Console.WriteLine("PASS: caller forms, label/direct ordering, short-circuit, cleanup and42byte response; vendor code not executed");
         }
         private sealed class Fixture
         {
@@ -66,6 +88,7 @@ namespace U2BIO.BT003PROLabelPrinting.Validation
                 Check(text == ExpectedForm);
                 return Mode == "form" ? 1 : 0;
             }
+            public int Send(string text) { Calls += "T"; Check(text == ExpectedForm); return Mode == "send" ? 9 : 0; }
             public void Print(ushort copies, IntPtr pointer) {
                 Calls += "P"; Check(copies == 1);
                 var bytes = new byte[42]; Marshal.Copy(pointer, bytes, 0, bytes.Length); Check(bytes.All(b => b == 255));
