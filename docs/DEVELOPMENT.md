@@ -14,7 +14,7 @@
 | .github/ISSUE_TEMPLATE/intent.md | devflow Issue의 의도·수용 기준·현재 상태 |
 | .github/PULL_REQUEST_TEMPLATE.md | 변경 범위·검증·제한 기록 |
 | tools/verify-repository.js | 설치된 devflow doctor 및 설계 기준·인수 ID 검사 |
-| U2BIO.LabelPrinting.sln | Debug/Release × x86/x64 구성, DLL은 AnyCPU로 매핑 |
+| U2BIO.LabelPrinting.sln | Debug/Release × Any CPU/x86/x64 구성. DLL은 AnyCPU, 검증 exe는 x86/x64이며 Any CPU solution은 검증 exe를 x86으로 매핑 |
 | src/U2BIO.BT003PROLabelPrinting | 공통 DLL 프로젝트, internal SDK 선언·배포 검사·로더 구현 중 |
 | tests/U2BIO.BT003PROLabelPrinting.Validation | DLL 독립 로드·framework·PE·실행 비트 수 검사 |
 | tools/verify-build.js | 실제 재빌드·실행, 평가된 설정과 산출물 증거 기록 |

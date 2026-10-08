@@ -168,3 +168,19 @@ node tests/label-probe-cli.test.js
 새 메타데이터 파서·42-byte 뒤 접근 불가 페이지·오류 정리의 근거와 한계는 [정적 분석 결과](START_LABEL_PRINT_ANALYSIS.md)를 따른다. CLI 결과의 `Returned`는 응답이 문법 검사를 통과했다는 뜻이다. native=0도 물리적 출력 완료나 RFID 보존을 확정하지 않는다. 원문 UID·vendor 출력은 보고하거나 Issue에 기록하지 않는다. native 예외/프로세스 종료 시 실제 인쇄 여부는 불명이며 호출 실패를 미출력으로 단정하지 않는다.
 
 추가 재현 시험은 구현 전에 실패를 관측한 후 커밋했다. 관리 fixture는 최대 42-byte 응답, 실패 단계별 인쇄 차단, 반환 예외 후 해제를 검사하며 vendor 코드를 실행하지 않는다. CLI 검사는 명시적 단일 아키텍처와 메타데이터 allowlist를 검사한다. 이 검사를 실기 인쇄·한글·RFID 일치 증거로 확대하지 않는다.
+
+2026-10-08, 응답 파서 수정 `10e38d9`에서 fresh verifier의 직접 프로젝트 Debug/Release × x86/x64 빌드·실행이 모두 exit 0이었다. 리뷰 지적에 따라 UID prefix를 변경 불가 문자열로 만들지 않고 byte 배열에서 직접 검사한다. 응답 코드 부분만 숫자 문법을 검사한 뒤 문자열로 변환한다.
+
+사용자 요청으로 솔루션의 기존 Any CPU를 유지하고 x86/x64 구성을 보완했다. `6d6a2a7`의 일반 Release `verify-build`와 `a12c6d0`의 일반 Debug `verify-build --configuration Debug`는 모두 exit 0이며 각 x86/x64 재빌드·검증을 포함한다. 기존 MSB4126 실패는 이 구성 보완으로 해소했다. `a12c6d0`의 Any CPU solution도 Debug/Release 직접 Rebuild와 x86 검증 실행이 모두 exit 0이었다. DLL은 항상 AnyCPU이며 Any CPU solution의 검증 exe는 명시적 x86이다. 검증 프로젝트의 x86/x64 제한을 낮추지 않았다.
+
+검증 근거는 `.work/foundation/Release-1791424552346/evidence.json`, `.work/foundation/Debug-1791424565633/evidence.json`, `.work/foundation/direct-solution-Release`, `.work/foundation/direct-solution-Debug`다. workingTreeDirty는 기존 Visual Studio 버전·속성 metadata를 보존한 상태를 반영한다. 해당 기존 metadata는 task 커밋에 포함하지 않았다. CLI 두 회귀 검사와 diff 검사는 exit 0이다. 이번 추가 검사에서는 vendor DLL을 로드하거나 장치·인쇄·RFID를 호출하지 않았다.
+
+현재 supervisor의 관리 코드 기준은 `10e38d9`이며 fresh verifier와 root가 다음 Release 핀의 일치를 확인했다.
+
+| 현재 일회 진단 산출물 | SHA-256 |
+| --- | --- |
+| DLL, x86/x64 공통 | `462ae54736b4e37afff76879aeaa12d49662b5c93335690b280ea633f7fef3f5` |
+| x86 validation exe | `f6b64f7c2323ecabf47c26c5e75ffc8c7572719f666d2622b3185c6a15528bda` |
+| x64 validation exe | `f9c033464b936d6050b60a743eec762e5485b17574fa9368f45f655e8f3d8e0d` |
+
+실제 일회 출력은 SDK의 작업 루트 밖 로그 생성·추가 기록 허용 전까지 미실행이다. TASK-02 조건 3·5·6·7은 계속 열어 둔다. 문법 검사와 보호된 진단 준비가 생산 PrintContractUnverified 게이트를 해제하지 않는다.
