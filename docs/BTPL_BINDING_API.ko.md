@@ -93,7 +93,7 @@ BindingTests가 C01/C02/C19의 오프라인 조건, 모든 지원 타입과 오�
 | `node tools/verify-repository.js`, devflow-doctor, `git diff --check` | exit0. 기존 솔루션 작업 트리 CRLF 경고 보존 |
 | `node tests/label-probe-cli.test.js`, `node tests/connection-probe-cli.test.js` | root에서 동일 revision으로 exit0. 옵션·보고 문법만 검사, child/SDK 미실행 |
 
-Release/Debug 각각 `.work/foundation/Release-1791459307252/evidence.json`, `.work/foundation/Debug-1791459316390/evidence.json`을 로컬에 보존했다. 둘 다 result=passed, workingTreeDirty=true이며 기존 사용자 솔루션 metadata와 문서 동시 편집을 포함하므로 깨끗한 작업 트리 증거로 표시하지 않는다. 실제 제품 소스·시험 파일은 위 커밋과 같다. DLL은 AnyCPU/v4.6.1, 검증 exe는 실제 x86/x64·Prefer32Bit=false다.
+Release/Debug 각각 `.work/foundation/Release-1791459307252/evidence.json`, `.work/foundation/Debug-1791459316390/evidence.json`을 로컬에 보존했다. 둘 다 result=passed, workingTreeDirty=true이며 각 working-tree.log에 기록된 변경은 기존 사용자 솔루션 metadata뿐이다. 깨끗한 작업 트리 증거로 표시하지 않는다. 실제 제품 소스·시험 파일은 위 커밋과 같다. DLL은 AnyCPU/v4.6.1, 검증 exe는 실제 x86/x64·Prefer32Bit=false다.
 
 | 구성 | 산출물 | SHA-256 |
 | --- | --- | --- |
