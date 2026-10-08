@@ -35,6 +35,7 @@
     <Compile Include="BtplTemplateTests.cs" />
     <Compile Include="BindingTests.cs" />
     <Compile Include="PrinterTests.cs" />
+    <Compile Include="PrinterConnectionTests.cs" />
     <Compile Include="NativeTests.cs" />
     <Compile Include="ConnectionTests.cs" />
     <Compile Include="LabelResponseTests.cs" />

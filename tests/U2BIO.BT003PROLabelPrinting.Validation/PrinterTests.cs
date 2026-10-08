@@ -39,6 +39,7 @@ namespace U2BIO.BT003PROLabelPrinting.Validation
             Check(printer.GetConnectionStatus().State == PrinterState.Disposed && printer.GetConnectionStatus().ResourcesReleased);
             Disposed(() => printer.Connect(Bt003ConnectionOptions.Usb("synthetic-missing")));
             Disposed(() => printer.ValidateForPrint(request)); Disposed(() => printer.Print(request)); Disposed(() => printer.Disconnect());
+            PrinterConnectionTests.Run();
             Console.WriteLine("PASS: public connection options, disconnected and disposed result contracts; no SDK/device calls");
         }
     }
