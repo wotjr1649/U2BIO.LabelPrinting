@@ -26,11 +26,29 @@ namespace U2BIO.BT003PROLabelPrinting.Validation
                 Console.WriteLine("HOST_SYSTEM_DIRECTORY|" + Environment.SystemDirectory);
                 return 0;
             }
-            if ((args.Length == 1 || args.Length == 2) && (args[0] == "--probe-native-load" || args[0] == "--probe-usb-connection"))
+            if (args.Length == 1 && args[0] == "--list-ports")
+            {
+                foreach (string port in System.IO.Ports.SerialPort.GetPortNames())
+                    if (System.Text.RegularExpressions.Regex.IsMatch(port, "\\ACOM[1-9][0-9]*\\z", System.Text.RegularExpressions.RegexOptions.IgnoreCase))
+                        Console.WriteLine("SERIAL_PORT|" + port.ToUpperInvariant());
+                return 0;
+            }
+            if ((args.Length == 1 || args.Length == 2) && args[0] == "--probe-native-load")
             {
                 string nonce = args.Length == 2 ? args[1] : "";
                 if (nonce.Length != 0 && !System.Text.RegularExpressions.Regex.IsMatch(nonce, "\\A[a-f0-9]{32}\\z")) return 2;
-                try { return NativeLoadProbe.RunWithNonce(Assembly.LoadFrom(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "U2BIO.BT003PROLabelPrinting.dll")), nonce, args[0] == "--probe-usb-connection"); }
+                try { return NativeLoadProbe.RunWithNonce(Assembly.LoadFrom(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "U2BIO.BT003PROLabelPrinting.dll")), nonce); }
+                catch (Exception) { Console.Error.WriteLine("NATIVE_LOAD|status=Failed|code=ProbeInternalError" + (nonce.Length == 0 ? "" : "|nonce=" + nonce)); return 8; }
+            }
+            if (args.Length >= 3 && args[0] == "--probe-connection")
+            {
+                string transport = args[1];
+                int required = transport == "tcp" ? 4 : 3;
+                if ((transport != "usb" && transport != "serial" && transport != "tcp") || (args.Length != required && args.Length != required + 1)) return 2;
+                string nonce = args.Length == required + 1 ? args[required] : "";
+                if (nonce.Length != 0 && !System.Text.RegularExpressions.Regex.IsMatch(nonce, "\\A[a-f0-9]{32}\\z")) return 2;
+                try { return NativeLoadProbe.RunWithNonce(Assembly.LoadFrom(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "U2BIO.BT003PROLabelPrinting.dll")), nonce,
+                    transport, args[2], transport == "tcp" ? args[3] : ""); }
                 catch (Exception) { Console.Error.WriteLine("NATIVE_LOAD|status=Failed|code=ProbeInternalError" + (nonce.Length == 0 ? "" : "|nonce=" + nonce)); return 8; }
             }
             if (args.Length == 2 && args[0] == "--inspect-sdk")

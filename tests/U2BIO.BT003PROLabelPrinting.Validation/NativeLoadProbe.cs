@@ -7,7 +7,7 @@ using System.Threading;
 
 namespace U2BIO.BT003PROLabelPrinting.Validation
 {
-    // Dedicated diagnostic process. Load mode binds only; USB mode calls the fixed buffer-free diagnostic.
+    // Dedicated diagnostic process. Load mode binds only; connection mode requires an explicit target.
     internal static class NativeLoadProbe
     {
         [StructLayout(LayoutKind.Sequential)]
@@ -58,9 +58,20 @@ namespace U2BIO.BT003PROLabelPrinting.Validation
         }
         internal static int Run(Assembly library)
         { return RunWithNonce(library, ""); }
-        internal static int RunWithNonce(Assembly library, string nonce, bool usb = false)
+        internal static int RunWithNonce(Assembly library, string nonce, string transport = null, string port = null, string ip = "")
         {
             string suffix = nonce.Length == 0 ? "" : "|nonce=" + nonce;
+            object options = null;
+            if (transport != null) {
+                try { options = library.GetType("U2BIO.BT003PROLabelPrinting.Native.NativeConnectionOptions", true)
+                    .GetMethod("Create", BindingFlags.NonPublic | BindingFlags.Static).Invoke(null, new object[] { transport, port, ip }); }
+                catch (TargetInvocationException error) {
+                    if (error.InnerException != null && error.InnerException.Message == "InvalidConnectionOptions") {
+                        Console.WriteLine("NATIVE_LOAD|status=Failed|code=InvalidConnectionOptions" + suffix); return 2;
+                    }
+                    throw;
+                }
+            }
             if (!EnsureJob()) { Console.WriteLine("NATIVE_LOAD|status=Failed|code=ProbeJobUnavailable" + suffix); return 9; }
             int result = 8;
             string report = "NATIVE_LOAD|status=Failed|code=ProbeInternalError";
@@ -80,9 +91,10 @@ namespace U2BIO.BT003PROLabelPrinting.Validation
                             if (!owns) { result = 4; report = "NATIVE_LOAD|status=Failed|code=ProbeSlotBusy"; return; }
                             acquired.Set();
                             if (!proceed.WaitOne(TimeSpan.FromSeconds(30))) { result = 6; report = "NATIVE_LOAD|status=Failed|code=ProbeTimeout"; return; }
-                            if (usb) {
+                            if (options != null) {
                                 string hash;
-                                using (var sha = System.Security.Cryptography.SHA256.Create()) hash = BitConverter.ToString(sha.ComputeHash(System.Text.Encoding.UTF8.GetBytes("USB:0"))).Replace("-", "").ToLowerInvariant();
+                                string key = (string)options.GetType().GetField("TargetKey", BindingFlags.NonPublic | BindingFlags.Instance).GetValue(options);
+                                using (var sha = System.Security.Cryptography.SHA256.Create()) hash = BitConverter.ToString(sha.ComputeHash(System.Text.Encoding.UTF8.GetBytes(key))).Replace("-", "").ToLowerInvariant();
                                 target = new Mutex(false, "Local\\U2BIO.BT003PROLabelPrinting.Target." + hash);
                                 try { ownsTarget = target.WaitOne(0); }
                                 catch (AbandonedMutexException) { ownsTarget = true; result = 4; report = "NATIVE_LOAD|status=Failed|code=ProbeSlotAbandoned"; return; }
@@ -92,10 +104,10 @@ namespace U2BIO.BT003PROLabelPrinting.Validation
                             sdk.GetMethod("LoadForConnection", BindingFlags.NonPublic | BindingFlags.Static).Invoke(null, null);
                             var bound = (IDictionary)sdk.GetField("functions", BindingFlags.NonPublic | BindingFlags.Static).GetValue(null);
                             if (bound == null || bound.Count != 41) { result = 7; report = "NATIVE_LOAD|status=Failed|code=ProbeBindingMismatch"; return; }
-                            if (usb) {
-                                object observed = sdk.GetMethod("ProbeUsbConnection", BindingFlags.NonPublic | BindingFlags.Static).Invoke(null, null);
+                            if (options != null) {
+                                object observed = sdk.GetMethod("ProbeConnection", BindingFlags.NonPublic | BindingFlags.Static).Invoke(null, new[] { options });
                                 bool passed = (bool)observed.GetType().GetProperty("Passed", BindingFlags.NonPublic | BindingFlags.Instance).GetValue(observed);
-                                report = "USB_CONNECTION|status=" + (passed ? "Passed" : "Failed");
+                                report = "CONNECTION|transport=" + transport + "|status=" + (passed ? "Passed" : "Failed");
                                 foreach (string field in new[] { "Pre", "SetPort", "Connect", "Open", "Disconnect", "Closed" }) {
                                     int? value = (int?)observed.GetType().GetField(field, BindingFlags.NonPublic | BindingFlags.Instance).GetValue(observed);
                                     report += "|" + field.ToLowerInvariant() + "=" + (value.HasValue ? value.Value.ToString(System.Globalization.CultureInfo.InvariantCulture) : "none");

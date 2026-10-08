@@ -22,7 +22,7 @@ namespace U2BIO.BT003PROLabelPrinting.Native
     }
 
     // Caller must hold the process SDK slot on its worker before loading; TASK-05 wires that lifecycle.
-    // Print/RFID delegates remain unavailable. The fixed USB diagnostic uses four verified buffer-free primitives.
+    // Print/RFID delegates remain unavailable. Connection diagnostics use four verified buffer-free primitives.
     internal static class NativeSdk
     {
         private const uint SearchFlags = 0x100 | 0x800;
@@ -66,12 +66,16 @@ namespace U2BIO.BT003PROLabelPrinting.Native
             internal int? Pre, SetPort, Connect, Open, Disconnect, Closed;
             internal bool Passed => Pre == 0 && SetPort == 0 && Connect == 0 && Open == 1 && Closed == 0;
         }
-        // Diagnostic only; caller holds process and USB:0 target reservations on this same worker.
+        // Retained for existing USB flow regression fixtures; the CLI requires an explicit connection target.
         internal static UsbProbeResult ProbeUsbConnection()
+        { return ProbeConnection(NativeConnectionOptions.Create("usb", "0", "")); }
+        // Diagnostic only; caller holds the process and normalized target reservations on this same worker.
+        internal static UsbProbeResult ProbeConnection(NativeConnectionOptions options)
         {
+            if (options == null) throw new NativeSdkException("InvalidConnectionOptions");
             lock (Sync) {
                 LoadForConnection();
-                return RunUsbConnectionProbe((NativeApi.SetPrinterPortDelegate)functions[typeof(NativeApi.SetPrinterPortDelegate)],
+                return RunConnectionProbe(options, (NativeApi.SetPrinterPortDelegate)functions[typeof(NativeApi.SetPrinterPortDelegate)],
                     (NativeApi.DeviceConnectDelegate)functions[typeof(NativeApi.DeviceConnectDelegate)],
                     (NativeApi.CheckPrtConnectionDelegate)functions[typeof(NativeApi.CheckPrtConnectionDelegate)],
                     (NativeApi.DeviceDisconnectDelegate)functions[typeof(NativeApi.DeviceDisconnectDelegate)]);
@@ -79,10 +83,14 @@ namespace U2BIO.BT003PROLabelPrinting.Native
         }
         internal static UsbProbeResult RunUsbConnectionProbe(NativeApi.SetPrinterPortDelegate setPort, NativeApi.DeviceConnectDelegate connect,
             NativeApi.CheckPrtConnectionDelegate status, NativeApi.DeviceDisconnectDelegate disconnect)
+        { return RunConnectionProbe(NativeConnectionOptions.Create("usb", "0", ""), setPort, connect, status, disconnect); }
+        internal static UsbProbeResult RunConnectionProbe(NativeConnectionOptions options, NativeApi.SetPrinterPortDelegate setPort, NativeApi.DeviceConnectDelegate connect,
+            NativeApi.CheckPrtConnectionDelegate status, NativeApi.DeviceDisconnectDelegate disconnect)
         {
+            if (options == null) throw new NativeSdkException("InvalidConnectionOptions");
             var result = new UsbProbeResult { Pre = status() };
             if (result.Pre != 0) return result;
-            result.SetPort = setPort(1, "0", "");
+            result.SetPort = setPort(options.IfType, options.Port, options.Ip);
             if (result.SetPort != 0) return result;
             bool returned = false;
             try {
