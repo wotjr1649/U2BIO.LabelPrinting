@@ -82,6 +82,7 @@ namespace U2BIO.BT003PROLabelPrinting.Validation
             }
             Check(!types.Any(t => t.Name.StartsWith("StartPrintWithRfid2", StringComparison.Ordinal) || t.Name.StartsWith("ReadResponseMessage", StringComparison.Ordinal)));
             Type sdk = Required(library, "NativeSdk");
+            CheckUsbProbe(sdk);
             Check((string)Invoke(sdk, "SystemModuleLocation", Path.Combine(Environment.SystemDirectory, "USER32.dll")) == "system");
             Check((string)Invoke(sdk, "SystemModuleLocation", Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Windows), "WinSxS", "test", "gdiplus.dll")) == "sideBySide");
             Check((string)Invoke(sdk, "SystemModuleLocation", Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Windows), "Temp", "USER32.dll")) == "other");
@@ -150,6 +151,48 @@ namespace U2BIO.BT003PROLabelPrinting.Validation
                 catch (TargetInvocationException error) { Check(error.InnerException is InvalidDataException); }
             }
             Console.WriteLine("PASS: native declarations=41 output-calls=blocked deployment negatives=passed parser=offline");
+        }
+
+        private sealed class UsbFixture
+        {
+            internal int Pre, SetResult, ConnectResult, Open = 1, DisconnectResult = 91, Closed;
+            internal bool ThrowConnect;
+            internal string Calls = "";
+            private int statusCalls;
+            public int Set(ushort type, string port, string ip) { Check(type == 1 && port == "0" && ip == ""); Calls += "S"; return SetResult; }
+            public int Connect() { Calls += "C"; if (ThrowConnect) throw new InvalidOperationException("test"); return ConnectResult; }
+            public int Status() { Calls += "?"; return statusCalls++ == 0 ? Pre : (Calls.Contains("D") ? Closed : Open); }
+            public int Disconnect() { Calls += "D"; return DisconnectResult; }
+        }
+        private static void CheckUsbProbe(Type sdk)
+        {
+            MethodInfo run = sdk.GetMethod("RunUsbConnectionProbe", InternalStatic);
+            Check(run != null && sdk.GetMethod("ProbeUsbConnection", InternalStatic) != null);
+            var cases = new[] {
+                new UsbFixture(), new UsbFixture { Pre = 1 }, new UsbFixture { Pre = 9 },
+                new UsbFixture { SetResult = 1 }, new UsbFixture { SetResult = 102 },
+                new UsbFixture { ConnectResult = 102 }, new UsbFixture { Open = 0 },
+                new UsbFixture { Open = 9 }, new UsbFixture { Closed = 1 }, new UsbFixture { ThrowConnect = true }
+            };
+            string[] expected = { "?SC?D?", "?", "?", "?S", "?S", "?SCD?", "?SC?D?", "?SC?D?", "?SC?D?", "?SC" };
+            for (int i = 0; i < cases.Length; i++) {
+                var fixture = cases[i];
+                string[] names = { "Set", "Connect", "Status", "Disconnect" };
+                object[] delegates = run.GetParameters().Select((p, n) => (object)Delegate.CreateDelegate(p.ParameterType, fixture, fixture.GetType().GetMethod(names[n]))).ToArray();
+                if (fixture.ThrowConnect) {
+                    bool threw = false;
+                    try { run.Invoke(null, delegates); }
+                    catch (TargetInvocationException error) { threw = error.InnerException is InvalidOperationException; }
+                    Check(threw);
+                }
+                else {
+                    object result = run.Invoke(null, delegates);
+                    Check((bool)result.GetType().GetProperty("Passed", BindingFlags.NonPublic | BindingFlags.Instance).GetValue(result) == (i == 0));
+                    int? disconnected = (int?)result.GetType().GetField("Disconnect", BindingFlags.NonPublic | BindingFlags.Instance).GetValue(result);
+                    Check(disconnected == (fixture.Calls.Contains("D") ? (int?)91 : null));
+                }
+                Check(fixture.Calls == expected[i]);
+            }
         }
 
         private static byte[] Image(bool is64)
