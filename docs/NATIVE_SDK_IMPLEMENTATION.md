@@ -347,3 +347,17 @@ fresh verifier의 일반 Release/Debug × x86/x64 빌드·관리 검증, 두 CLI
 | DLL, x86/x64 공통 | `93bde4f28db91a90ed9f9d4058d916a61aa968ac903aa20f68dc1256cef15e95` |
 | x86 validation exe | `3c4d88d28dbd82322c85507f72fb257cee3ef4dbf9e321a458f59788a511c016` |
 | x64 validation exe | `9517c91144780841d67f5041c20c257745093b5b287e10599e310dde09747ff1` |
+
+### 7.5 인수 제외 단일 실기
+
+2026-10-08 13:29:55 KST, `4bea181`에서 관리 핀 `72446e7`로 USB 0·x86의 후보를 한 번 요청했다. 실행 전 네 Release 핀 일치, USB1 캐시/USB print 각각 1개와 활성 instance 일치, BT-003 USB·COM3 열거 정상, task probe 0, SDK 로그 대상 링크 부재를 확인했다. 기존 USB1 갱신·SDK 로그 기록 허용은 유효하다.
+
+| 항목 | 관측 결과 |
+| --- | --- |
+| 연결·서식 | Pre=0, SetPort=0, Connect=0, Open=1, Form=0 |
+| 요청 | StartLabelPrint(1) 1회; Q40,5·W70·G0·P1·C1; AW,80,120,10,2,0,0,U2BIO TEST |
+| 응답 | response=parsed, native=0, prefix=empty, length=2 |
+| 정리·종료 | Disconnect raw=0, Closed=0; child/supervisor exit 0, 잔여 task probe 0 |
+| 물리적 결과 | 사용자에게 문구·위치·배출·실제 장수 확인 요청; 답변 대기 |
+
+근거는 `.work/native-load/1791433795342/evidence.json`이다. 이전 Q40,5,7.5+ 시험과 이번 Q40,5 시험을 구분한다. 정상 응답만으로 7.5 제거가 배출 문제를 해결했다고 처리하지 않는다. 자동 재출력·x64·추가 이송은 실행하지 않았으며 TASK-02의 남은 조건과 RFID 저장 데이터 보존도 완료 처리하지 않는다.
