@@ -23,7 +23,7 @@ namespace U2BIO.BT003PROLabelPrinting.Native
         [return: MarshalAs(UnmanagedType.Bool)]
         private static extern bool VirtualFree(IntPtr address, UIntPtr size, uint operation);
 
-        // Diagnostic only: overflow reaches PAGE_NOACCESS in the isolated child, never a managed heap buffer.
+        // Fixed SDK normal response only. Overflow hits PAGE_NOACCESS; this does not isolate the caller from a native crash.
         internal static NativeLabelResponse Capture(Action<IntPtr> call)
         {
             if (call == null) throw new ArgumentNullException(nameof(call));

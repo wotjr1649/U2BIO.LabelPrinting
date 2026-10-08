@@ -20,8 +20,8 @@ namespace U2BIO.BT003PROLabelPrinting.Native
             () => NativeSdk.GetConnectionFunction<NativeApi.DeviceConnectDelegate>()(),
             () => NativeSdk.GetConnectionFunction<NativeApi.CheckPrtConnectionDelegate>()(),
             () => NativeSdk.GetConnectionFunction<NativeApi.DeviceDisconnectDelegate>()(),
-            () => NativeSdk.GetFunction<NativeApi.ResetFormDelegate>()(),
-            form => NativeSdk.GetFunction<NativeApi.SetPrintFormStringDelegate>()(form),
-            (copies, response) => NativeSdk.GetFunction<NativeApi.StartLabelPrintDelegate>()(copies, response));
+            () => NativeSdk.GetPrintingFunction<NativeApi.ResetFormDelegate>()(),
+            form => NativeSdk.GetPrintingFunction<NativeApi.SetPrintFormStringDelegate>()(form),
+            (copies, response) => NativeSdk.GetPrintingFunction<NativeApi.StartLabelPrintDelegate>()(copies, response));
     }
 }

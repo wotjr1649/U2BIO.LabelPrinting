@@ -11,7 +11,7 @@ using U2BIO.BT003PROLabelPrinting.Native;
 
 namespace U2BIO.BT003PROLabelPrinting
 {
-    public sealed class Bt003Printer : IDisposable
+    public sealed partial class Bt003Printer : IDisposable
     {
         private static readonly object ProcessSync = new object();
         private static Bt003Printer processOwner;
@@ -31,9 +31,10 @@ namespace U2BIO.BT003PROLabelPrinting
 
         private sealed class Work
         {
-            internal readonly TaskCompletionSource<PrinterOperationResult> Completion = new TaskCompletionSource<PrinterOperationResult>(TaskCreationOptions.RunContinuationsAsynchronously);
+            internal readonly TaskCompletionSource<object> Completion = new TaskCompletionSource<object>(TaskCreationOptions.RunContinuationsAsynchronously);
             internal readonly List<NativeCallResult> Calls = new List<NativeCallResult>();
-            internal Func<Work, PrinterOperationResult> Body;
+            internal Func<Work, object> Body;
+            internal PrintingData Printing;
             internal bool Terminal, TimedOut, InCall, CleanupAttempted;
             internal int Generation;
             internal string Function;
@@ -64,9 +65,9 @@ namespace U2BIO.BT003PROLabelPrinting
         private PrinterOperationResult Busy()
             => new PrinterOperationResult("Busy", Snapshot(true, false));
 
-        private Work Start(Func<Work, PrinterOperationResult> body, PrinterState activeState)
+        private Work Start(Func<Work, object> body, PrinterState activeState, PrintingData printing = null)
         {
-            var work = new Work { Body = body };
+            var work = new Work { Body = body, Printing = printing };
             working = true; state = disposed ? PrinterState.Disposed : activeState; next = work;
             if (worker == null) {
                 worker = new Thread(RunWorker) { IsBackground = true, Name = "BT003 SDK" };
@@ -79,7 +80,7 @@ namespace U2BIO.BT003PROLabelPrinting
             while (true) {
                 ready.WaitOne(); Work work;
                 lock (sync) { work = next; next = null; }
-                PrinterOperationResult result = null; Exception failure = null;
+                object result = null; Exception failure = null;
                 try { result = work.Body(work); }
                 catch (Exception error) { failure = error; }
                 while (true) {
@@ -88,10 +89,17 @@ namespace U2BIO.BT003PROLabelPrinting
                             working = false;
                             if (!work.Terminal) {
                                 work.Terminal = true;
-                                if (failure == null) work.Completion.TrySetResult(disposed && result.IsSuccess ? Result(work, "Disposed") : result);
+                                if (failure == null) {
+                                    var operation = result as PrinterOperationResult;
+                                    if (disposed && operation != null && operation.IsSuccess) result = Result(work, "Disposed");
+                                    var preflight = result as PrintPreflightResult;
+                                    if (disposed && preflight != null && preflight.IsReady)
+                                        result = new PrintPreflightResult("Disposed", preflight.ManagedValidation, preflight.DeviceValidation, PrinterState.Disposed);
+                                    work.Completion.TrySetResult(result);
+                                }
                                 else work.Completion.TrySetException(failure);
                             }
-                            if (!processClaim) { worker = null; return; }
+                            if (!processClaim) { worker = null; if (disposed) ready.Dispose(); return; }
                             break;
                         }
                     }
@@ -103,7 +111,7 @@ namespace U2BIO.BT003PROLabelPrinting
         {
             lock (sync) if (work.TimedOut || disposed) throw new Stopped();
         }
-        private T Call<T>(Work work, string function, Func<T> call, bool cleaning = false, Action entered = null)
+        private T Call<T>(Work work, string function, Func<T> call, bool cleaning = false, Action entered = null, bool receiveResult = false)
         {
             int generation; long started;
             lock (sync) {
@@ -118,11 +126,11 @@ namespace U2BIO.BT003PROLabelPrinting
                     double elapsed = (Stopwatch.GetTimestamp() - started) * 1000.0 / Stopwatch.Frequency;
                     if (elapsed < waitMilliseconds) return;
                     state = disposed ? PrinterState.Disposed : PrinterState.Faulted;
-                    port = PrinterPortState.Unknown; code = "NativeCallTimeout"; cleanup = cleaning ? "Timeout" : "Pending";
+                    port = PrinterPortState.Unknown; nativeCode = null; code = "NativeCallTimeout"; cleanup = cleaning ? "Timeout" : "Pending";
                     work.TimedOut = true;
                     if (!work.Terminal) {
                         work.Terminal = true;
-                        work.Completion.TrySetResult(Result(work, "NativeCallTimeout", function));
+                        work.Completion.TrySetResult(work.Printing == null ? (object)Result(work, "NativeCallTimeout", function) : TimeoutPrinting(work));
                     }
                 }
             };
@@ -138,12 +146,15 @@ namespace U2BIO.BT003PROLabelPrinting
                     lock (sync) { work.InCall = false; pending = false; }
                 }
                 lock (sync) work.Calls.Add(new NativeCallResult(function, value is int ? (int?)(int)(object)value : null));
-                if (!cleaning) CheckStop(work);
+                if (!cleaning) {
+                    if (!receiveResult) CheckStop(work);
+                    else lock (sync) if (work.TimedOut) throw new Stopped();
+                }
                 return value;
             }
         }
-        private void VoidCall(Work work, string function, Action call, bool cleaning = false)
-            => Call(work, function, () => { call(); return (object)null; }, cleaning);
+        private void VoidCall(Work work, string function, Action call, bool cleaning = false, Action entered = null)
+            => Call(work, function, () => { call(); return (object)null; }, cleaning, entered);
         private static bool Recoverable(Exception error) => error is NativeSdkException || error is InvalidOperationException ||
             error is ArgumentException || error is System.IO.IOException || error is UnauthorizedAccessException || error is SecurityException ||
             error is DllNotFoundException || error is BadImageFormatException || error is EntryPointNotFoundException;
@@ -180,9 +191,9 @@ namespace U2BIO.BT003PROLabelPrinting
                 processClaim = false;
             }
         }
-        private int Status(Work work, bool cleaning = false)
+        private int Status(Work work, bool cleaning = false, bool receiveResult = false)
         {
-            int value = Call(work, "CheckPrtConnection", sdk.Status, cleaning);
+            int value = Call(work, "CheckPrtConnection", sdk.Status, cleaning, receiveResult: receiveResult);
             lock (sync) { nativeCode = value; port = value == 0 ? PrinterPortState.Closed : value == 1 ? PrinterPortState.Open : PrinterPortState.Unknown; }
             return value;
         }
@@ -197,7 +208,7 @@ namespace U2BIO.BT003PROLabelPrinting
                     connectionAttempted = false; conflict = false; port = PrinterPortState.Closed;
                     ReleaseReservations(); cleanup = "None";
                     state = disposed ? PrinterState.Disposed : keepFaulted || work.TimedOut ? PrinterState.Faulted : PrinterState.Disconnected;
-                    code = keepFaulted || work.TimedOut ? "NativeCallTimeout" : "Ok";
+                    code = work.TimedOut ? "NativeCallTimeout" : keepFaulted ? work.Printing?.Code ?? code : "Ok";
                     return true;
                 }
             } catch (Exception error) when (Recoverable(error)) {
@@ -229,7 +240,7 @@ namespace U2BIO.BT003PROLabelPrinting
                     target = options; cleanup = "None"; work = Start(Open, PrinterState.Connecting);
                 }
             }
-            return work.Completion.Task.GetAwaiter().GetResult();
+            return (PrinterOperationResult)work.Completion.Task.GetAwaiter().GetResult();
         }
         private PrinterOperationResult Open(Work work)
         {
@@ -264,7 +275,7 @@ namespace U2BIO.BT003PROLabelPrinting
                 systemError = (error as NativeSdkException)?.SystemErrorCode; value = null; uncertain = true;
                 if (!loaded) {
                     ReleaseReservations(); lock (sync) state = disposed ? PrinterState.Disposed : PrinterState.Disconnected;
-                    return Result(work, failure, work.Function, null, (error as NativeSdkException)?.SystemErrorCode);
+                    return Result(work, failure, failureFunction, null, systemError);
                 }
             }
             if (connectionAttempted) Close(work, work.TimedOut || uncertain);
@@ -279,8 +290,8 @@ namespace U2BIO.BT003PROLabelPrinting
             try {
                 int value = Status(work);
                 lock (sync) {
-                    if (value != 1 || state == PrinterState.Faulted) { state = PrinterState.Faulted; code = value == 0 ? "NotConnected" : "StatusUnavailable"; }
-                    else code = "Ok";
+                    if (value != 1) { state = PrinterState.Faulted; code = value == 0 ? "NotConnected" : "StatusUnavailable"; }
+                    else if (state != PrinterState.Faulted) code = "Ok";
                 }
                 return Result(work, code, "CheckPrtConnection", value);
             } catch (Stopped) { Close(work, true); return Result(work, disposed ? "Disposed" : "NativeCallTimeout", work.Function); }
@@ -313,7 +324,7 @@ namespace U2BIO.BT003PROLabelPrinting
                 if (Released) { state = PrinterState.Disconnected; port = PrinterPortState.Closed; code = "Ok"; return Result(null, "Ok"); }
                 work = Start(DisconnectCore, PrinterState.Disconnecting);
             }
-            return work.Completion.Task.GetAwaiter().GetResult();
+            return (PrinterOperationResult)work.Completion.Task.GetAwaiter().GetResult();
         }
         public void Dispose()
         {
@@ -322,30 +333,10 @@ namespace U2BIO.BT003PROLabelPrinting
                 if (disposed) return;
                 disposed = true; state = PrinterState.Disposed;
                 if (!working && !Released) work = Start(DisconnectCore, PrinterState.Disposed);
+                else if (!working && worker == null) ready.Dispose();
             }
             if (work != null) work.Completion.Task.GetAwaiter().GetResult();
         }
 
-        public PrintPreflightResult ValidateForPrint(string btpl) => ValidateForPrint(BtplTemplate.Parse(btpl));
-        public PrintPreflightResult ValidateForPrint(BtplTemplate template) => ValidateForPrint(BtplPrintRequest.Fixed(template));
-        public PrintPreflightResult ValidateForPrint(BtplPrintRequest request)
-        {
-            lock (sync) {
-                RequireAlive(); if (request == null) throw new ArgumentNullException(nameof(request));
-                if (working) return new PrintPreflightResult("Busy", null, null, state);
-                if (state != PrinterState.Connected) return new PrintPreflightResult("NotConnected", null, null, state);
-                var managed = BtplProcessor.Validate(request);
-                return new PrintPreflightResult(managed.IsValid ? "PrintContractUnverified" : "ValidationFailed", managed, null, state);
-            }
-        }
-        public BatchPrintResult Print(string btpl) => Print(BtplTemplate.Parse(btpl));
-        public BatchPrintResult Print(BtplTemplate template) => Print(BtplPrintRequest.Fixed(template));
-        public BatchPrintResult Print(BtplPrintRequest request)
-        {
-            var preflight = ValidateForPrint(request);
-            var reason = preflight.Code == "Busy" ? PrintStopReason.Busy : preflight.Code == "NotConnected" ? PrintStopReason.NotConnected : PrintStopReason.ValidationFailed;
-            return new BatchPrintResult(reason, preflight.Code, Enumerable.Range(0, request.RowCount).Select(i =>
-                new RowPrintResult(i, PrintRowStatus.NotAttempted, reason, preflight.Code, preflight.ManagedValidation?.Rows[i])), preflight.ManagedValidation);
-        }
     }
 }

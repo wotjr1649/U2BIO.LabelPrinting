@@ -188,6 +188,7 @@ Task<BatchPrintResult> Bt003Printer.PrintAsync(BtplPrintRequest request,
 | `PrintPreflightResult` | `IsReady`, `Code`, nullable `ManagedValidation`/`DeviceValidation`, `State`, `NativeFunction`, nullable `NativeCode`, `NativeCallPending`. IsReady는 확인 가능한 실행 조건 통과이며 물리적 용지/헤드 준비 보증이 아님 |
 | `DeviceValidationResult` | `IsValid`, `CommonIssues`, 입력 순서 `Rows`(RowValidationResult), `PortState`. 실제 인코딩·배포 SDK·검증된 명령/글꼴 조합·포트 검사. 용지/리본/헤드 준비를 보증하지 않음 |
 | `PrinterOperationResult` | `IsSuccess`, `Code`, `NativeFunction`, nullable `NativeCode`, nullable `SystemErrorCode`(로더 오류), `State`, `NativeCallPending`, `ResourcesReleased`, `CleanupCode`, 민감 값 없는 `Message` |
+| `NativeCallResult` | `Function`, nullable `NativeCode`, nullable `SystemErrorCode`. `Calls`의 메타데이터 항목이며 void/예외의 원래 int 없음은 null |
 | `PrinterConnectionStatus` | managed `State`, `PortState`(`Open/Closed/Unknown`), `Code`, nullable `NativeCode`, `NativeCallPending`, `ResourcesReleased`, `CleanupCode`. 용지·리본·헤드 준비 상태는 보증하지 않음 |
 | `RowPrintResult` | `RowIndex`, `Status`, nullable `Validation`/`DeviceValidation`, `StopReason`, `Code`, `ExecutionStage`, `PrintInvoked`, `NativeFunction`, nullable `NativeCode`, `CompletionEvidence`, 민감 값 없는 `Message` |
 | `BatchPrintResult` | `StopReason`, `Code`, nullable `Validation`/`DeviceValidation`, 입력 순서 `Rows`, `Succeeded/Failed/Unknown/NotAttemptedCount`, `NativeFunction`, nullable `NativeCode`, `NativeCallPending`, `CleanupCode`. 배치 공통 SDK 조회 실패의 raw 값도 보존 |

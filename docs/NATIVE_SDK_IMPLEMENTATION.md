@@ -1,6 +1,8 @@
 # TASK-02 Native SDK 구현·검증 상태
 
-기준: v0.1.1-design, SDK_API_COVERAGE.md의 두 native 배포 쌍. .NET Framework 4.6.1 관리 DLL은 AnyCPU이며 제조사 바이너리는 저장소에 포함하지 않는다.
+기준: v0.1.1-design, SDK_API_COVERAGE.md의 두 native 배포 쌍. .NET Framework 4.6.1 관리 DLL은 AnyCPU다. 후속 TASK-05에서 고정 제조사 런타임 사본을 Sdk/x86·x64에 준비했으며 [배포 가이드](SDK_DEPLOYMENT.ko.md)를 따른다.
+
+2026-10-09 TASK-05 현황: [제품 API 가이드](PRINTER_API.ko.md)의 동기 연결·사전검사·단건 wrapper를 구현·합성 검사했다. 아래는 TASK-02 시점의 진단/게이트 이력이다. raw GetFunction 게이트는 유지하고 현재 제품은 허용된 네 연결 함수·세 인쇄 함수의 typed 접근과 사전검사를 사용한다. 새 실제 장치 검증·일괄/취소·native 장애 격리 완료를 뜻하지 않는다. 과거 “제품 인쇄 미구현/차단” 문구는 당시 버전의 상태로 읽는다.
 
 2026-10-08 모듈 역할 정정: 아래 기록은 TASK-02의 진단 이력이며 공개 제품 API의 구현 완료가 아니다. 후속 TASK-05는 [모듈 역할](MODULE_OVERVIEW.ko.md)에 따라 제조사 wrapper의 연결·인쇄 기능을 기본 사용으로 제공하고 DataTable/JSON은 선택 기능으로 둔다. 별도 NativeHost와 native 장애 격리 보장은1차에 포함하지 않는다. 과거 보호 경계 검토·진단 근거를 범용 안전 보장으로 바꾸지 않으며 미검증 범위는 #10에 남긴다. 현재 소스의 인쇄 게이트는 그대로 유지하고 확인된 호출 경로의 제품 구현·검증을 먼저 완료한다.
 

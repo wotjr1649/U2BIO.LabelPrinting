@@ -2,9 +2,9 @@
 
 RFID 값이 이미 기록된 BT-003 Pro 라벨에 프로그램이 전달한 텍스트를 BTPL로 인쇄하기 위한 공통 모듈과 테스트 프로그램입니다.
 
-`U2BIO.BT003PROLabelPrinting`은 제조사 wrapper의 연결·텍스트 인쇄 기능을 여러 호출 프로그램에서 재사용하는 공통 DLL입니다. 기본 사용은 `Connect → Print(BTPL) → Disconnect`로 정리하며, DataTable·JSON 바인딩·미리보기는 선택 기능입니다. [모듈의 역할·공개 API 계획·확장 범위](docs/MODULE_OVERVIEW.ko.md)를 기준으로 TASK-05를 진행합니다. 이 연결·인쇄 흐름은 아직 구현 완료 상태가 아닙니다.
+`U2BIO.BT003PROLabelPrinting`은 제조사 wrapper의 연결·텍스트 인쇄 기능을 여러 호출 프로그램에서 재사용하는 공통 DLL입니다. 기본 사용은 `Connect → Print(BTPL) → Disconnect`이며, DataTable·JSON 바인딩·미리보기는 선택 기능입니다. TASK-05에서 동기 연결·사전검사·단건 API를 구현하고 합성 SDK로 검증했습니다. [사용법·현재 지원 조건·실기 미검증](docs/PRINTER_API.ko.md)과 [모듈의 역할·확장 범위](docs/MODULE_OVERVIEW.ko.md)를 구분합니다.
 
-공통 DLL과 UI 없는 검증 프로젝트의 빌드 기반을 구성했고, 41개 내부 SDK 선언과 배포 검사·로더 코드를 추가했습니다. 현재 [Native SDK 구현 범위와 미검증 항목](docs/NATIVE_SDK_IMPLEMENTATION.md)을 구분합니다. 공개 장치 연결·인쇄 API와 DevExpress Tester는 후속 개발 작업입니다.
+공통 DLL과 UI 없는 검증 프로젝트의 빌드 기반, 41개 내부 SDK 선언과 배포 검사·로더 및 공개 동기 장치 API를 구성했습니다. [Native SDK 구현 이력과 미검증 항목](docs/NATIVE_SDK_IMPLEMENTATION.md)을 구분합니다. PrintAsync·취소·일괄 인수 검증과 DevExpress Tester는 후속 작업입니다.
 
 TASK-03의 공개 `BtplTemplate` 관리 API로 BTPL 해석·좌표/문구 편집·고정 줄바꿈·strict 인코딩·단일 파일 저장을 지원합니다. [사용 예와 저장 계약](docs/BTPL_TEMPLATE_API.ko.md)을 참고합니다. 이 API는 프린터 없이 동작하며 수치 편집·미리보기 화면은 후속 UI 작업입니다.
 
@@ -46,6 +46,6 @@ TASK-04는 `BtplBindings`, `BtplPrintRequest`, `BtplProcessor`로 JSON 매핑·D
 
 RFID 읽기·쓰기·잠금·보안 설정은 공개하지 않습니다. 텍스트 넘침 검사와 별도 DPI 설정도 제공하지 않습니다.
 
-`JODAL_WEBFORM_5.txt`의 `~HE0,0`은 RFID 안테나 설정으로 확인되어 인쇄 전용 서식에서는 제외합니다. 원본은 보존하며 지원하지 않는 명령을 자동 삭제하지 않습니다. TASK-02에서 고정 SDK의 x86/x64 USB 연결·해제, AW size10/weight1·ANSI949 한글·한 장 출력과 전용 응답을 확인했습니다. 응답0은 SDK 정상 응답이며 배출 완료와 구분합니다. 정상42-byte/NUL 분석 상한과 격리 진단의 제한은 [검증 상태](docs/NATIVE_SDK_IMPLEMENTATION.md)를 따릅니다. 제품 연결·인쇄·결과 통합은 TASK-05/06 구현 검증 전까지 차단하고, 별도 NativeHost와 native 장애 격리 보장은1차 구성에 추가하지 않으며, RFID 저장값 전후 실측은 사용자 확정으로 제외했습니다. 다른 SDK/환경·용지·펌웨어·모든 장비 오류는 검증 완료로 표시하지 않습니다.
+`JODAL_WEBFORM_5.txt`의 `~HE0,0`은 RFID 안테나 설정으로 확인되어 인쇄 전용 서식에서는 제외합니다. 원본은 보존하며 지원하지 않는 명령을 자동 삭제하지 않습니다. TASK-02에서 고정 SDK의 x86/x64 USB 연결·해제, AW size10/weight1·ANSI949 한글·한 장 출력과 전용 응답을 확인했습니다. 응답0은 SDK 정상 응답이며 배출 완료와 구분합니다. 정상42-byte/NUL 분석 상한과 격리 진단의 제한은 [검증 상태](docs/NATIVE_SDK_IMPLEMENTATION.md)를 따릅니다. TASK-05의 공개 동기 wrapper는 이 확인 범위의 검사·응답·수명 경로를 합성 SDK로 검증했습니다. 다른 글꼴 조합·인쇄 transport는 차단하고 raw/RFID delegate를 공개하지 않습니다. 새 제품 실기와 TASK-06 통합은 미완료이며 별도 NativeHost/native 장애 격리 보장은1차에 추가하지 않습니다. RFID 저장값 실측은 사용자 확정으로 제외했고 다른 SDK/환경·용지·펌웨어·모든 장비 오류를 검증 완료로 표시하지 않습니다.
 
 SDK 원본은 상위 작업 폴더의 `BT-003 pro SDK`를 참고합니다. 기존 `docs`의 제조사 문서는 보존합니다. 실행에 필요한 제조사 DLL 사본 네 개를 저장소에 준비했으며 원본 SDK 전체·샘플 로그는 배포하지 않습니다. 원격 push와 제조사 DLL의 외부 업로드는 수행하지 않았습니다.

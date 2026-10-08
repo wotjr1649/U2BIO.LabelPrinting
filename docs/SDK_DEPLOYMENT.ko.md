@@ -40,4 +40,4 @@ powershell -NoProfile -File tests/VerifySdkAssets.ps1
 
 런타임 사본 준비와 공개 `Bt003Printer` 구현 완료를 구분한다. 다음은 TASK-05에서 `Connect → GetConnectionStatus → ValidateForPrint → Print → Disconnect/Dispose`를 구현하는 순서다. 기본 입력은 호출 프로그램이 준비한 BTPL 문자열 또는 `BtplTemplate`이며, DataTable·JSON은 자동 매핑이 필요한 경우에만 사용한다. 단건 인쇄를 검증한 다음 TASK-06의 다건·취소·결과, TASK-07의 지원 범위·배포·인수 검증을 진행한다. 이후 TASK-08의 DB 없는 WinForms/DevExpress Tester와 TASK-09의 실제 호출 예를 진행하며, TASK-09는 TASK-08 완료를 기다릴 필요가 없다.
 
-현재 SDK 사본만으로 공개 장치 API를 사용할 수 있는 상태는 아니다. 제품 수명·인쇄 구현의 미완료 검증은 TASK-05, 장치별 미검증 사항은 #10에서 관리한다. 실제 출력 금지 기간에는 SDK·장치·용지 이송을 실행하지 않는다.
+공개 동기 장치 API는 TASK-05에서 구현하고 synthetic SDK로 검사했다. [사용법·지원 조건](PRINTER_API.ko.md)을 따르며 제품 실기·일괄/취소는 완료 상태가 아니다. 미완료 검증은 TASK-05/06, 장치별 미검증 사항은 #10에서 관리한다. 실제 출력 금지 기간에는 SDK·장치·용지 이송을 실행하지 않는다.

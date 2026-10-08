@@ -1,6 +1,6 @@
 # U2BIO.BT003PROLabelPrinting의 역할과 확장 범위
 
-2026-10-08 사용자 정정에 따라 모듈의 기본 사용을 다시 정리했다. 구현 기준 태그 v0.1.1-design은 보존하고 이 문서는 후속 역할 정정으로 적용한다. 아래 연결·인쇄 API는 TASK-05 구현 계획이며 아직 실행 가능한 API로 보고하지 않는다.
+2026-10-08 사용자 정정에 따라 모듈의 기본 사용을 다시 정리했다. 구현 기준 태그 v0.1.1-design은 보존한다. 2026-10-09 TASK-05에서 아래 동기 연결·사전검사·인쇄 API를 구현하고 synthetic SDK로 검증했다. [현재 사용법·지원 조건·실기 미검증](PRINTER_API.ko.md)을 구분하며 PrintAsync/취소/일괄 인수 검증은 TASK-06이다.
 
 ## 모듈의 정의
 
@@ -29,7 +29,7 @@ HFModule.dll은 원본 x86/x64 Blackfish의 PE import에서 확인한 제조사 
 | Print(BtplPrintRequest request) | 같은 경로 | 선택한 바인딩·다건 입력 사용. 일괄 계약은 TASK-06 |
 | Disconnect()/Dispose() | 소유한 연결의 DeviceDisconnect → CheckPrtConnection | 연결 해제·사용 자원 정리; 다른 소유자의 연결을 해제하지 않음 |
 
-Print(string)/Print(template)는 입력을 Parse 또는 Fixed 요청으로 변환하고 기존에 설계한 Print(request) 경로를 재사용하는 계획이다. 별도 인쇄 엔진을 만들지 않는다. Print(string)의 string은 기존 파서가 지원하는 텍스트 전용 BTPL이다. 임의 SendData나 RFID 명령을 통과시키는 API가 아니다. 구문 오류의 위치·Code는 기존 BtplFormatException 계약을 따르며 실제 SDK 실행 실패·불명은 결과 객체로 구분한다.
+Print(string)/Print(template)는 입력을 Parse 또는 Fixed 요청으로 변환하고 같은 Print(request) 경로를 재사용한다. 별도 인쇄 엔진을 만들지 않는다. Print(string)의 string은 기존 파서가 지원하는 텍스트 전용 BTPL이다. 임의 SendData나 RFID 명령을 통과시키는 API가 아니다. 구문 오류의 위치·Code는 기존 BtplFormatException 계약을 따르며 실제 SDK 실행 실패·불명은 결과 객체로 구분한다.
 
 SDK 선언을 그대로 public static으로 복제하는 방식 대신 위 기본 API에서 동일한 wrapper 기능을 호출한다. 연결 소유권·서식과 인쇄의 순서·결과 판정은 공통 DLL이 관리하므로 호출 프로그램이 이를 반복 구현하지 않는다. 문서에서 원형을 확인한41개는 내부 선언 범위이며, 기존 정책대로 RFID 읽기·기록·잠금·보안 API는 외부 공개하거나 인쇄 흐름에서 호출하지 않는다.
 
@@ -80,7 +80,7 @@ firstLine/secondLine은 호출 프로그램이 준비하는 문구다. 차트번
 | 템플릿 Parse/편집/저장과 관리 검사·참고 모델 | TASK-03/04 구현·검증 완료 |
 | 내부 SDK41개 원형과 고정 USB 진단 | TASK-02 완료 범위. 제품 공개 인쇄와 구분 |
 | 공개 연결 옵션·결과 타입 | b7281f6에 구현. SDK 연결/인쇄 동작 완료를 뜻하지 않음 |
-| Bt003Printer와 Print 편의 overload | TASK-05 구현 대상. 현재 lifecycle 시험은 타입 부재로 실패 |
+| Bt003Printer와 동기 Print/Validate 편의 overload | TASK-05 구현·합성 SDK 검사 통과. 새로운 제품 실기는 미실행 |
 | 일괄 수명 계약, 실제 지원 인수, Tester, phase2 적용 예 | 후속 TASK-06/07/08/09 |
 
 현재 작업에서는 SDK·장치·인쇄·이송·DB를 실행하지 않는다. 기존 RFID API 미호출·업무 필드 비고정 정책과 원본 SDK·phase2 보존을 유지한다.

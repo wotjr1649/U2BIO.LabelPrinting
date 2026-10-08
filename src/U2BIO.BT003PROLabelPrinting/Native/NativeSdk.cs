@@ -22,7 +22,7 @@ namespace U2BIO.BT003PROLabelPrinting.Native
     }
 
     // Caller must hold the process SDK slot on its worker before loading; TASK-05 wires that lifecycle.
-    // Print/RFID delegates remain unavailable. Connection diagnostics use four verified buffer-free primitives.
+    // Raw/RFID access stays blocked; product connection and validated print use narrow typed accessors.
     internal static class NativeSdk
     {
         private const uint SearchFlags = 0x100 | 0x800;
@@ -66,6 +66,17 @@ namespace U2BIO.BT003PROLabelPrinting.Native
             Type type = typeof(T);
             if (type != typeof(NativeApi.SetPrinterPortDelegate) && type != typeof(NativeApi.DeviceConnectDelegate) &&
                 type != typeof(NativeApi.CheckPrtConnectionDelegate) && type != typeof(NativeApi.DeviceDisconnectDelegate))
+                throw new NativeSdkException("PrintContractUnverified");
+            lock (Sync) {
+                if (functions == null) throw new NativeSdkException("NativeLibraryMissing");
+                return (T)(object)functions[type];
+            }
+        }
+
+        internal static T GetPrintingFunction<T>() where T : class
+        {
+            Type type = typeof(T);
+            if (type != typeof(NativeApi.ResetFormDelegate) && type != typeof(NativeApi.SetPrintFormStringDelegate) && type != typeof(NativeApi.StartLabelPrintDelegate))
                 throw new NativeSdkException("PrintContractUnverified");
             lock (Sync) {
                 if (functions == null) throw new NativeSdkException("NativeLibraryMissing");
