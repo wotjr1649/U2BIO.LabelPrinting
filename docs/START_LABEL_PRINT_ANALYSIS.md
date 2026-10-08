@@ -149,6 +149,57 @@ x64 Debug의 PreparePrintScript에는 AW 정규식 일치 시 ArgumentException�
 
 실행 폴더의 x86/x64 제조사 DLL 쌍은 현재 기준 핀과 일치했다. 프로젝트 루트와 lib/x64의 일부 복사본은 같은 버전 표기지만 해시가 달랐다. 이를 원인으로 단정하거나 다른 DLL을 자동 선택하지 않는다. 고정 x64 SendData0x15650은 원문 길이·pointer를 helper0xAA80에 전달하고0을 반환하므로 이 함수도 실제 완료 증거가 아니다.
 
+## 샘플·매뉴얼·x64 SDK 심층 대조: wrapper 인쇄 유지
+
+사용자는 원문 전체 직접 전송 대신 wrapper 사용을 지시했다. 제조사 API를 내부 delegate로 래핑하는 현재 구조를 유지하며, 제품 경로를 SendData 원문 전송으로 바꾸지 않는다. 참조 샘플·제조사 DLL·변환 매뉴얼은 수정하거나 실행하지 않았다. 이번 작업은 정적 분석이며 추가 인쇄는 없다.
+
+### 샘플의 연결·수량·전송과 현재 wrapper의 차이
+
+현재 HFSample_UL의 Form1.cs 79/85행은 SetPrinterPort(1,"0","") → DeviceConnect이며 현재 DLL의 USB0 연결 지정과 같다. COM3 또는 용지 DPI를 별도로 정하지 않는다. WritingProc의 211~224행은 UI 수량 m_reqCount만큼 SendData(m_printScript)를 호출하고 오류면 중단한다. 기본 수량은 Form1.Designer.cs 705행의1이다. 수량2를 넣으면 두 번 전송하지만 이는 오류 retry가 아니다. 이번 DLL 진단에는 해당 루프가 없다.
+
+BT003CtrlWrapper.cs는 DllImport 선언을 모아 둔 thin wrapper다. 선언이 있다고 모든 함수를 인쇄 흐름에서 실행하는 것은 아니다. 현재 Form1의 PreparePrintScript 248~253행은 AW와 비ASCII를 거부한다. 따라서 현재 소스의 직접전송 AC 정상 결과를 AW의 wrapper 인쇄 정상 결과로 사용할 수 없다. 실제 과거 EXE별 호출은 앞의 IL 대조표를 따른다.
+
+| 처리 | 현재 샘플 소스 | 현재 DLL AW 진단 |
+| --- | --- | --- |
+| 연결 | SDK SetPrinterPort·DeviceConnect | 같은 SDK API를 내부 래핑, 단계별 검사 추가 |
+| 서식 준비 | 파일 읽기·CRLF 정리·AW/비ASCII 거부 | 검증 프로젝트의 고정 합성 AW 서식을 전달 |
+| 인쇄 호출 | wrapper.SendData, UI 수량만큼 | ResetForm·SetPrintFormString·StartLabelPrint(copies1), 한 번 |
+| AW 처리 | 현재 소스에서 사전 차단 | SDK의 Windows GDI 렌더링 경로 |
+| E 처리 | 원문 직접 전송에서는 SDK 전처리 없음 | SDK 모델 분기에 따라 재작성 |
+| 성공 표시 | SendData0으로 UI 완료 카운트 증가 | native0을 기록하되 물리 완료는 별도 관측 |
+
+매뉴얼 Rev.1.3의6/7절은 문자열 서식의 CRLF, 파일 서식 우선, ResetForm 후 서식 재지정을 명시한다. 현재 ResetForm → SetPrintFormString 순서는 이전 파일 서식의 우선 적용 가능성을 제거하며 이 순서가 E 재작성의 원인은 아니다. StartLabelPrint는4장의 C# 선언에 있지만 별도의 상세 API 설명은 없다.30절은 RFID 인코딩을 시작하는 StartPrintingWithRfid를 설명하므로 기존 RFID 데이터 위에 인쇄만 하는 경로에 복사하지 않는다.
+
+### x64에서 확인한 E 재작성과 후처리 차이
+
+현재 기준 SHA-256의 x64 DLL을 로드하지 않고 PE literal·import·pdata와 기존 disassembly를 대조했다. 주소는 image base0x180000000을 뺀 RVA다.
+
+- 0xEF10은 내부 모델 값0x33을 검사하고, 0xEF19~0xEF5F는 인수0으로 `^E%d,0\r\n`을 생성하여 기존 E 행을 대체한다. literal0x51B180을 원본 PE bytes에서 확인했다. 현재 사용자 로그의 E0,0과 일치한다.
+- 원래 E의 첫 인수는 0xF037~0xF044에서 객체+0x1E8에 저장되고, 두 번째 인수는+0x1EC에 저장된다. 원문 전체를 버린 것은 아니지만 프린터용 서식의 E15 보존 계약은 충족하지 않는다.
+- 위치 worker 시작 helper0x6430은 worker0x64C0을 넘긴다. 이 helper의 직접 call site는0x19A37 하나이며 StartPrintWithRfid export 범위0x18CF0~0x19B27 안이다. StartLabelPrint 범위0x184E0~0x18BA8에는 이 호출이 없다. worker는0x664B/0x666C에서 M/B 이동 문자열을 구성한다. x86에서 확인한 인쇄 전용/발행 후처리 차이가 x64에도 존재한다. 모든 간접 경로·펌웨어 동작이 같다는 보장으로 확대하지 않는다.
+
+이는 SDK 내부의 모델별 처리다. wrapper에 원문 E15를 재등록하거나 ResetForm을 반복해도 동일 전처리가 다시 적용되므로 원인 해결이 아니다. 위치 worker를 얻으려고 RFID 발행 API로 교체하거나 SDK 패치·함수 주소 직접 호출을 하지 않는다.
+
+### AW의1은 AC의1배가 아니다
+
+x64 AW 처리의0x11E83~0x11EC1은 comma token3을 정수로 읽어 font helper0x132A0의 size 인수에 전달한다. PE pdata에서 helper 범위0x132A0~0x133ED를 대조했다.0x13329~0x1333C는 `size * 340 / 72`의 정수 결과를 LOGFONT 높이에 넣고0x133BB에서 CreateFontIndirectA를 호출한다. IAT0x43D520을 원본 import로 확인했다. x86의0xDA98~0xDAA7에도 같은 계산이 있다.
+
+| AW size | SDK LOGFONT 높이 계산 결과 |
+| --- | --- |
+| 1 | 4 |
+| 10 | 47 |
+| 12 | 56 |
+
+이는 해당 SDK의 내부 글꼴 높이 값이며 실제 mm나 모든 글꼴의 검은 픽셀 높이를 보장하지 않는다. AC의1,1은 글꼴 배율이고 AW의 size/weight와 같지 않다. weight token4의1은400,2는600으로 처리된다. 이번 AW1,1은 매우 작은 높이·보통 weight를 요청한다. 앞선 x86 AW10,2에서 문구가 보였던 결과와 대비되며 문구 없음/희미함의 유력한 별도 원인이다. 그러나 현재 라벨 관측 없이 글자 누락 원인을 이것만으로 확정하지 않는다.
+
+제조사 매뉴얼의 AW 예시는 size10/12를 사용한다. 다음 판별 시험 후보는 Q/W/G/R/E·X/Y·weight·수량을 유지하고 size만1→10으로 바꾸는 AW80,120,10,1,0,0의 합성 한 장이다. 사용자가 지정한 서식을 자동 보정하거나 공통 DLL에 size10을 기본값으로 넣지 않는다. 후보는 아직 실행하지 않았다. 글자 크기 시험과 배출 보완을 동시에 바꾸지 않는다.
+
+### 판정과 다음 보완 범위
+
+두 로그는 중복 로깅이며 관리 코드 retry2의 근거가 아니다. 배출 문제의 확인된 경로 차이는 SDK E 재작성 및 위치 후처리 차이이고, 문구 가시성에는 AW 크기 계약 차이가 있다. 연결 API·CRLF·고정 수량은 해당 입력에서 일치하며 새 DPI·Gap 방식·속도/농도 변경을 원인 해결로 추가하지 않는다.
+
+wrapper의 AW 인쇄 경로는 유지한다. 배출 위치 제어는 별도 계약으로 정리해야 한다. 현재41개 API와 Rev.1.3에는 전용 Stop/Eject 위치 setter가 확인되지 않았으며,27절의 문자열 제어 API 존재를 미검증 배출 완료 보장으로 확대하지 않는다. 원문 전체 직접 전송이나 임의 M/B15 하드코딩 대신, 인쇄 전용 SDK가 지원하는 후처리 방법을 확인하고 출력 성공과 배출 성공을 분리하여 검증해야 한다. SDK0·샘플 UI 완료 카운트만으로 TASK-02를 닫지 않는다.
+
 ### 15:50 x64 AW 시험: 두 로그와 E 재작성
 
 사용자가 제공한 합성 시험 로그는 15:50:49.244의 API 매개변수 기록과 15:50:49.256의 가공 서식 기록이다. 첫 기록은 SetPrintFormString에 준 원문이며 자체 인쇄 실행이 아니다. 둘째 기록에는 SDK가 앞에 구성한 P1·세로 원점0·R0과 E0,0이 나타난다. 이는 위에서 확인한 원문/가공 서식의 이중 로깅 구조와 일치하며, 기록 수를 인쇄 호출 수로 해석하지 않는다. raw 로그는 문서나 Issue에 복사하지 않는다.
