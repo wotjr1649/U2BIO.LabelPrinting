@@ -7,10 +7,10 @@ const crypto = require('node:crypto');
 const { spawn, spawnSync } = require('node:child_process');
 const root = path.resolve(__dirname, '..');
 // This diagnostic manifest identifies the reviewed Release build, not an arbitrary current bin directory.
-const managedBuildCommit = '172ce59';
+const managedBuildCommit = '0477e61';
 const managedHashes = {
-    x86: ['75622bfc73dda79620b69dd12796c3ba609e3f9c5efcbcd8e58030569fde4d92', '83952c5a8075b27afd871a91c1c23190801d8ed9e3a995c9d34a1741657024e5'],
-    x64: ['5c82b710ea9c5da6f6ab685f2bf5a230ae6670c7b77f658cbcdcd3cb0b0da556', '83952c5a8075b27afd871a91c1c23190801d8ed9e3a995c9d34a1741657024e5']
+    x86: ['6492848e12dc57d25dba8488f539423fee12fb1df10a7f2e5d6cd434e319d271', 'b0d649e17b97dd806c388f2863476274f32f3a83953bf496d8ea3cf8fdaf6495'],
+    x64: ['5278c12c29f6e007d47603365bed1376994a76b0b2b1ef84d44abac7ea477091', 'b0d649e17b97dd806c388f2863476274f32f3a83953bf496d8ea3cf8fdaf6495']
 };
 const passReport = 'NATIVE_LOAD|status=Passed|bound=41|deviceDelegatesInvoked=0';
 const usb = process.argv.length === 5 && process.argv[4] === '--usb-connection';
