@@ -2,6 +2,7 @@ using System;
 using System.Data;
 using System.Linq;
 using System.Runtime.InteropServices;
+using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -11,7 +12,7 @@ namespace U2BIO.BT003PROLabelPrinting.Validation
 {
     internal static class PrinterBatchTests
     {
-        private static void Check(bool condition) { if (!condition) throw new InvalidOperationException("Batch print contract failed."); }
+        private static void Check(bool condition, [CallerLineNumber] int line = 0) { if (!condition) throw new InvalidOperationException("Batch print contract failed at " + line + "."); }
         private static void Response(IntPtr pointer, int code)
         { var bytes = Encoding.ASCII.GetBytes("," + code + "\0"); Marshal.Copy(bytes, 0, pointer, bytes.Length); }
         private static PrinterConnectionTests.Fixture Fixture() => new PrinterConnectionTests.Fixture { Printed = (copies, pointer) => { Check(copies == 1); Response(pointer, 0); } };
@@ -66,6 +67,7 @@ namespace U2BIO.BT003PROLabelPrinting.Validation
                 }
             }
             foreach (string mode in new[] { "cancel-success", "cancel-fail", "dispose", "last-cancel", "second-timeout", "form-timeout", "preflight-timeout" }) {
+                Console.WriteLine("CHECK: synthetic batch " + mode);
                 f = Fixture();
                 var p = f.Printer(mode.EndsWith("timeout", StringComparison.Ordinal) ? 50 : 1000);
                 using (var token = new CancellationTokenSource()) {
