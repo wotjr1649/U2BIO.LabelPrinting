@@ -52,10 +52,10 @@
 
 완료 조건:
 
-- [ ] SDK_API_COVERAGE의 원형 확인 대상 41개를 내부 래핑한다. StartPrintWithRfid2와 없는 ReadResponseMessage 원형은 추정하지 않는다.
-- [ ] 기준 BlackfishNfcLib.dll·HFModule.dll 쌍에 대해 아키텍처·해시·로드 충돌·export를 검사하고 절대경로의 제한된 검색 로더를 구현한다.
+- [x] SDK_API_COVERAGE의 원형 확인 대상 41개를 내부 래핑한다. StartPrintWithRfid2와 없는 ReadResponseMessage 원형은 추정하지 않는다.
+- [x] 기준 BlackfishNfcLib.dll·HFModule.dll 쌍에 대해 아키텍처·해시·로드 충돌·export를 검사하고 절대경로의 제한된 검색 로더를 구현한다.
 - [ ] 문자열 ANSI 전달, 입출력 방향, StdCall, 반환 버퍼의 바이트 상한·종료 규칙을 제조사 계약 및 x86/x64 증거로 확인한다.
-- [ ] USB 식별 문자열과 RFID 포트 없는 연결·해제를 실제 장치로 확인한다.
+- [x] USB 식별 문자열과 RFID 포트 없는 연결·해제를 실제 장치로 확인한다.
 - [ ] StartLabelPrint의 인수·전용 응답 형식·완료 의미와 오류 판정을 확인한다. SendData 성공이나 RFID 응답 형식으로 대체하지 않는다.
 - [ ] 합성 문구의 한글과 사용할 BTPL 글꼴·인수 조합, 한 행 한 장, RFID 값 전후 일치를 실제로 확인한다.
 - [ ] 장치·펌웨어·DLL 해시·시험 일시·결과와 미확인 항목을 기록한다. 안전한 버퍼 계약 등 핵심 미확정 상태에서는 완료 처리하지 않는다.
