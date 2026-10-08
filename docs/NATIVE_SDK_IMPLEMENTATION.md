@@ -21,7 +21,7 @@ node tools/verify-build.js
 node tools/verify-build.js --configuration Debug
 <Validation.exe> --inspect-sdk <SDK의 라이브러리 폴더>
 node tools/probe-native-load.js --sdk-directory <SDK의 라이브러리 폴더>
-node tools/probe-native-load.js --sdk-directory <SDK의 라이브러리 폴더> --usb-connection
+node tools/probe-native-load.js --sdk-directory <SDK의 라이브러리 폴더> --connection usb --port 0
 ```
 
 일반 빌드 검사는 이전 framework·PE·프로세스 비트 수·native 미로드 검사에 41개 ABI golden 검사, 계약 차단, missing/corrupt/architecture/version 오류 검사를 추가한다. --inspect-sdk는 라이브러리 폴더 아래 x86/lib와 x64/lib의 실제 기준 파일을 읽고 두 쌍의 Machine·해시·exact 41 exports·일반 imports를 대조한다. vendor 코드는 실행하지 않으며 실제 연결·인쇄·RFID 시험을 대체하지 않는다.
@@ -103,6 +103,22 @@ supervisor도 exit 0이었다. 이는 제공 샘플의 USB 문자열 "0"을 사�
 fresh verifier는 `1ea595b`에서 validation csproj를 직접 Release/Debug × x86/x64 재빌드·실행했고 모두 exit 0이며 위 manifest 해시와 일치했다. 호출 순서·occupied/unknown 상태·설정 실패·연결 실패 정리·해제 raw 값 보존·닫힘 실패·Connect 예외를 관리 delegate fixture로 검사했고 기존 인쇄 gate와 native 미로드 검사를 유지했다. 이 fixture는 실제 장치 결과의 대체물이 아니다.
 
 작업 중 사용자가 Visual Studio를 열고 닫으면서 솔루션 구성이 Any CPU만 남도록 바뀌었다. 이 사용자 변경은 보존하고 커밋에 포함하지 않았다. 변경된 솔루션의 일반 verify-build는 MSB4126으로 실패했으며 통과로 보고하지 않는다. 후속 직접 빌드는 같은 검증 프로젝트와 MSBuild 인수에 Configuration/Platform을 명시한 결과다. 저장소 검사·diff 검사 및 tool CLI 검사는 통과했다. 솔루션 x86/x64 구성 정리는 별도로 남아 있다.
+
+### 명시적 연결 입력 보완
+
+진단 콘솔은 연결 방식을 `usb/serial/tcp`로 명시하고 포트를 입력받는다. 기본 포트·자동 연결·다른 포트 fallback은 없다. USB 문자열은 그대로 유지하며 ANSI 전달 가능 여부를 검사한다. COM3/com003/3은 SDK에 숫자 문자열 3으로 전달하고 TCP 포트는 1~65535의 십진 문자열, IP는 실제 주소의 정규 표기로 고정한다. native 전달 인수와 대상 mutex 이름은 동일한 옵션 객체에서 얻는다. 기존 USB 진단 helper는 회귀 검사 호환을 위해 내부에만 남으며 실행 CLI가 기본 USB 0을 고르는 경로는 없다.
+
+```text
+node tools/probe-native-load.js --sdk-directory <SDK의 라이브러리 폴더> --connection usb --port 0
+node tools/probe-native-load.js --sdk-directory <SDK의 라이브러리 폴더> --connection serial --port COM3
+node tools/probe-native-load.js --sdk-directory <SDK의 라이브러리 폴더> --connection tcp --port 9100 --ip 192.0.2.1
+<Validation.exe> --list-ports
+node tests/connection-probe-cli.test.js
+```
+
+RS-232/TCP/IP 명령은 입력 예시이며 COM3의 인쇄 포트 역할이나 예시 주소에 장치가 있다는 뜻이 아니다. COM 목록 조회는 .NET SerialPort.GetPortNames만 사용하고 포트를 열거나 선택하지 않는다. 실제 통신은 SDK가 수행하며 별도 SerialPort를 함께 열지 않는다. 현재 장치는 두 케이블을 모두 연결해야 한다는 사용자 확인 조건을 따른다. 이 보완은 TASK-02의 internal 진단이며 생산 공개 연결 API·수명 통합은 TASK-05다.
+
+StartLabelPrint의 추가 정적 근거와 남은 버퍼·응답 경계는 [정적 분석 결과](START_LABEL_PRINT_ANALYSIS.md)에 기록한다. 실제 인쇄 호출을 실행하거나 게이트를 해제하지 않았다.
 
 ## 남은 수용 근거
 
