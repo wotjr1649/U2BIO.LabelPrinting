@@ -56,24 +56,31 @@ namespace U2BIO.BT003PROLabelPrinting.Native
             if (length < 0) throw new NativeSdkException("PrintResponseInvalid");
             for (int i = 0; i < length; i++)
                 if (bytes[i] < 32 || bytes[i] > 126) throw new NativeSdkException("PrintResponseInvalid");
-            string text = Encoding.ASCII.GetString(bytes, 0, length);
-            int comma = text.IndexOf(',');
-            int code;
-            if (comma < 0 || !int.TryParse(text.Substring(comma + 1), NumberStyles.AllowLeadingSign, CultureInfo.InvariantCulture, out code) ||
-                code.ToString(CultureInfo.InvariantCulture) != text.Substring(comma + 1)) throw new NativeSdkException("PrintResponseInvalid");
-            string prefix = text.Substring(0, comma), kind = "empty";
-            if (prefix == "Unknown") kind = "unknown";
-            else if (prefix.Length != 0) {
-                int count = (prefix.Length + 1) / 3;
-                if (prefix.Length != count * 3 - 1 || (count != 4 && count != 7 && count != 8 && count != 10))
+            int comma = Array.IndexOf(bytes, (byte)',', 0, length);
+            if (comma < 0) throw new NativeSdkException("PrintResponseInvalid");
+            string kind = "empty";
+            bool unknown = comma == 7;
+            for (int i = 0; unknown && i < 7; i++) unknown = bytes[i] == "Unknown"[i];
+            if (unknown) kind = "unknown";
+            else if (comma != 0) {
+                int count = (comma + 1) / 3;
+                if (comma != count * 3 - 1 || (count != 4 && count != 7 && count != 8 && count != 10))
                     throw new NativeSdkException("PrintResponseInvalid");
-                for (int i = 0; i < prefix.Length; i++) {
-                    char value = prefix[i];
+                for (int i = 0; i < comma; i++) {
+                    byte value = bytes[i];
                     if (i % 3 == 2 ? value != ':' : !((value >= '0' && value <= '9') || (value >= 'A' && value <= 'F')))
                         throw new NativeSdkException("PrintResponseInvalid");
                 }
                 kind = "uid";
             }
+            // Only the validated numeric code becomes a string; UID bytes never do.
+            for (int i = comma + 1; i < length; i++)
+                if (!((bytes[i] >= '0' && bytes[i] <= '9') || (i == comma + 1 && bytes[i] == '-')))
+                    throw new NativeSdkException("PrintResponseInvalid");
+            string number = Encoding.ASCII.GetString(bytes, comma + 1, length - comma - 1);
+            int code;
+            if (!int.TryParse(number, NumberStyles.AllowLeadingSign, CultureInfo.InvariantCulture, out code) ||
+                code.ToString(CultureInfo.InvariantCulture) != number) throw new NativeSdkException("PrintResponseInvalid");
             return new NativeLabelResponse(code, length, kind);
         }
     }
