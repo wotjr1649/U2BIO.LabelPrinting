@@ -325,3 +325,13 @@ supervisor의 현재 핀은 `878a8e1`이며 fresh verifier와 root가 다음 실
 | DLL, x86/x64 공통 | `93bde4f28db91a90ed9f9d4058d916a61aa968ac903aa20f68dc1256cef15e95` |
 | x86 validation exe | `99ad0d7c0a6a49991800a03a4f16fa9638de4dd9b0754d0d4a8fddd8696fab42` |
 | x64 validation exe | `160a827c6cc68be72137cac75763fd1a466c41443dfa4f8e25312c387a94ebaf` |
+
+### Y120 단일 실기
+
+2026-10-08 12:42:20 KST, `013b4bd`에서 관리 핀 `878a8e1`로 USB 0·x86의 Y120 후보를 한 번 요청했다. 현재 USB1/USB print 열거 각각 1개와 활성 instance 일치, SDK 로그 대상 링크 부재, 기존 probe 0을 실행 전에 확인했다. 현재 USB1 캐시 갱신과 SDK 로그 기록 허용은 유효하며 재요청하지 않았다.
+
+Pre=0, SetPort=0, Connect=0, Open=1, Form=0, Invoked=1, response=parsed, native=0, prefix=empty, length=2, Disconnect raw=0, Closed=0이었다. child/supervisor exit 0, 잔여 task probe 0이며 근거는 `.work/native-load/1791430940971/evidence.json`이다. x64와 자동 재출력은 하지 않았다.
+
+사용자는 문구가 흰 라벨 안에 출력됐지만 충분히 배출되지 않아 직접 당겨서 확인했다고 답했다. 후속 사진에서도 흰 라벨 왼쪽 위의 `U2BIO TEST`가 선명하게 보인다. 따라서 이번 x86·AW·합성 ASCII 조합의 실제 문구 출력은 확인됐다. 인쇄 후 배출은 미해결이며, API 한 번 호출과 실제 수량 계약 전체를 구분한다. 원본 사진은 복사·게시하지 않는다. Y120은 이번 시험 서식에만 적용되며 공통 DLL의 기본값으로 넣지 않는다. 이전 시험 사이에 본체 calibration도 있었으므로 Y 변경만을 모든 원인의 단독 해결로 확대하지 않는다.
+
+배출 문제에는 Y를 더 옮기는 대신 정지·이송 경로를 확인한다. [정적 분석](START_LABEL_PRINT_ANALYSIS.md)의 `^E` 절에서 현재 SDK의 명령 재작성과 내부 대기시간을 구분했다. RFID 인쇄 함수의 후처리를 인쇄 전용 경로에 적용하거나, 거리와 대기시간을 혼동해 `^E`를 변경하지 않는다. 추가 인쇄·이송·설정 변경은 이 확인 과정에서 실행하지 않았다. TASK-02 조건 3·5·6·7은 한글/글꼴·x64 인쇄·RFID 저장 데이터 전후 일치·펌웨어와 응답 계약의 남은 증거가 필요하므로 계속 열어 둔다.
