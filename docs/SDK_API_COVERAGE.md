@@ -20,7 +20,7 @@
 | `SetPrintFormString` | `int SetPrintFormString(LPCTSTR strFormData)` | O / O | 연결·인쇄 후보 | 0=정상; CRLF 필수 |
 | `SetPrintFormVariableData` | `int SetPrintFormVariableData(LPCTSTR strVariableData)` | O / O | 내부 선언만; 기본 출력에서 미사용 | 0=정상; !! 슬롯과 ^Vxx 번호 대응 |
 | `ResetForm` | `void ResetForm()` | O / O | 연결·인쇄 후보 | void. 파일·문자열 서식 초기화; 변수 초기화 보장 없음 |
-| `SendData` | `int SendData(LPCTSTR strData)` | O / O | 내부 선언만; 기본 출력에서 미사용 | 0=메소드 실행 정상; 실제 라벨 완료 증거 아님 |
+| `SendData` | `int SendData(LPCTSTR strData)` | O / O | 기본 출력에서 미사용; 고정 ASCII AC 직접전송 진단에만 사용 | 0=메소드 반환; 고정 x86 SDK는 하위 전송 결과와 무관하게 0 반환. 실제 라벨 완료 증거 아님 |
 | `SetWritingDataType` | `int SetWritingDataType(USHORT iType)` | O / O | RFID 내부 전용; 출력에서 호출 금지 | API 설명: 0=정상, 기타=오류표 참조. 함수별 raw 값 보존 |
 | `AddNfcUriRecord` | `int AddNfcUriRecord(LPCTSTR strUri)` | O / O | RFID 내부 전용; 출력에서 호출 금지 | API 설명: 0=정상, 기타=오류표 참조. 함수별 raw 값 보존 |
 | `AddNfcTextRecord` | `int AddNfcTextRecord(LPCTSTR strText, LPCTSTR strLocale)` | O / O | RFID 내부 전용; 출력에서 호출 금지 | API 설명: 0=정상, 기타=오류표 참조. 함수별 raw 값 보존 |

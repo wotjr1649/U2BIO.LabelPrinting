@@ -361,3 +361,21 @@ fresh verifier의 일반 Release/Debug × x86/x64 빌드·관리 검증, 두 CLI
 | 물리적 결과 | 사용자에게 문구·위치·배출·실제 장수 확인 요청; 답변 대기 |
 
 근거는 `.work/native-load/1791433795342/evidence.json`이다. 이전 Q40,5,7.5+ 시험과 이번 Q40,5 시험을 구분한다. 정상 응답만으로 7.5 제거가 배출 문제를 해결했다고 처리하지 않는다. 자동 재출력·x64·추가 이송은 실행하지 않았으며 TASK-02의 남은 조건과 RFID 저장 데이터 보존도 완료 처리하지 않는다.
+
+## 사용자 정상 서식 반영과 직접전송 비교
+
+사용자가 HFSample_UL에서 정상 출력·완전 배출됐다고 보고한 두 서식의 명령·순서를 그대로 반영했다. 기존 blackmark60x20은 AW, 신규 blackmark60x20ac는 AC를 StartLabelPrint로 전달한다. 별도 blackmark60x20direct는 동일 AC 서식을 SendData로 한 번 전달한다. 어느 선택도 공통 DLL의 용지·좌표·농도 기본값이 아니다. 50x25gap3 시험 데이터는 보존했다.
+
+현재 샘플 소스가 원래 StartPrintWithRfid 루프에서 SendData 루프로 달라진 점을 재확인했다. 원인 분석은 [START_LABEL_PRINT_ANALYSIS.md](START_LABEL_PRINT_ANALYSIS.md)의 현재 샘플 절을 따른다. 현재 소스는 직접전송 AW를 거부하므로 사용자 보고만으로 두 글꼴의 모든 실행 경로를 검증 완료로 처리하지 않는다.
+
+직접전송 진단은 기존 process/target 예약·worker·연결 정리를 재사용한다. ASCII·AW 거부는 native load/callback 전에 적용하며 고정 CLI recipe만 허용한다. SendData를 한 번 호출하고 ResetForm/SetPrintForm/StartLabelPrint/RFID API는 호출하지 않는다. 보고는 DIRECT_LABEL·send·invoked·completion=unknown·printApiCalls=0·rfidApiCalls=0만 추가한다. SDK0과 정상 연결 정리를 실기 인쇄 성공으로 선언하지 않으며 기존 제품 PrintContractUnverified gate는 유지한다.
+
+79e8ec1에서 새 서식 기대값과 CLI의 기존 구현 실패를 확인하고 dfd5057에서 두 서식/선택을 반영했다. 직접전송 추가의 기대 검사도 2d5e754에서 exit1을 관측한 후 5c44e12에서 구현했다. C#7.3 nullable 검사식의 초기 컴파일 오류는 2d5e754에서 수정했다. 최종 관리 검증과 새 산출물 핀은 아래 결과를 따른다.
+
+fresh verifier의 Release/Debug × x86/x64 빌드·관리 검증과 두 CLI 회귀·diff 검사가 모두 통과했다. 고정 서식 일치, ASCII/AW 사전 거부, 직접전송 1회·연결 정리·실패 반환, 기존 LABEL과 제품 게이트 보존을 확인했다. focused review에서 추가 결함은 보고되지 않았다. Release evidence는 `.work/foundation/Release-1791437277643/evidence.json`이며 관리 핀은 5c44e12다. verifier는 vendor/device를 실행하지 않았다.
+
+| 사용자 서식/직접전송 진단 산출물 | SHA-256 |
+| --- | --- |
+| DLL, x86/x64 공통 | `098f0820c20a880112d63d09e8afa14d76585d0157984e7ea14db3da10d1b331` |
+| x86 validation exe | `50e4e84e6a2291d8690e202dbba3b3c695eb435d33f4bef2cef433478a6b800d` |
+| x64 validation exe | `945b7bc50ea2790c439def402288c597f8350ff5e1f039b48d5eeaa2100aa4a8` |
