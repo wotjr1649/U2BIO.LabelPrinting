@@ -13,6 +13,8 @@ const managedHashes = {
     x64: ['5c82b710ea9c5da6f6ab685f2bf5a230ae6670c7b77f658cbcdcd3cb0b0da556', '83952c5a8075b27afd871a91c1c23190801d8ed9e3a995c9d34a1741657024e5']
 };
 const passReport = 'NATIVE_LOAD|status=Passed|bound=41|deviceDelegatesInvoked=0';
+const usb = process.argv.length === 5 && process.argv[4] === '--usb-connection';
+const usbPassed = /^USB_CONNECTION\|status=Passed\|pre=0\|setport=0\|connect=0\|open=1\|disconnect=-?[0-9]{1,10}\|closed=0\|printApiCalls=0\|rfidApiCalls=0$/;
 const files = ['BlackfishNfcLib.dll', 'HFModule.dll'];
 const hashes = {
     x86: ['fed09bae47835dcf78f58579e3cfb9382561799b369e54fd9fa0902e5b89dbf5', 'bb2721801bc853ead75e647608c6b36a5a3a75f344095e4e29ffc35e822319d4'],
@@ -32,6 +34,7 @@ function directory(file) {
     noLinks(file);
 }
 function safeReport(value) {
+    if (/^USB_CONNECTION\|status=(Passed|Failed)\|pre=(none|-?[0-9]{1,10})\|setport=(none|-?[0-9]{1,10})\|connect=(none|-?[0-9]{1,10})\|open=(none|-?[0-9]{1,10})\|disconnect=(none|-?[0-9]{1,10})\|closed=(none|-?[0-9]{1,10})\|printApiCalls=0\|rfidApiCalls=0$/.test(value)) return true;
     if (/^NATIVE_LOAD\|status=Failed\|code=NativeModuleConflict\|win32=(none|[0-9]{1,10})\|detail=(preload|postload):(system-import|app-local-system-import|vendor-module):(setupapi\.dll|kernel32\.dll|user32\.dll|gdi32\.dll|msimg32\.dll|winspool\.drv|advapi32\.dll|shell32\.dll|shlwapi\.dll|uxtheme\.dll|ole32\.dll|oleaut32\.dll|oledlg\.dll|crypt32\.dll|ws2_32\.dll|oleacc\.dll|gdiplus\.dll|imm32\.dll|winmm\.dll|blackfishnfclib\.dll|hfmodule\.dll):(system|sideBySide|other)$/.test(value)) return true;
     return /^NATIVE_LOAD\|status=Passed\|bound=41\|deviceDelegatesInvoked=0$/.test(value) ||
         /^NATIVE_LOAD\|status=Failed\|code=(NativeLibraryMissing|NativeArchitectureMismatch|NativeVersionMismatch|NativeModuleConflict|UnsupportedLoaderPlatform|NativeLoadFailed|NativeEntryPointMissing|PrintContractUnverified|ProbeInternalError|ProbeSlotAbandoned|ProbeSlotBusy|ProbeSlotDenied|ProbeReservationFailed|ProbeTimeout|ProbeBindingMismatch|ProbeJobUnavailable)(\|win32=(none|[0-9]{1,10}))?$/.test(value);
@@ -39,7 +42,7 @@ function safeReport(value) {
 async function run(executable, stage, environment, taskkill) {
     return new Promise((resolve, reject) => {
         const nonce = crypto.randomBytes(16).toString('hex');
-        const child = spawn(executable, ['--probe-native-load', nonce], { cwd: stage, env: environment, windowsHide: true, shell: false, stdio: ['ignore', 'pipe', 'pipe'] });
+        const child = spawn(executable, [usb ? '--probe-usb-connection' : '--probe-native-load', nonce], { cwd: stage, env: environment, windowsHide: true, shell: false, stdio: ['ignore', 'pipe', 'pipe'] });
         const chunks = [];
         let bytes = 0, failure = '', cleanup;
         const stop = reason => {
@@ -77,7 +80,7 @@ async function run(executable, stage, environment, taskkill) {
     });
 }
 async function main() {
-    if (process.platform !== 'win32' || process.argv.length !== 4 || process.argv[2] !== '--sdk-directory') throw new Error('ProbeUsage');
+    if (process.platform !== 'win32' || (!usb && process.argv.length !== 4) || process.argv[2] !== '--sdk-directory') throw new Error('ProbeUsage');
     const sdk = path.resolve(process.argv[3]);
     if (!/^[A-Za-z]:\\/.test(sdk)) throw new Error('LocalSdkPathRequired');
     noLinks(root); noLinks(sdk);
@@ -113,7 +116,7 @@ async function main() {
     const taskkill = fs.realpathSync(path.join(systemDirectory, 'taskkill.exe'));
     noLinks(taskkill);
     if (path.dirname(taskkill).toLowerCase() !== systemDirectory.toLowerCase()) throw new Error('HostPathMismatch');
-    const evidence = { managedBuildCommit, configuration: 'Release', results: [], deviceDelegatesInvoked: 0 };
+    const evidence = { managedBuildCommit, configuration: 'Release', mode: usb ? 'usb-connection' : 'native-load', results: [], printApiCalls: 0, rfidApiCalls: 0 };
     for (const platform of ['x86', 'x64']) {
         const stage = path.join(runRoot, platform);
         directory(stage);
@@ -141,7 +144,7 @@ async function main() {
         process.stdout.write(`${platform}: ${result.report}; exit=${result.exitCode}\n`);
     }
     fs.writeFileSync(path.join(runRoot, 'evidence.json'), JSON.stringify(evidence, null, 2) + '\n', { flag: 'wx' });
-    if (evidence.results.some(r => r.exitCode !== 0 || r.report !== passReport)) throw new Error('NativeLoadProbeFailed');
+    if (evidence.results.some(r => r.exitCode !== 0 || (usb ? !usbPassed.test(r.report) : r.report !== passReport))) throw new Error('NativeLoadProbeFailed');
 }
 main().catch(error => {
     const allowed = ['LinkedPathRejected', 'StageAlreadyExists', 'TerminationUnconfirmed', 'ChildExitUnconfirmed', 'ProbeSupervisorTimeout',

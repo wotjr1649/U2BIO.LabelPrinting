@@ -7,7 +7,7 @@ using System.Threading;
 
 namespace U2BIO.BT003PROLabelPrinting.Validation
 {
-    // Dedicated diagnostic process only. Binds delegates; never retrieves or invokes a device delegate.
+    // Dedicated diagnostic process. Load mode binds only; USB mode calls the fixed buffer-free diagnostic.
     internal static class NativeLoadProbe
     {
         [StructLayout(LayoutKind.Sequential)]
@@ -58,7 +58,7 @@ namespace U2BIO.BT003PROLabelPrinting.Validation
         }
         internal static int Run(Assembly library)
         { return RunWithNonce(library, ""); }
-        internal static int RunWithNonce(Assembly library, string nonce)
+        internal static int RunWithNonce(Assembly library, string nonce, bool usb = false)
         {
             string suffix = nonce.Length == 0 ? "" : "|nonce=" + nonce;
             if (!EnsureJob()) { Console.WriteLine("NATIVE_LOAD|status=Failed|code=ProbeJobUnavailable" + suffix); return 9; }
@@ -70,6 +70,8 @@ namespace U2BIO.BT003PROLabelPrinting.Validation
             var finished = new ManualResetEvent(false);
             var worker = new Thread(() => {
                 bool owns = false;
+                Mutex target = null;
+                bool ownsTarget = false;
                 try {
                     using (var slot = new Mutex(false, slotName)) {
                         try {
@@ -78,14 +80,34 @@ namespace U2BIO.BT003PROLabelPrinting.Validation
                             if (!owns) { result = 4; report = "NATIVE_LOAD|status=Failed|code=ProbeSlotBusy"; return; }
                             acquired.Set();
                             if (!proceed.WaitOne(TimeSpan.FromSeconds(30))) { result = 6; report = "NATIVE_LOAD|status=Failed|code=ProbeTimeout"; return; }
+                            if (usb) {
+                                string hash;
+                                using (var sha = System.Security.Cryptography.SHA256.Create()) hash = BitConverter.ToString(sha.ComputeHash(System.Text.Encoding.UTF8.GetBytes("USB:0"))).Replace("-", "").ToLowerInvariant();
+                                target = new Mutex(false, "Local\\U2BIO.BT003PROLabelPrinting.Target." + hash);
+                                try { ownsTarget = target.WaitOne(0); }
+                                catch (AbandonedMutexException) { ownsTarget = true; result = 4; report = "NATIVE_LOAD|status=Failed|code=ProbeSlotAbandoned"; return; }
+                                if (!ownsTarget) { result = 4; report = "NATIVE_LOAD|status=Failed|code=ProbeSlotBusy"; return; }
+                            }
                             Type sdk = library.GetType("U2BIO.BT003PROLabelPrinting.Native.NativeSdk", true);
                             sdk.GetMethod("LoadForConnection", BindingFlags.NonPublic | BindingFlags.Static).Invoke(null, null);
                             var bound = (IDictionary)sdk.GetField("functions", BindingFlags.NonPublic | BindingFlags.Static).GetValue(null);
                             if (bound == null || bound.Count != 41) { result = 7; report = "NATIVE_LOAD|status=Failed|code=ProbeBindingMismatch"; return; }
+                            if (usb) {
+                                object observed = sdk.GetMethod("ProbeUsbConnection", BindingFlags.NonPublic | BindingFlags.Static).Invoke(null, null);
+                                bool passed = (bool)observed.GetType().GetProperty("Passed", BindingFlags.NonPublic | BindingFlags.Instance).GetValue(observed);
+                                report = "USB_CONNECTION|status=" + (passed ? "Passed" : "Failed");
+                                foreach (string field in new[] { "Pre", "SetPort", "Connect", "Open", "Disconnect", "Closed" }) {
+                                    int? value = (int?)observed.GetType().GetField(field, BindingFlags.NonPublic | BindingFlags.Instance).GetValue(observed);
+                                    report += "|" + field.ToLowerInvariant() + "=" + (value.HasValue ? value.Value.ToString(System.Globalization.CultureInfo.InvariantCulture) : "none");
+                                }
+                                report += "|printApiCalls=0|rfidApiCalls=0";
+                                result = passed ? 0 : 10;
+                                return;
+                            }
                             result = 0;
                             report = "NATIVE_LOAD|status=Passed|bound=41|deviceDelegatesInvoked=0";
                         }
-                        finally { if (owns) slot.ReleaseMutex(); }
+                        finally { if (ownsTarget) target.ReleaseMutex(); if (target != null) target.Dispose(); if (owns) slot.ReleaseMutex(); }
                     }
                 }
                 catch (TargetInvocationException error) {

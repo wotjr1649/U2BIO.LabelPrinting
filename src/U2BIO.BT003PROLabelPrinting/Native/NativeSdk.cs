@@ -22,7 +22,7 @@ namespace U2BIO.BT003PROLabelPrinting.Native
     }
 
     // Caller must hold the process SDK slot on its worker before loading; TASK-05 wires that lifecycle.
-    // No vendor function is callable in this implementation version: the print ABI is unverified.
+    // Print/RFID delegates remain unavailable. The fixed USB diagnostic uses four verified buffer-free primitives.
     internal static class NativeSdk
     {
         private const uint SearchFlags = 0x100 | 0x800;
@@ -59,6 +59,40 @@ namespace U2BIO.BT003PROLabelPrinting.Native
         {
             // No runtime switch can bypass this gate. A verified implementation version must replace it.
             throw new NativeSdkException("PrintContractUnverified");
+        }
+
+        internal sealed class UsbProbeResult
+        {
+            internal int? Pre, SetPort, Connect, Open, Disconnect, Closed;
+            internal bool Passed => Pre == 0 && SetPort == 0 && Connect == 0 && Open == 1 && Closed == 0;
+        }
+        // Diagnostic only; caller holds process and USB:0 target reservations on this same worker.
+        internal static UsbProbeResult ProbeUsbConnection()
+        {
+            lock (Sync) {
+                LoadForConnection();
+                return RunUsbConnectionProbe((NativeApi.SetPrinterPortDelegate)functions[typeof(NativeApi.SetPrinterPortDelegate)],
+                    (NativeApi.DeviceConnectDelegate)functions[typeof(NativeApi.DeviceConnectDelegate)],
+                    (NativeApi.CheckPrtConnectionDelegate)functions[typeof(NativeApi.CheckPrtConnectionDelegate)],
+                    (NativeApi.DeviceDisconnectDelegate)functions[typeof(NativeApi.DeviceDisconnectDelegate)]);
+            }
+        }
+        internal static UsbProbeResult RunUsbConnectionProbe(NativeApi.SetPrinterPortDelegate setPort, NativeApi.DeviceConnectDelegate connect,
+            NativeApi.CheckPrtConnectionDelegate status, NativeApi.DeviceDisconnectDelegate disconnect)
+        {
+            var result = new UsbProbeResult { Pre = status() };
+            if (result.Pre != 0) return result;
+            result.SetPort = setPort(1, "0", "");
+            if (result.SetPort != 0) return result;
+            bool returned = false;
+            try {
+                result.Connect = connect(); returned = true;
+                if (result.Connect == 0) result.Open = status();
+            }
+            finally {
+                if (returned) { result.Disconnect = disconnect(); result.Closed = status(); }
+            }
+            return result;
         }
 
         private sealed class Pair : IDisposable
