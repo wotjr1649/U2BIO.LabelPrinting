@@ -245,9 +245,9 @@ SDK 일일 로그에서는 자체 합성 요소를 두 번 확인했다. 첫 기
 
 fresh verifier가 `c163e24`에서 일반 `verify-build`의 Release/Debug × x86/x64 네 빌드·실행과 두 CLI 회귀 검사를 모두 exit 0으로 확인했다. 서로 다른 두 입력 서식의 전달, 기존 실패 단계별 인쇄 차단·연결 정리, 잘못된 서식의 callback 전 거부가 통과했다. 생산 `PrintContractUnverified` 게이트는 유지된다. 이 검증에서는 vendor DLL·장치·인쇄·RFID 함수를 실행하지 않았다. 기존 Visual Studio metadata 변경은 보존하고 task 커밋에서 제외했다.
 
-supervisor의 현재 관리 코드 핀은 `c163e24`이며 Release 산출물은 다음과 같다. 핀 갱신은 실행 파일 식별이며 Black-Mark 후보의 실기 승인이나 완료 증거가 아니다.
+11:35 AC 후보 진단의 관리 코드 핀은 `c163e24`이며 Release 산출물은 다음과 같다. 다음 AW 후보의 핀은 문서 마지막 절을 따른다. 핀 갱신은 실행 파일 식별이며 Black-Mark 후보의 실기 승인이나 완료 증거가 아니다.
 
-| 현재 진단 산출물 | SHA-256 |
+| AC 후보 진단 산출물 | SHA-256 |
 | --- | --- |
 | DLL, x86/x64 공통 | `93bde4f28db91a90ed9f9d4058d916a61aa968ac903aa20f68dc1256cef15e95` |
 | x86 validation exe | `2e3ce12f7f9dc869584a63c15e76ce79221ca081d4a6173fcbe89171373b924d` |
@@ -277,4 +277,18 @@ Windows에서 BT-003 Pro의 USB 관련 두 PnP 항목과 FTDI COM3은 OK 상태�
 
 다음 진단은 동일 용지 후보에서 텍스트 명령만 제조사 샘플의 AW 형태로 바꾸어 native AC와 SDK의 AW 그림 변환 경로를 구분한다. AC 미지원이 원인으로 확인된 것은 아니며 AW 인수의 보편 계약도 확정하지 않는다. 합성 문구만 사용하고 위치/센서/용지 설정을 동시에 바꾸지 않는다.
 
-추가 USB 경로 분석에서 SDK가 `SetPrinterPort` 중 사용자별 USB 연결 캐시를 삭제·재등록하는 별도 효과를 확인했다. 대상은 `HKCU\Software\BitekTechnology\AXBT003`의 USBn 값이다. 현재 USB 프린터 열거 수와 캐시 값은 각각 1이며 USB1의 vendor VID/PID·USB printer interface class 일치를 내용 공개 없이 확인했다. 정확한 주소와 Registry API는 [정적 분석](START_LABEL_PRINT_ANALYSIS.md)의 USB 캐시 절을 따른다. 이 효과는 SDK 자체 로그 기록 허용과 별도이며, 발견 이후 추가 native 연결·인쇄 호출은 하지 않는다. 다음 실기의 현재 대상 USB1 삭제·재등록/갱신에 대한 명시 허용이 필요하다. root에서 Registry를 수동 수정하거나 SetLabelSetting을 호출하지 않았다. TASK-02 조건 3·5·6·7과 TASK-03 착수는 계속 열어 둔다.
+추가 USB 경로 분석에서 SDK가 `SetPrinterPort` 중 사용자별 USB 연결 캐시를 삭제·재등록하는 별도 효과를 확인했다. 대상은 `HKCU\Software\BitekTechnology\AXBT003`의 USBn 값이다. 현재 USB 프린터 열거 수와 캐시 값은 각각 1이며 USB1의 vendor VID/PID·USB printer interface class뿐 아니라 활성 프린터 instance와의 일치도 내용 공개 없이 확인했다. 정확한 주소와 Registry API는 [정적 분석](START_LABEL_PRINT_ANALYSIS.md)의 USB 캐시 절을 따른다. 이 효과는 SDK 자체 로그 기록 허용과 별도이며, 발견 이후 추가 native 연결·인쇄 호출은 하지 않는다. 다음 실기의 현재 대상 USB1 삭제·재등록/갱신에 대한 명시 허용이 필요하다. root에서 Registry를 수동 수정하거나 SetLabelSetting을 호출하지 않았다. TASK-02 조건 3·5·6·7과 TASK-03 착수는 계속 열어 둔다.
+
+## AW 비교 후보 준비
+
+`b7aefd2`에서 AW 기대 서식의 관리 검사 실패(exit 1)를 먼저 관측하고 `d7a07ab`에서 검증 프로그램의 시험 텍스트를 `AW,80,24,10,2,0,0,U2BIO TEST`로 변경했다. 용지·센서·좌표·합성 문구·copies=1·공통 DLL은 그대로다. 기존 두 서식 전달과 단계별 실패·정리 검사를 보존했다. 제품에 글꼴 지원이나 실제 출력 성공을 선언한 변경이 아니다.
+
+fresh verifier가 일반 Release/Debug × x86/x64 네 빌드·검증 실행, doctor·repository·diff 검사를 모두 exit 0으로 확인했다. Release evidence는 `.work/foundation/Release-1791427594118/evidence.json`이며 root의 두 CLI 회귀 검사도 exit 0이다. vendor/device 함수는 실행하지 않았다. supervisor는 다음 Release 파일을 `d7a07ab` 기준으로 고정했으며 root가 실제 파일의 해시를 대조했다.
+
+| AW 후보 진단 산출물 | SHA-256 |
+| --- | --- |
+| DLL, x86/x64 공통 | `93bde4f28db91a90ed9f9d4058d916a61aa968ac903aa20f68dc1256cef15e95` |
+| x86 validation exe | `a568ba12d17d6c3c820d7ed81a323643fcdc67e3cd293e3294ce9e6a791ffbfe` |
+| x64 validation exe | `f3268f0c54030a72f43b6d1e3ca04b33776dd939bdf8bb5f3363efc86f52a0ea` |
+
+실기 명령은 위 blackmark60x20과 같지만 이 핀에서는 AW 후보가 선택된다. 명령 선택 이름이 같아도 실행 커밋·해시·텍스트 명령으로 두 실험을 구분한다. 현재 AW 실기는 미실행이며 USB1 캐시 효과에 대한 명시 허용 이후 단일 x86 호출로 확인한다. 다른 USB cache 값이 존재하거나 활성 장치가 바뀌면 현재 한 값의 허용으로 확대하지 않는다.
