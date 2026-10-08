@@ -53,6 +53,18 @@ dumpbin /ERRORREPORT:NONE /DISASM:NOBYTES /OUT:<task-output.txt> <BlackfishNfcLi
 
 현재 GetFunction의 PrintContractUnverified 차단은 유지한다. 공유 인쇄 helper의 reachable 경로에서 확인된 RFID write 호출은 없지만, 실제 RFID 전후 일치와 전체 vendor behavior의 증거를 대신하지 않는다. 상태 helper의 반환 0은 내부 정상 상태이며 물리적 출력 완료를 뜻한다고 해석하지 않는다. vendor 내부 연결 재시도 경로가 있으므로 프로그램의 재출력 금지와 SDK 내부 동작을 구분한다.
 
+## 로그 두 기록과 실제 전송 경로
+
+최초 실기 후 합성 문구만을 기준으로 SDK 로그 구조와 x86의 추가 하위 경로를 확인했다. private 원문 로그와 다른 라벨 값은 출력하거나 복사하지 않았다.
+
+- `SetPrintFormString` RVA `0xF7C0`은 `0xF7CE`에서 API 인수 로깅 wrapper `0x30BF0`을 호출한 뒤 서식을 저장한다. 이 기록은 인쇄 실행이 아니다.
+- 공유 helper `0x90D0`은 `0x95E0`에서 서식을 가공하고 객체 `+0x1F4`에 저장한다. `0xA510`의 `0xA564`는 그 가공된 서식을 별도로 기록한다. 입력 서식과 가공된 서식이 각각 로그에 나타나도 두 번의 StartLabelPrint를 의미하지 않는다.
+- `0xA583`은 가공된 서식을 큰 함수 `0xAB90`에 전달한다. 이 함수는 GDI/raster 처리와 실제 printer transport를 포함한다. 상위 helper만 보고 전송이 없다고 추론해서는 안 된다.
+- `0xD6A2`에서 `E\r\n`을 검색한다. 검색 helper `0x15620`은 미발견 시 -1, 발견 시 index를 반환하며 `0xD6A7`–`0xD6A9`는 index=0일 때만 현재 버퍼 전송 경로로 진행한다.
+- 버퍼가 1024 bytes보다 크면 `0xD73D`에서 조각을 전송하고, 남은 길이가 있으면 `0xD78B`에서 전송한다. 두 call site는 서로 다른 라벨 매수나 인쇄 요청을 뜻하지 않는다. 해당 call 직후에는 transport 반환 레지스터를 검사하는 분기가 없다.
+
+이번 관리 코드는 StartLabelPrint(1)을 한 번 호출했고 x86만 실행했다. 자체 합성 문구의 로그 두 기록은 원문과 가공 서식으로 구분되며, 가공 서식에는 E가 한 번 있다. 그러나 가공 로그의 문자 바이트 수를 GDI 처리 후 native 전송 버퍼 길이와 동일하다고 가정하지 않는다. SDK 내부 재시도와 실제 출력 매수는 이 정적 분석만으로 확정하지 않는다. 정상 응답 0은 물리적 완료뿐 아니라 이 하위 전송 반환값의 성공 증명으로도 사용하지 않는다.
+
 ## SDK 자체 로그의 별도 효과
 
 일회 인쇄 경로의 상태 polling helper가 mode 0으로 logger를 호출한다. x86 logger `0x307D0`의 IAT와 원본 문자열을 해석한 결과, `wvsprintfA`는 상태 문자열을 만들고 `GetFileAttributesA`는 고정된 SDK 로그 디렉터리를 검사한다. 디렉터리가 없으면 `CreateDirectoryA` 경로를 거치고 날짜별 `.log` 파일을 `a+`로 연다. 이는 런타임 경로 조회가 아니라 **작업 루트 밖 고정 디렉터리에 대한 생성·추가 기록 효과**다.
