@@ -54,11 +54,11 @@
 
 - [x] SDK_API_COVERAGE의 원형 확인 대상 41개를 내부 래핑한다. StartPrintWithRfid2와 없는 ReadResponseMessage 원형은 추정하지 않는다.
 - [x] 기준 BlackfishNfcLib.dll·HFModule.dll 쌍에 대해 아키텍처·해시·로드 충돌·export를 검사하고 절대경로의 제한된 검색 로더를 구현한다.
-- [ ] 문자열 ANSI 전달, 입출력 방향, StdCall을 제공 선언·고정 SDK 분석과 x86/x64 실기로 확인한다. 정상 응답의 42-byte/NUL 계약과 격리 진단 경계를 검증하고, 미보장 in-process 호출은 TASK-05의 보호 경계 검증 전 차단한다.
+- [x] 문자열 ANSI 전달, 입출력 방향, StdCall을 제공 선언·고정 SDK 분석과 x86/x64 실기로 확인한다. 정상 응답의 42-byte/NUL 계약과 격리 진단 경계를 검증하고, 미보장 in-process 호출은 TASK-05의 보호 경계 검증 전 차단한다.
 - [x] USB 식별 문자열과 SetRfidPort 미호출 상태의 연결·해제를 실제 장치로 확인한다. 물리적 케이블 연결 조건은 별도 기록한다.
-- [ ] StartLabelPrint의 인수·전용 응답 문법과 실제0·101, 합성 경계값 검사를 기록한다. 코드0은 SDK 정상 응답 근거로 한정하고 timeout·미정의 응답은 Unknown/후속 중단으로 정의한다. SendData 성공이나 RFID 응답 형식으로 대체하지 않는다.
+- [x] StartLabelPrint의 인수·전용 응답 문법과 실제0·101, 합성 경계값 검사를 기록한다. 코드0은 SDK 정상 응답 근거로 한정하고 timeout·미정의 응답은 Unknown/후속 중단으로 정의한다. SendData 성공이나 RFID 응답 형식으로 대체하지 않는다.
 - [x] 합성 문구의 한글과 사용할 BTPL 글꼴·인수 조합, 한 행 한 장을 x86/x64 실제 장치로 확인한다. 인쇄 경로의 RFID API·BTPL 기록 명령 미사용을 검토한다. 사용자 확정 범위에 따라 RFID 리더·앱·새 태깅 시험과 저장 데이터 전후 실측은 제외하고 그 한계를 기록한다.
-- [ ] 장치·펌웨어(미확인 허용)·DLL 해시·시험 일시·결과와 미실측 항목을 기록한다. 고정 버전의 분석·격리 실측 범위와 제품 게이트·TASK-05/06 통합 조건을 구분하며, 근거 없는 범용 안전·물리 완료를 주장하지 않는다.
+- [x] 장치·펌웨어(미확인 허용)·DLL 해시·시험 일시·결과와 미실측 항목을 기록한다. 고정 버전의 분석·격리 실측 범위와 제품 게이트·TASK-05/06 통합 조건을 구분하며, 근거 없는 범용 안전·물리 완료를 주장하지 않는다.
 
 근거: DESIGN 5·8절, SDK_API_COVERAGE. C20·C21. 현재 구현·실행 결과와 남은 조건은 [NATIVE_SDK_IMPLEMENTATION.md](NATIVE_SDK_IMPLEMENTATION.md)에 기록한다. TASK-02 전체 완료 후 TASK-03을 시작한다.
 

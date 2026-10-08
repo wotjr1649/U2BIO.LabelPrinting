@@ -525,3 +525,10 @@ fresh verifier의 Release/Debug x86/x64·두 CLI·repository/doctor·diff는 통
 TASK-02의 완료 범위는 고정 SDK의 내부 래핑·USB 계약 진단과 위 근거의 확정이다. **제품 PrintContractUnverified 게이트는 유지한다.** TASK-05에서 검증된 응답/실행 경계를 제품 흐름에 통합하고 native 초과 쓰기·종료·timeout이 호출 프로그램을 손상시키지 않는 경계를 검증하기 전에는 제품 인쇄를 활성화하지 않는다. 이는 문서 부재를 기다리는 작업과 별개인 구현 완료 조건이다. 진단용 child를 그대로 제품 지원으로 선언하거나 반환 후 파서만으로 native 쓰기 안전을 보장하지 않는다.
 
 RFID 리더/새 태깅은 사용자가 제외했으므로 API/BTPL 기록 명령 미사용을 확인하되 저장 데이터 전후 실측을 했다고 주장하지 않는다. firmware는 미확인으로 기록하고 현재 장치 관측으로 범위를 한정한다. TCP/IP·RS-232·다른 용지·반복 일괄 인쇄는 후속 해당 TASK에서 검증한다.
+
+
+### 완료 근거의 최종 재검사
+
+독립 verifier/reviewer가 9e3490c 이후 문서 변경과 기존 소스·관리 검사를 확인했다. devflow 경로를 전달하지 않은 첫 Release 시도는 doctor 탐색 실패로 빌드 전에 중단됐다. 과정별 DEVFLOW_ROOT를 설치된0.3.1로 지정한 정상 재검사는 Release/Debug × x86/x64 모두 exit0이며 근거는 `.work/foundation/Release-1791450745242/evidence.json`, `.work/foundation/Debug-1791450753425/evidence.json`이다. 두 evidence의 revision은98cefda, workingTreeDirty는 기존 사용자 솔루션 metadata로 true다. 관리 ABI·배포 오류·전용 파서의42-byte 최대/잘못된 응답·호출 순서·중단·정리 검사가 통과했고 vendor code는 실행하지 않았다. CLI 두 검사·repository/doctor·diff도 통과했다.
+
+조건3은 제공 선언·고정 정상 formatter·격리 x86/x64 호출·관리 경계 검사를 함께 근거로 삼는다. 조건5의 실제0/101은 위 과거 실기 기록을 root가 UID 없는 sanitized metadata로 재대조했으며, 이번에 다시 인쇄한 결과가 아니다. 합성 정수 경계 검사가 특정101의 물리 동작 실측을 대신하지 않는다. 조건7의 해시·장치·일시·제한은 위 실행 기록과 채택 계약에 남겼다. native 초과 쓰기 주입, 제품 Unknown 결과 통합과 보호·수명 검증은 완료 주장에 포함하지 않는다. TASK-02의 고정 SDK 진단 계약 확정은 TASK-03 착수 근거이며 공통 DLL 전체·제품 인쇄·배포 완료를 뜻하지 않는다.
