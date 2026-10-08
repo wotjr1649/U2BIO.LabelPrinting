@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="15.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <Configuration Condition="'$(Configuration)' == ''">Release</Configuration>
+    <Platform Condition="'$(Platform)' == ''">x86</Platform>
+    <OutputType>Exe</OutputType>
+    <AssemblyName>U2BIO.LabelPrinting.OfflineSmoke</AssemblyName>
+    <TargetFrameworkVersion>v4.6.1</TargetFrameworkVersion>
+    <PlatformTarget>$(Platform)</PlatformTarget>
+    <Prefer32Bit>false</Prefer32Bit>
+    <OutputPath>bin\$(Platform)\$(Configuration)\</OutputPath>
+    <LangVersion>7.3</LangVersion>
+    <UseSharedCompilation>false</UseSharedCompilation>
+    <WarningLevel>4</WarningLevel>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="System" />
+    <Reference Include="System.Core" />
+    <Compile Include="Program.cs" />
+    <ProjectReference Include="..\..\src\U2BIO.BT003PROLabelPrinting\U2BIO.BT003PROLabelPrinting.csproj">
+      <Project>{8815635E-D90E-460C-A732-7161E758FCA5}</Project>
+      <Name>U2BIO.BT003PROLabelPrinting</Name>
+      <AdditionalProperties>Platform=AnyCPU</AdditionalProperties>
+    </ProjectReference>
+  </ItemGroup>
+  <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
+  <Target Name="CheckPlatform" BeforeTargets="BeforeBuild">
+    <Error Condition="'$(Platform)' != 'x86' And '$(Platform)' != 'x64'" Text="OfflineSmoke requires x86 or x64." />
+  </Target>
+</Project>
