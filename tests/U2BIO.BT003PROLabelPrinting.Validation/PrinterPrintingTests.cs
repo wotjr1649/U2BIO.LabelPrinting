@@ -38,7 +38,7 @@ namespace U2BIO.BT003PROLabelPrinting.Validation
                 Check(string.Join("|", f.Calls) == "Status|Status|Reset|Form|Print|Reset|Status");
                 Check(f.RegisteredForm.EndsWith("E\r\n", StringComparison.Ordinal) && !f.RegisteredForm.Replace("\r\n", "").Contains("\n"));
                 f.Calls.Clear();
-                var unsupported = request.Template.WithText(0, new BtplTextElement("AW", 80, 120, new[] { "1", "1", "0", "0" }, "SAMPLE"));
+                var unsupported = BtplTemplate.Parse(request.Template.ToBtpl().Replace("AW,80,120,10,1,0,0,", "AW,80,120,1,1,0,0,"));
                 var blocked = p.Print(unsupported);
                 Check(blocked.StopReason == PrintStopReason.ValidationFailed && blocked.NotAttemptedCount == 1);
                 Check(blocked.DeviceValidation.Rows[0].Issues.Any(x => x.Code == "DeviceSupportUnverified") && !f.Calls.Contains("Print"));
