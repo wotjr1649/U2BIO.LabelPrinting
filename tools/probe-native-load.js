@@ -21,7 +21,7 @@ function parseArgs(args) {
     if (args.length === 2) return { sdk: args[1], connection: null };
     const fields = Object.create(null);
     for (let i = 2; i < args.length; i += 2) {
-        if (!['--connection', '--port', '--ip'].includes(args[i]) || fields[args[i]] !== undefined || !clean(args[i + 1])) bad();
+        if (!['--connection', '--port', '--ip', '--label-test', '--architecture'].includes(args[i]) || fields[args[i]] !== undefined || !clean(args[i + 1])) bad();
         fields[args[i]] = args[i + 1];
     }
     const transport = fields['--connection'], port = fields['--port'], ip = fields['--ip'] || '';
@@ -29,7 +29,12 @@ function parseArgs(args) {
     const digits = transport === 'serial' ? port.replace(/^COM/i, '') : port;
     if (transport !== 'usb' && (!/^[0-9]+$/.test(digits) || Number(digits) < 1 || Number(digits) > (transport === 'tcp' ? 65535 : 2147483647))) bad();
     if (transport === 'tcp' && net.isIP(ip) === 0) bad();
-    return { sdk: args[1], connection: { transport, port, ip } };
+    const selected = { sdk: args[1], connection: { transport, port, ip } };
+    if (fields['--label-test'] !== undefined || fields['--architecture'] !== undefined) {
+        if (transport !== 'usb' || fields['--label-test'] !== '50x25gap3' || !['x86', 'x64'].includes(fields['--architecture'])) bad();
+        selected.labelTest = fields['--label-test']; selected.architecture = fields['--architecture'];
+    }
+    return selected;
 }
 function connectionPassed(report, connection) {
     return report.startsWith('CONNECTION|transport=' + connection.transport + '|') &&
@@ -54,15 +59,19 @@ function directory(file) {
     noLinks(file);
 }
 function safeReport(value) {
+    if (/^LABEL\|status=(Returned|Failed)\|pre=(none|-?[0-9]{1,10})\|setport=(none|-?[0-9]{1,10})\|connect=(none|-?[0-9]{1,10})\|open=(none|-?[0-9]{1,10})\|disconnect=(none|-?[0-9]{1,10})\|closed=(none|-?[0-9]{1,10})\|form=(none|-?[0-9]{1,10})\|invoked=[01]\|response=(parsed|invalid|none)\|native=(none|-?[0-9]{1,10})\|prefix=(empty|uid|unknown|none)\|length=(none|[0-9]{1,2})\|rfidApiCalls=0$/.test(value)) return true;
     if (/^CONNECTION\|transport=(usb|serial|tcp)\|status=(Passed|Failed)\|pre=(none|-?[0-9]{1,10})\|setport=(none|-?[0-9]{1,10})\|connect=(none|-?[0-9]{1,10})\|open=(none|-?[0-9]{1,10})\|disconnect=(none|-?[0-9]{1,10})\|closed=(none|-?[0-9]{1,10})\|printApiCalls=0\|rfidApiCalls=0$/.test(value)) return true;
     if (/^NATIVE_LOAD\|status=Failed\|code=NativeModuleConflict\|win32=(none|[0-9]{1,10})\|detail=(preload|postload):(system-import|app-local-system-import|vendor-module):(setupapi\.dll|kernel32\.dll|user32\.dll|gdi32\.dll|msimg32\.dll|winspool\.drv|advapi32\.dll|shell32\.dll|shlwapi\.dll|uxtheme\.dll|ole32\.dll|oleaut32\.dll|oledlg\.dll|crypt32\.dll|ws2_32\.dll|oleacc\.dll|gdiplus\.dll|imm32\.dll|winmm\.dll|blackfishnfclib\.dll|hfmodule\.dll):(system|sideBySide|other)$/.test(value)) return true;
     return /^NATIVE_LOAD\|status=Passed\|bound=41\|deviceDelegatesInvoked=0$/.test(value) ||
         /^NATIVE_LOAD\|status=Failed\|code=(InvalidConnectionOptions|NativeLibraryMissing|NativeArchitectureMismatch|NativeVersionMismatch|NativeModuleConflict|UnsupportedLoaderPlatform|NativeLoadFailed|NativeEntryPointMissing|PrintContractUnverified|ProbeInternalError|ProbeSlotAbandoned|ProbeSlotBusy|ProbeSlotDenied|ProbeReservationFailed|ProbeTimeout|ProbeBindingMismatch|ProbeJobUnavailable)(\|win32=(none|[0-9]{1,10}))?$/.test(value);
 }
-async function run(executable, stage, environment, taskkill, connection) {
+function labelReturned(report) {
+    return /^LABEL\|status=Returned\|pre=0\|setport=0\|connect=0\|open=1\|disconnect=-?[0-9]{1,10}\|closed=0\|form=0\|invoked=1\|response=parsed\|native=0\|prefix=(empty|uid|unknown)\|length=[0-9]{1,2}\|rfidApiCalls=0$/.test(report);
+}
+async function run(executable, stage, environment, taskkill, connection, labelTest) {
     return new Promise((resolve, reject) => {
         const nonce = crypto.randomBytes(16).toString('hex');
-        const args = connection ? ['--probe-connection', connection.transport, connection.port, ...(connection.transport === 'tcp' ? [connection.ip] : []), nonce] : ['--probe-native-load', nonce];
+        const args = connection ? [labelTest ? '--probe-label-50x25gap3' : '--probe-connection', connection.transport, connection.port, ...(connection.transport === 'tcp' ? [connection.ip] : []), nonce] : ['--probe-native-load', nonce];
         const child = spawn(executable, args, { cwd: stage, env: environment, windowsHide: true, shell: false, stdio: ['ignore', 'pipe', 'pipe'] });
         const chunks = [];
         let bytes = 0, failure = '', cleanup;
@@ -138,9 +147,10 @@ async function main() {
     const taskkill = fs.realpathSync(path.join(systemDirectory, 'taskkill.exe'));
     noLinks(taskkill);
     if (path.dirname(taskkill).toLowerCase() !== systemDirectory.toLowerCase()) throw new Error('HostPathMismatch');
-    const evidence = { managedBuildCommit, configuration: 'Release', mode: connection ? 'connection' : 'native-load', transport: connection ? connection.transport : null,
-        results: [], printApiCalls: 0, rfidApiCalls: 0 };
-    for (const platform of ['x86', 'x64']) {
+    const evidence = { managedBuildCommit, configuration: 'Release', mode: options.labelTest ? 'label-diagnostic' : connection ? 'connection' : 'native-load', transport: connection ? connection.transport : null,
+        labelTest: options.labelTest || null, results: [], rfidApiCalls: 0 };
+    if (!options.labelTest) evidence.printApiCalls = 0;
+    for (const platform of options.labelTest ? [options.architecture] : ['x86', 'x64']) {
         const stage = path.join(runRoot, platform);
         directory(stage);
         const managedNames = ['U2BIO.BT003PROLabelPrinting.Validation.exe', 'U2BIO.BT003PROLabelPrinting.dll'];
@@ -162,16 +172,16 @@ async function main() {
         }
         directory(path.join(stage, 'tmp'));
         const result = await run(path.join(stage, 'U2BIO.BT003PROLabelPrinting.Validation.exe'), stage,
-            { ...environment, TEMP: path.join(stage, 'tmp'), TMP: path.join(stage, 'tmp') }, taskkill, connection);
+            { ...environment, TEMP: path.join(stage, 'tmp'), TMP: path.join(stage, 'tmp') }, taskkill, connection, options.labelTest);
         evidence.results.push({ platform, ...result, managedDllSha256: digest(path.join(stage, 'U2BIO.BT003PROLabelPrinting.dll')), managedExeSha256: digest(path.join(stage, 'U2BIO.BT003PROLabelPrinting.Validation.exe')) });
         process.stdout.write(`${platform}: ${result.report}; exit=${result.exitCode}\n`);
         // A failed connection must not trigger another architecture's attempt against uncertain device state.
         if (connection && (result.exitCode !== 0 || !connectionPassed(result.report, connection))) break;
     }
     fs.writeFileSync(path.join(runRoot, 'evidence.json'), JSON.stringify(evidence, null, 2) + '\n', { flag: 'wx' });
-    if (evidence.results.some(r => r.exitCode !== 0 || (connection ? !connectionPassed(r.report, connection) : r.report !== passReport))) throw new Error('NativeLoadProbeFailed');
+    if (evidence.results.some(r => r.exitCode !== 0 || (options.labelTest ? !labelReturned(r.report) : connection ? !connectionPassed(r.report, connection) : r.report !== passReport))) throw new Error('NativeLoadProbeFailed');
 }
-module.exports = { parseArgs, safeReport, connectionPassed };
+module.exports = { parseArgs, safeReport, connectionPassed, labelReturned };
 if (require.main === module) main().catch(error => {
     const allowed = ['LinkedPathRejected', 'StageAlreadyExists', 'TerminationUnconfirmed', 'ChildExitUnconfirmed', 'ProbeSupervisorTimeout',
         'ProbeOutputLimit', 'ProbeStartFailed', 'ProbeReportInvalid', 'ProbeUsage', 'LocalSdkPathRequired', 'GitUnavailable', 'RevisionInvalid',

@@ -1,6 +1,7 @@
 using System;
 using System.Globalization;
 using System.Text;
+using System.Runtime.InteropServices;
 
 namespace U2BIO.BT003PROLabelPrinting.Native
 {
@@ -12,6 +13,41 @@ namespace U2BIO.BT003PROLabelPrinting.Native
         internal readonly string PrefixKind;
         private NativeLabelResponse(int code, int length, string kind)
         { NativeCode = code; Length = length; PrefixKind = kind; }
+
+        [DllImport("kernel32.dll", ExactSpelling = true, SetLastError = true)]
+        private static extern IntPtr VirtualAlloc(IntPtr address, UIntPtr size, uint allocation, uint protection);
+        [DllImport("kernel32.dll", ExactSpelling = true, SetLastError = true)]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        private static extern bool VirtualProtect(IntPtr address, UIntPtr size, uint protection, out uint previous);
+        [DllImport("kernel32.dll", ExactSpelling = true, SetLastError = true)]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        private static extern bool VirtualFree(IntPtr address, UIntPtr size, uint operation);
+
+        // Diagnostic only: overflow reaches PAGE_NOACCESS in the isolated child, never a managed heap buffer.
+        internal static NativeLabelResponse Capture(Action<IntPtr> call)
+        {
+            if (call == null) throw new ArgumentNullException(nameof(call));
+            int page = Environment.SystemPageSize;
+            IntPtr allocation = VirtualAlloc(IntPtr.Zero, new UIntPtr(checked((uint)page * 2)), 0x3000, 0x04);
+            if (allocation == IntPtr.Zero) throw new NativeSdkException("PrintBufferUnavailable", Marshal.GetLastWin32Error());
+            var bytes = new byte[BufferBytes];
+            IntPtr pointer = IntPtr.Add(allocation, page - BufferBytes);
+            try {
+                uint previous;
+                if (!VirtualProtect(IntPtr.Add(allocation, page), new UIntPtr((uint)page), 0x01, out previous))
+                    throw new NativeSdkException("PrintBufferUnavailable", Marshal.GetLastWin32Error());
+                for (int i = 0; i < bytes.Length; i++) bytes[i] = 255;
+                Marshal.Copy(bytes, 0, pointer, bytes.Length);
+                call(pointer);
+                Marshal.Copy(pointer, bytes, 0, bytes.Length);
+                return Parse(bytes);
+            }
+            finally {
+                Array.Clear(bytes, 0, bytes.Length);
+                Marshal.Copy(bytes, 0, pointer, bytes.Length);
+                if (!VirtualFree(allocation, UIntPtr.Zero, 0x8000)) throw new NativeSdkException("PrintBufferReleaseFailed", Marshal.GetLastWin32Error());
+            }
+        }
 
         internal static NativeLabelResponse Parse(byte[] bytes)
         {

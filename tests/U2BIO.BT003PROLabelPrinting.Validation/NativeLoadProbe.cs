@@ -58,9 +58,10 @@ namespace U2BIO.BT003PROLabelPrinting.Validation
         }
         internal static int Run(Assembly library)
         { return RunWithNonce(library, ""); }
-        internal static int RunWithNonce(Assembly library, string nonce, string transport = null, string port = null, string ip = "")
+        internal static int RunWithNonce(Assembly library, string nonce, string transport = null, string port = null, string ip = "", bool label = false)
         {
             string suffix = nonce.Length == 0 ? "" : "|nonce=" + nonce;
+            if (label && transport != "usb") { Console.WriteLine("NATIVE_LOAD|status=Failed|code=InvalidConnectionOptions" + suffix); return 2; }
             object options = null;
             if (transport != null) {
                 try { options = library.GetType("U2BIO.BT003PROLabelPrinting.Native.NativeConnectionOptions", true)
@@ -105,15 +106,25 @@ namespace U2BIO.BT003PROLabelPrinting.Validation
                             var bound = (IDictionary)sdk.GetField("functions", BindingFlags.NonPublic | BindingFlags.Static).GetValue(null);
                             if (bound == null || bound.Count != 41) { result = 7; report = "NATIVE_LOAD|status=Failed|code=ProbeBindingMismatch"; return; }
                             if (options != null) {
-                                object observed = sdk.GetMethod("ProbeConnection", BindingFlags.NonPublic | BindingFlags.Static).Invoke(null, new[] { options });
+                                object observed = sdk.GetMethod(label ? "ProbeLabel50x25" : "ProbeConnection", BindingFlags.NonPublic | BindingFlags.Static).Invoke(null, new[] { options });
                                 bool passed = (bool)observed.GetType().GetProperty("Passed", BindingFlags.NonPublic | BindingFlags.Instance).GetValue(observed);
-                                report = "CONNECTION|transport=" + transport + "|status=" + (passed ? "Passed" : "Failed");
+                                object response = label ? observed.GetType().GetField("Response", BindingFlags.NonPublic | BindingFlags.Instance).GetValue(observed) : null;
+                                report = label ? "LABEL|status=" + (response != null ? "Returned" : "Failed") : "CONNECTION|transport=" + transport + "|status=" + (passed ? "Passed" : "Failed");
                                 foreach (string field in new[] { "Pre", "SetPort", "Connect", "Open", "Disconnect", "Closed" }) {
                                     int? value = (int?)observed.GetType().GetField(field, BindingFlags.NonPublic | BindingFlags.Instance).GetValue(observed);
                                     report += "|" + field.ToLowerInvariant() + "=" + (value.HasValue ? value.Value.ToString(System.Globalization.CultureInfo.InvariantCulture) : "none");
                                 }
-                                report += "|printApiCalls=0|rfidApiCalls=0";
-                                result = passed ? 0 : 10;
+                                if (label) {
+                                    int? form = (int?)observed.GetType().GetField("FormCode", BindingFlags.NonPublic | BindingFlags.Instance).GetValue(observed);
+                                    bool invoked = (bool)observed.GetType().GetField("PrintInvoked", BindingFlags.NonPublic | BindingFlags.Instance).GetValue(observed);
+                                    int? native = response == null ? null : (int?)response.GetType().GetField("NativeCode", BindingFlags.NonPublic | BindingFlags.Instance).GetValue(response);
+                                    string kind = response == null ? "none" : (string)response.GetType().GetField("PrefixKind", BindingFlags.NonPublic | BindingFlags.Instance).GetValue(response);
+                                    int? length = response == null ? null : (int?)response.GetType().GetField("Length", BindingFlags.NonPublic | BindingFlags.Instance).GetValue(response);
+                                    report += "|form=" + (form.HasValue ? form.Value.ToString(System.Globalization.CultureInfo.InvariantCulture) : "none") + "|invoked=" + (invoked ? "1" : "0") +
+                                        "|response=" + (response != null ? "parsed" : invoked ? "invalid" : "none") + "|native=" + (native.HasValue ? native.Value.ToString(System.Globalization.CultureInfo.InvariantCulture) : "none") +
+                                        "|prefix=" + kind + "|length=" + (length.HasValue ? length.Value.ToString(System.Globalization.CultureInfo.InvariantCulture) : "none") + "|rfidApiCalls=0";
+                                    result = passed && form == 0 && invoked && native == 0 ? 0 : 11;
+                                } else { report += "|printApiCalls=0|rfidApiCalls=0"; result = passed ? 0 : 10; }
                                 return;
                             }
                             result = 0;

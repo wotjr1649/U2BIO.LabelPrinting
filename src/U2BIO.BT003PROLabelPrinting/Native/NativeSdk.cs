@@ -64,6 +64,10 @@ namespace U2BIO.BT003PROLabelPrinting.Native
         internal sealed class UsbProbeResult
         {
             internal int? Pre, SetPort, Connect, Open, Disconnect, Closed;
+            internal int? FormCode;
+            internal bool PrintInvoked;
+            internal NativeLabelResponse Response;
+            internal string ResponseError;
             internal bool Passed => Pre == 0 && SetPort == 0 && Connect == 0 && Open == 1 && Closed == 0;
         }
         // Retained for existing USB flow regression fixtures; the CLI requires an explicit connection target.
@@ -86,6 +90,37 @@ namespace U2BIO.BT003PROLabelPrinting.Native
         { return RunConnectionProbe(NativeConnectionOptions.Create("usb", "0", ""), setPort, connect, status, disconnect); }
         internal static UsbProbeResult RunConnectionProbe(NativeConnectionOptions options, NativeApi.SetPrinterPortDelegate setPort, NativeApi.DeviceConnectDelegate connect,
             NativeApi.CheckPrtConnectionDelegate status, NativeApi.DeviceDisconnectDelegate disconnect)
+        { return RunConnectionCore(options, setPort, connect, status, disconnect, null); }
+
+        internal static UsbProbeResult ProbeLabel50x25(NativeConnectionOptions options)
+        {
+            if (options == null || options.IfType != 1) throw new NativeSdkException("InvalidConnectionOptions");
+            lock (Sync) {
+                LoadForConnection();
+                return RunLabelProbe(options, (NativeApi.SetPrinterPortDelegate)functions[typeof(NativeApi.SetPrinterPortDelegate)],
+                    (NativeApi.DeviceConnectDelegate)functions[typeof(NativeApi.DeviceConnectDelegate)],
+                    (NativeApi.CheckPrtConnectionDelegate)functions[typeof(NativeApi.CheckPrtConnectionDelegate)],
+                    (NativeApi.DeviceDisconnectDelegate)functions[typeof(NativeApi.DeviceDisconnectDelegate)],
+                    (NativeApi.ResetFormDelegate)functions[typeof(NativeApi.ResetFormDelegate)],
+                    (NativeApi.SetPrintFormStringDelegate)functions[typeof(NativeApi.SetPrintFormStringDelegate)],
+                    (NativeApi.StartLabelPrintDelegate)functions[typeof(NativeApi.StartLabelPrintDelegate)]);
+            }
+        }
+        internal static UsbProbeResult RunLabelProbe(NativeConnectionOptions options, NativeApi.SetPrinterPortDelegate setPort, NativeApi.DeviceConnectDelegate connect,
+            NativeApi.CheckPrtConnectionDelegate status, NativeApi.DeviceDisconnectDelegate disconnect, NativeApi.ResetFormDelegate reset,
+            NativeApi.SetPrintFormStringDelegate form, NativeApi.StartLabelPrintDelegate print)
+        {
+            if (options == null || options.IfType != 1) throw new NativeSdkException("InvalidConnectionOptions");
+            return RunConnectionCore(options, setPort, connect, status, disconnect, result => {
+                reset();
+                result.FormCode = form("^Q25,3\r\n^W50\r\n^H10\r\n^S2\r\n^P1\r\n^C1\r\n^R0\r\n^E0\r\n^D0\r\n^O0\r\n^L\r\nAC,24,24,1,1,0,0,U2BIO TEST\r\nE\r\n");
+                if (result.FormCode != 0) return;
+                try { result.Response = NativeLabelResponse.Capture(pointer => { result.PrintInvoked = true; print(1, pointer); }); }
+                catch (NativeSdkException error) { result.ResponseError = error.Code; }
+            });
+        }
+        private static UsbProbeResult RunConnectionCore(NativeConnectionOptions options, NativeApi.SetPrinterPortDelegate setPort, NativeApi.DeviceConnectDelegate connect,
+            NativeApi.CheckPrtConnectionDelegate status, NativeApi.DeviceDisconnectDelegate disconnect, Action<UsbProbeResult> connected)
         {
             if (options == null) throw new NativeSdkException("InvalidConnectionOptions");
             var result = new UsbProbeResult { Pre = status() };
@@ -96,6 +131,7 @@ namespace U2BIO.BT003PROLabelPrinting.Native
             try {
                 result.Connect = connect(); returned = true;
                 if (result.Connect == 0) result.Open = status();
+                if (result.Open == 1 && connected != null) connected(result);
             }
             finally {
                 if (returned) { result.Disconnect = disconnect(); result.Closed = status(); }
