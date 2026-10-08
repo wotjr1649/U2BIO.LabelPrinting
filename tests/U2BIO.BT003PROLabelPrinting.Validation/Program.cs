@@ -80,6 +80,7 @@ namespace U2BIO.BT003PROLabelPrinting.Validation
                 Require(library.GetName().Name == "U2BIO.BT003PROLabelPrinting", "Library assembly name differs.");
                 CheckFramework(library);
                 CheckFramework(Assembly.GetExecutingAssembly());
+                BtplTemplateTests.Run();
                 NativeTests.Run(library);
 
                 PortableExecutableKinds libraryKind;

@@ -31,6 +31,7 @@
     <Reference Include="System" />
     <Reference Include="System.Core" />
     <Compile Include="Program.cs" />
+    <Compile Include="BtplTemplateTests.cs" />
     <Compile Include="NativeTests.cs" />
     <Compile Include="ConnectionTests.cs" />
     <Compile Include="LabelResponseTests.cs" />
