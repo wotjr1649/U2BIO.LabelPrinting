@@ -7,6 +7,7 @@ for (const architecture of ['x86', 'x64']) {
     assert.equal(options.labelTest, '50x25gap3');
     assert.equal(options.architecture, architecture);
 }
+assert.equal(parseArgs([...base, '--label-test', 'blackmark60x20', '--architecture', 'x86']).labelTest, 'blackmark60x20');
 for (const extra of [ ['--label-test', '50x25gap3'], ['--architecture', 'x86'],
     ['--label-test', 'other', '--architecture', 'x86'], ['--label-test', '50x25gap3', '--architecture', 'both'] ])
     assert.throws(() => parseArgs([...base, ...extra]), /ProbeUsage/);
