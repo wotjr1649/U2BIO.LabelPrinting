@@ -61,6 +61,18 @@ namespace U2BIO.BT003PROLabelPrinting.Native
             throw new NativeSdkException("PrintContractUnverified");
         }
 
+        internal static T GetConnectionFunction<T>() where T : class
+        {
+            Type type = typeof(T);
+            if (type != typeof(NativeApi.SetPrinterPortDelegate) && type != typeof(NativeApi.DeviceConnectDelegate) &&
+                type != typeof(NativeApi.CheckPrtConnectionDelegate) && type != typeof(NativeApi.DeviceDisconnectDelegate))
+                throw new NativeSdkException("PrintContractUnverified");
+            lock (Sync) {
+                if (functions == null) throw new NativeSdkException("NativeLibraryMissing");
+                return (T)(object)functions[type];
+            }
+        }
+
         internal sealed class UsbProbeResult
         {
             internal int? Pre, SetPort, Connect, Open, Disconnect, Closed;
