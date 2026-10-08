@@ -480,3 +480,29 @@ fresh verifier의 Release/Debug x86/x64·두 CLI·repository/doctor·diff는 통
 후진 관측을 받은 뒤2026-10-08 17:12:13 KST, 같은 HEADc581f92·관리 핀7d57856에서 blackmark60x20의 AW size10·weight1·E15 서식을 x86으로 한 번 요청했다. 서식·용지·좌표·수량은 x64와 같다. 실행 전 현재 USB1/PresentOnly printer1·활성 일치·로그 링크 부재·샘플/probe0를 확인했다. 근거는 `.work/native-load/1791447132801/evidence.json`이다. form0·native0·prefix empty·length2·closed0·RFID API0, supervisor exit0이다. 실제 문구·다음 라벨 위치·인쇄 장수의 사용자 관측은 대기 중이다. 추가 전진/재인쇄는 하지 않았다.
 
 현재 Windows ANSI code page는 NLS 설정 조회에서949로 확인했다. 한글 시험의 인코딩 조건으로 기록하되 실제 한글 글리프·출력 지원을 확인한 것으로 확대하지 않는다. 같은 서식의 한글 비교는 x86 물리 결과 확인 뒤 진행한다. firmware는 계속 미확인이고 RFID 리더/태깅 시험은 사용자 지시상 제외다.
+
+사용자는 x86 문구 위치가 정상이며 살짝 우측으로 이동했지만 거의 동일하다고 확인했다. 다음 라벨의 가시적 정렬 확인으로 기록하고 x64/x86 픽셀 완전 동일 또는 실제 장수 확인으로 확대하지 않는다. 임의 X 보정이나 DPI 설정을 추가하지 않았다.
+
+## 같은 AW 설정의 합성 한글 비교 준비
+
+9ad071d에서 payload 기대값 변경의 실패(exit1)를 확인하고49a8ce4에서 AW 문구만 `가나다라마바`로 변경했다. size10·weight1·X80/Y120·R0/E15·용지·수량·AC와 M/B 제어 비교 데이터는 유지했다. blackmark60x20이라는 선택 이름은 같아도 실행 핀과 payload로 앞선 ASCII 시험을 구분한다. SDK wrapper의 SetPrintFormString → StartLabelPrint(copies1) 경로를 사용한다. 원문 템플릿 전체 직접전송·RFID API·자동 반복·새 글꼴/DPI 설정은 추가하지 않았다.
+
+fresh verifier의 Release/Debug x86/x64·두 CLI·repository/doctor·diff는 통과했다. Release 근거는 `.work/foundation/Release-1791447471769/evidence.json`이며49a8ce4 기준이다. a52d8b7에서 supervisor를 이 핀으로 갱신하고 root의 최종 Release를 통과했다. DLL 해시는7e8399ea864cf412d42a84496fb1958afd2be52baeeee79790d22e5bce229be0, x86 exee86d272f5ab076169722e3f4e62a7108b72287a57e921bf09df26111f8a571df, x64 exea39874e5cedfc5633b1338444b8f7a21c540afd4ae6878e474cc89d5145dd7c7이다. workingTreeDirty는 기존 .sln 및 당시 작성 중인 문서 때문에 true이며 clean tree라고 선언하지 않는다.
+
+| 시각(KST), 2026-10-08 | 핀49a8ce4의 요청 | 실행 근거 | 결과 |
+| --- | --- | --- | --- |
+| 17:19:50 | x64 한글 인쇄1회 | `.work/native-load/1791447588107/evidence.json` | form0/native0·응답 length2·closed0; 처음에는 배출 부족으로 문구 미관측 |
+| 17:22:12 | x64 M15 전진1회, 재인쇄 없음 | `.work/native-load/1791447731845/evidence.json` | send0·printApiCalls0; 사용자 한글 여섯 글자 정상·한 장·배출에 가려졌음 확인 |
+| 17:24:37 | x64 B15 복귀1회 | `.work/native-load/1791447876878/evidence.json` | send0·printApiCalls0·closed0 |
+| 17:24:38 | x86 같은 한글 인쇄1회 | `.work/native-load/1791447878139/evidence.json` | form0/native0·응답 length2·closed0 |
+| 17:24:39 | x86 M15 전진1회, 재인쇄 없음 | `.work/native-load/1791447879675/evidence.json` | send0·printApiCalls0·closed0; 사용자 한글·위치·배출 정상·한 장 확인 |
+
+마지막 세 요청은 복귀 → 인쇄 → 전진 순서이며 제어2회와 인쇄1회를 구분한다. 단계 오류면 후속 요청을 중단하고 자동 반복하지 않는다. 모든 실행은 현재 USB1만 갱신·PresentOnly USB printer1/활성 일치·SDK 로그 대상 링크 부재·잔여 probe/샘플0의 허용 범위를 확인했다. supervisor exit0·RFID API0이며 마지막 잔여 probe도0이다. raw SDK 로그·실제 UID는 복사하거나 게시하지 않았다.
+
+## 이번 실기 판정과 남은 계약
+
+확인한 범위는 현재 고정 SDK 쌍·Windows ANSI949·현재 시험 용지·AW size10/weight1·copies1의 x64/x86 ASCII/합성 한글과 별도 M15/B15 제어다. x86 ASCII는 약간 우측으로 이동하나 거의 동일하다는 사용자 관측을 유지한다. 픽셀 완전 동일, 모든 글꼴/크기/용지/펌웨어에서의 동작을 보장하지 않는다.
+
+문구 문제는 AC 배율1을 AW size1로 그대로 사용한 차이와 관련됐고, 배출 부족은 SDK의 E 재작성·인쇄 전용 후처리 차이와 함께 확인했다. AW 문구의 인쇄와 배출을 분리한 wrapper 제어가 이번 장치에서 동작했다. M/B15는 시험 fixture에만 있으며 자동 배출/원점 복귀 제품 API·여러 건의 반복 수명 계약은 아직 구현하지 않았다. TASK-05/06 통합 시 호출자 설정·상태·실패/불명 처리를 적용해야 한다.
+
+TASK-02 종료에는 반환 버퍼의 제조사 상한·종료/예외 경로 계약과 StartLabelPrint 응답0의 공식 완료 의미가 여전히 남는다. 정상 경로의42byte 후보·보호된 진단 child·물리 한 장 관측을 보편적인 in-process 안전 계약으로 확대하지 않는다. 제품 PrintContractUnverified 게이트는 유지하고 미충족 조건은 체크하지 않는다. RFID 리더/새 태깅은 사용자가 제외했으므로 API/BTPL 기록 명령 미사용을 확인하되 저장 데이터 전후 실측을 했다고 주장하지 않는다. firmware는 미확인이다.
