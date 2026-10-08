@@ -4,7 +4,7 @@ RFID 값이 이미 기록된 BT-003 Pro 라벨에 프로그램이 전달한 텍�
 
 공통 DLL과 UI 없는 검증 프로젝트의 빌드 기반을 구성했고, 41개 내부 SDK 선언과 배포 검사·로더 코드를 추가했습니다. 현재 [Native SDK 구현 범위와 미검증 항목](docs/NATIVE_SDK_IMPLEMENTATION.md)을 구분합니다. 공개 장치 연결·인쇄 API와 DevExpress Tester는 후속 개발 작업입니다.
 
-TASK-03의 공개 `BtplTemplate` 관리 API로 BTPL 해석·좌표/문구 편집·고정 줄바꿈·strict 인코딩·단일 파일 저장을 지원합니다. [사용 예와 저장 계약](docs/BTPL_TEMPLATE_API.ko.md)을 참고합니다. 이 API는 프린터 없이 동작하며 JSON/DataTable 바인딩과 화면 미리보기는 후속 작업입니다.
+TASK-03의 공개 `BtplTemplate` 관리 API로 BTPL 해석·좌표/문구 편집·고정 줄바꿈·strict 인코딩·단일 파일 저장을 지원합니다. [사용 예와 저장 계약](docs/BTPL_TEMPLATE_API.ko.md)을 참고합니다. 이 API는 프린터 없이 동작하며 수치 편집·미리보기 화면은 후속 UI 작업입니다.
 
 TASK-04는 `BtplBindings`, `BtplPrintRequest`, `BtplProcessor`로 JSON 매핑·DataTable 스냅샷·전체 관리 검사·행별 참고 미리보기 모델을 제공합니다. [바인딩·렌더링 API](docs/BTPL_BINDING_API.ko.md)를 참고합니다. DB 연결과 실제 출력은 하지 않으며 TASK-02의 미검증 제품 경계·장치 지원은 [후속 #10](https://github.com/wotjr1649/U2BIO.LabelPrinting/issues/10)에서 관리합니다.
 
