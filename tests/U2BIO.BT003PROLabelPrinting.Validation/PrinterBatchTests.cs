@@ -76,8 +76,55 @@ namespace U2BIO.BT003PROLabelPrinting.Validation
                 Check(result.Rows[0].Validation != null && result.Rows.Last().Validation == null && f.Calls.Count == 0);
             }
         }
+        private static void OtherOwner()
+        {
+            var f = Fixture(); var other = Fixture(); var request = Request();
+            using (var owner = f.Printer()) using (var p = other.Printer()) using (var token = new CancellationTokenSource()) {
+                Open(owner, f); token.Cancel();
+                Check(p.PrintAsync(request, token.Token).Result.StopReason == PrintStopReason.Busy);
+                Check(p.ValidateForPrint(request).Code == "Busy" && p.Disconnect().Code == "Busy");
+                Check(other.Calls.Count == 0 && p.GetConnectionStatus().ResourcesReleased);
+            }
+        }
+        private static void PreflightFailurePriority()
+        {
+            foreach (bool dispose in new[] { false, true }) foreach (int status in new[] { 0, 9 }) {
+                var f = Fixture(); var p = f.Printer();
+                using (var token = new CancellationTokenSource()) try {
+                    Open(p, f); f.Mode = "status-pending";
+                    var task = p.PrintAsync(Request(), token.Token); Check(f.Entered.Wait(1000));
+                    f.Port = status;
+                    if (dispose) p.Dispose(); else token.Cancel();
+                    f.Release.Set(); Check(task.Wait(3000)); var result = task.Result;
+                    States(result, "NNN", status == 0 ? PrintStopReason.NotConnected : PrintStopReason.SdkFailure);
+                    Check(result.Code == (status == 0 ? "NotConnected" : "StatusUnavailable") && result.NativeCode == status);
+                    Check(result.DeviceValidation != null && !result.DeviceValidation.IsValid && f.PrintNumber == 0);
+                    f.Mode = null; f.Port = 0;
+                } finally { f.Release.Set(); f.Mode = null; f.Port = 0; p.Dispose(); }
+            }
+        }
+        private static void LateReturnSnapshot()
+        {
+            var f = Fixture(); var p = f.Printer(50);
+            using (var returned = new ManualResetEventSlim()) try {
+                Open(p, f);
+                f.Printed = (copies, pointer) => {
+                    f.Entered.Set(); Check(f.Release.Wait(5000)); Response(pointer, 0); returned.Set();
+                };
+                var gate = typeof(Bt003Printer).GetField("sync", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(p);
+                var task = p.PrintAsync(PrinterTests.Request()); Check(f.Entered.Wait(1000));
+                lock (gate) {
+                    Thread.Sleep(80); f.Release.Set(); Check(returned.Wait(1000)); Thread.Sleep(20);
+                }
+                Check(task.Wait(3000)); var result = task.Result;
+                Check(result.StopReason == PrintStopReason.Timeout && result.Unknown == 1 && !result.NativeCallPending);
+                Check(SpinWait.SpinUntil(() => p.GetConnectionStatus().ResourcesReleased, 3000));
+                Check(result.Unknown == 1 && !result.NativeCallPending && f.PrintNumber == 1);
+            } finally { f.Release.Set(); p.Dispose(); }
+        }
         internal static void Run()
         {
+            OtherOwner(); PreflightFailurePriority(); LateReturnSnapshot();
             var request = Request(); var f = Fixture();
             using (var p = f.Printer()) {
                 Open(p, f);
