@@ -53,7 +53,7 @@ namespace U2BIO.BT003PROLabelPrinting.Validation
                 Check(closed.Code == "NotConnected" && closed.ManagedValidation.IsValid && !closed.DeviceValidation.IsValid && closed.NativeCode == 0);
                 Check(p.GetConnectionStatus().State == PrinterState.Faulted);
             }
-            foreach (string response in new[] { ",9", ",101", "unexpected" }) {
+            foreach (string response in new[] { ",9", ",101", "unexpected", ",-2147483648" }) {
                 f = Fixture(response);
                 using (var p = f.Printer()) {
                     Open(p, f);
@@ -63,6 +63,7 @@ namespace U2BIO.BT003PROLabelPrinting.Validation
                     else Check(result.Unknown == 1 && !result.NativeCallPending);
                     if (response == ",101") Check(result.StopReason == PrintStopReason.Timeout && result.Rows[0].NativeCode == 101);
                     if (response == "unexpected") Check(result.StopReason == PrintStopReason.ResponseUnknown);
+                    if (response == ",-2147483648") Check(result.StopReason == PrintStopReason.ResponseUnknown && result.Rows[0].NativeCode == int.MinValue);
                 }
             }
             f = Fixture(); f.Mode = "form-fail";
@@ -93,6 +94,26 @@ namespace U2BIO.BT003PROLabelPrinting.Validation
                     Check(p.Disconnect().IsSuccess);
                 } finally { f.Release.Set(); p.Dispose(); }
             }
+            f = Fixture();
+            using (var p = f.Printer()) {
+                Open(p, f);
+                var template = request.Template.WithText(0, request.Template.TextElements[0].WithPayload(new string('A', 100)))
+                    .AddText(new BtplTextElement("AW", 80, 160, new[] { "10", "1", "0", "0" }, "SECOND LINE"));
+                var result = p.Print(template);
+                Check(result.Succeeded == 1 && f.Calls.Count(x => x == "Print") == 1);
+                Check(f.RegisteredForm.Contains(new string('A', 100)) && f.RegisteredForm.Contains("SECOND LINE"));
+            }
+            f = Fixture();
+            f.Printed = (copies, pointer) => { f.Entered.Set(); Check(f.Release.Wait(5000)); Response(pointer, ",0"); };
+            var disposed = f.Printer();
+            try {
+                Open(disposed, f);
+                var printing = Task.Run(() => disposed.Print(request));
+                Check(f.Entered.Wait(1000)); disposed.Dispose(); f.Release.Set();
+                Check(printing.Wait(3000) && printing.Result.Succeeded == 1 && printing.Result.StopReason == PrintStopReason.None);
+                Check(SpinWait.SpinUntil(() => disposed.GetConnectionStatus().ResourcesReleased, 3000));
+                Check(disposed.GetConnectionStatus().State == PrinterState.Disposed);
+            } finally { f.Release.Set(); disposed.Dispose(); }
             Console.WriteLine("PASS: preflight without output, one wrapper print, strict encoding/AW support, response classification, no retry, late registration/print cleanup; synthetic SDK only");
         }
     }

@@ -125,6 +125,8 @@ namespace U2BIO.BT003PROLabelPrinting.Validation
             }
             var generic = sdk.GetMethod("GetFunction", InternalStatic).MakeGenericMethod(types.Single(t => t.Name == "SetPrinterPortDelegate"));
             ExpectCode(() => generic.Invoke(null, null), "PrintContractUnverified");
+            var printing = sdk.GetMethod("GetPrintingFunction", InternalStatic).MakeGenericMethod(types.Single(t => t.Name == "SetTagBlockDataDelegate"));
+            ExpectCode(() => printing.Invoke(null, null), "PrintContractUnverified");
             string temporary = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, ".native-validation-" + Guid.NewGuid().ToString("N"));
             ExpectCode(() => Invoke(sdk, "InspectPair", temporary, Environment.Is64BitProcess), "NativeLibraryMissing");
             Directory.CreateDirectory(temporary);
