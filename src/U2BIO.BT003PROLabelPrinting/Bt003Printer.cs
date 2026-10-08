@@ -21,7 +21,7 @@ namespace U2BIO.BT003PROLabelPrinting
         private readonly int waitMilliseconds;
         private Thread worker;
         private Work next;
-        private bool working, disposed, processClaim, loaded, connectionAttempted, conflict, pending;
+        private bool working, disposed, processClaim, loaded, connectionAttempted, conflict, pending, reservationAbandoned;
         private Mutex processMutex, targetMutex;
         private Bt003ConnectionOptions target;
         private PrinterState state = PrinterState.Disconnected;
@@ -37,6 +37,8 @@ namespace U2BIO.BT003PROLabelPrinting
             internal bool Terminal, TimedOut, InCall, CleanupAttempted;
             internal int Generation;
             internal string Function;
+            internal string CleanupFailureFunction;
+            internal int? CleanupSystemError;
         }
         private sealed class Stopped : Exception { }
 
@@ -78,20 +80,22 @@ namespace U2BIO.BT003PROLabelPrinting
                 ready.WaitOne(); Work work;
                 lock (sync) { work = next; next = null; }
                 PrinterOperationResult result = null; Exception failure = null;
-                try {
-                    result = work.Body(work);
-                    if (disposed && !Released && !work.CleanupAttempted) Close(work, false);
-                    if (disposed && result.IsSuccess) result = Result(work, "Disposed");
-                }
+                try { result = work.Body(work); }
                 catch (Exception error) { failure = error; }
-                lock (sync) {
-                    working = false;
-                    if (!work.Terminal) {
-                        work.Terminal = true;
-                        if (failure == null) work.Completion.TrySetResult(result);
-                        else work.Completion.TrySetException(failure);
+                while (true) {
+                    lock (sync) {
+                        if (!disposed || Released || work.CleanupAttempted) {
+                            working = false;
+                            if (!work.Terminal) {
+                                work.Terminal = true;
+                                if (failure == null) work.Completion.TrySetResult(disposed && result.IsSuccess ? Result(work, "Disposed") : result);
+                                else work.Completion.TrySetException(failure);
+                            }
+                            if (!processClaim) { worker = null; return; }
+                            break;
+                        }
                     }
-                    if (!processClaim) { worker = null; return; }
+                    Close(work, false);
                 }
             }
         }
@@ -125,6 +129,10 @@ namespace U2BIO.BT003PROLabelPrinting
             using (var timer = new Timer(_ => timeout(), null, waitMilliseconds, Timeout.Infinite)) {
                 T value;
                 try { value = call(); }
+                catch (Exception error) when (Recoverable(error)) {
+                    lock (sync) work.Calls.Add(new NativeCallResult(function, null, (error as NativeSdkException)?.SystemErrorCode));
+                    throw;
+                }
                 finally {
                     timeout();
                     lock (sync) { work.InCall = false; pending = false; }
@@ -146,7 +154,7 @@ namespace U2BIO.BT003PROLabelPrinting
             var candidate = new Mutex(false, name); bool acquired;
             try {
                 try { acquired = candidate.WaitOne(0); }
-                catch (AbandonedMutexException) { acquired = true; }
+                catch (AbandonedMutexException) { acquired = true; reservationAbandoned = true; }
             } catch { candidate.Dispose(); throw; }
             if (!acquired) { candidate.Dispose(); return false; }
             lock (sync) mutex = candidate;
@@ -193,7 +201,12 @@ namespace U2BIO.BT003PROLabelPrinting
                     return true;
                 }
             } catch (Exception error) when (Recoverable(error)) {
-                lock (sync) { state = disposed ? PrinterState.Disposed : PrinterState.Faulted; port = PrinterPortState.Unknown; cleanup = "NativeCallFailed"; code = ErrorCode(error); }
+                lock (sync) {
+                    work.CleanupFailureFunction = (error as NativeSdkException)?.Function ?? work.Function;
+                    work.CleanupSystemError = (error as NativeSdkException)?.SystemErrorCode;
+                    state = disposed ? PrinterState.Disposed : PrinterState.Faulted; port = PrinterPortState.Unknown;
+                    nativeCode = null; cleanup = "NativeCallFailed"; code = ErrorCode(error);
+                }
                 return false;
             }
         }
@@ -220,13 +233,18 @@ namespace U2BIO.BT003PROLabelPrinting
         }
         private PrinterOperationResult Open(Work work)
         {
-            string failure = null, failureFunction = null; int? value = null; bool uncertain = false;
+            string failure = null, failureFunction = null; int? value = null, systemError = null; bool uncertain = false;
             try {
+                reservationAbandoned = false;
                 try { if (!Reserve()) { ReleaseReservations(); lock (sync) state = PrinterState.Disconnected; return Result(work, "Busy"); } }
                 catch (Exception error) when (error is UnauthorizedAccessException || error is SecurityException || error is System.IO.IOException) {
                     ReleaseReservations(); lock (sync) state = PrinterState.Disconnected; return Result(work, "MutexUnavailable");
                 }
                 VoidCall(work, "LoadForConnection", () => { sdk.Load(); loaded = true; });
+                if (reservationAbandoned && (value = Status(work)) != 0) {
+                    lock (sync) { conflict = true; state = PrinterState.Faulted; code = "SdkStateConflict"; }
+                    ReleaseTarget(); return Result(work, "SdkStateConflict", "CheckPrtConnection", value);
+                }
                 value = Call(work, "SetPrinterPort", () => sdk.SetPort(target.Native.IfType, target.Port, target.IpAddress));
                 if (value == 1) {
                     lock (sync) { conflict = true; state = PrinterState.Faulted; code = "SdkStateConflict"; port = PrinterPortState.Unknown; }
@@ -242,7 +260,8 @@ namespace U2BIO.BT003PROLabelPrinting
                 }
             } catch (Stopped) { failure = disposed ? "Disposed" : "NativeCallTimeout"; failureFunction = work.Function; }
             catch (Exception error) when (Recoverable(error)) {
-                failure = ErrorCode(error); failureFunction = work.Function; value = null; uncertain = true;
+                failure = ErrorCode(error); failureFunction = (error as NativeSdkException)?.Function ?? work.Function;
+                systemError = (error as NativeSdkException)?.SystemErrorCode; value = null; uncertain = true;
                 if (!loaded) {
                     ReleaseReservations(); lock (sync) state = disposed ? PrinterState.Disposed : PrinterState.Disconnected;
                     return Result(work, failure, work.Function, null, (error as NativeSdkException)?.SystemErrorCode);
@@ -253,7 +272,7 @@ namespace U2BIO.BT003PROLabelPrinting
                 if (!Close(work, work.TimedOut || uncertain)) { lock (sync) conflict = true; ReleaseTarget(); }
             } else { ReleaseReservations(); lock (sync) state = disposed ? PrinterState.Disposed : work.TimedOut ? PrinterState.Faulted : PrinterState.Disconnected; }
             lock (sync) if (uncertain) code = failure;
-            return Result(work, failure, failureFunction, value);
+            return Result(work, failure, failureFunction, value, systemError);
         }
         private PrinterOperationResult Query(Work work)
         {
@@ -283,7 +302,8 @@ namespace U2BIO.BT003PROLabelPrinting
         private PrinterOperationResult DisconnectCore(Work work)
         {
             bool closed = Close(work, false);
-            return Result(work, closed ? "Ok" : conflict ? "SdkStateConflict" : cleanup, "CheckPrtConnection", nativeCode);
+            return Result(work, closed ? "Ok" : conflict ? "SdkStateConflict" : cleanup,
+                work.CleanupFailureFunction ?? "CheckPrtConnection", work.CleanupFailureFunction == null ? nativeCode : null, work.CleanupSystemError);
         }
         public PrinterOperationResult Disconnect()
         {

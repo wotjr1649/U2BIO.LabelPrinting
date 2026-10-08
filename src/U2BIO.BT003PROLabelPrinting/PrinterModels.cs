@@ -35,7 +35,8 @@ namespace U2BIO.BT003PROLabelPrinting
     {
         public string Function { get; }
         public int? NativeCode { get; }
-        internal NativeCallResult(string function, int? code) { Function = function; NativeCode = code; }
+        public int? SystemErrorCode { get; }
+        internal NativeCallResult(string function, int? code, int? systemError = null) { Function = function; NativeCode = code; SystemErrorCode = systemError; }
     }
 
     public sealed class PrinterConnectionStatus
