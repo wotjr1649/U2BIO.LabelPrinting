@@ -12,7 +12,12 @@ namespace U2BIO.BT003PROLabelPrinting.Validation
 {
     internal static class PrinterBatchTests
     {
-        private static void Check(bool condition, [CallerLineNumber] int line = 0) { if (!condition) throw new InvalidOperationException("Batch print contract failed at " + line + "."); }
+        private static void Check(bool condition, [CallerLineNumber] int line = 0)
+        {
+            if (condition) return;
+            Console.WriteLine("FAIL: synthetic batch assertion at " + line);
+            throw new InvalidOperationException("Batch print contract failed at " + line + ".");
+        }
         private static void Response(IntPtr pointer, int code)
         { var bytes = Encoding.ASCII.GetBytes("," + code + "\0"); Marshal.Copy(bytes, 0, pointer, bytes.Length); }
         private static PrinterConnectionTests.Fixture Fixture() => new PrinterConnectionTests.Fixture { Printed = (copies, pointer) => { Check(copies == 1); Response(pointer, 0); } };
