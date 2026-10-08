@@ -42,10 +42,10 @@ TASK-04는 `BtplBindings`, `BtplPrintRequest`, `BtplProcessor`로 JSON 매핑·D
 
 고정 줄바꿈은 `ExpandFixedLines`로 실제 BTPL 명령에 저장합니다. 가변 줄 간격은 호출 프로그램의 실행 옵션이며 바인딩 JSON에 추가하지 않습니다. Tester에서는 현재 세션만 유지하고 재시작/다른 서식 로드 뒤 필요한 간격을 다시 입력합니다. 누락 상태의 출력은 차단합니다. 파일 저장 충돌·실패는 표시하고 기존 파일 삭제로 우회하지 않습니다.
 
-실행 프로그램 폴더에 실제 프로세스와 같은 x86 또는 x64의 `BlackfishNfcLib.dll`·`HFModule.dll` 한 쌍을 배치합니다. Tester의 두 비트 수 출력은 별도 폴더로 분리합니다. 파일·비트 수·해시·모듈 충돌·로드·export 오류는 연결 오류로 반환하며 전역 설치나 검색 경로 변경은 추가하지 않습니다.
+실행 프로그램 폴더에 실제 프로세스와 같은 x86 또는 x64의 `BlackfishNfcLib.dll`·`HFModule.dll` 한 쌍을 배치합니다. 고정 제조사 런타임은 [Sdk 폴더](src/U2BIO.BT003PROLabelPrinting/Sdk/README.ko.md)에 있으며 [SDK 빌드·배포](docs/SDK_DEPLOYMENT.ko.md)의 `Bt003NativePlatform` 옵션으로 한 쌍만 복사합니다. Tester의 두 비트 수 출력은 별도 폴더로 분리합니다. 파일·비트 수·해시·모듈 충돌·로드·export 오류는 연결 오류로 반환하며 전역 설치나 검색 경로 변경은 추가하지 않습니다.
 
 RFID 읽기·쓰기·잠금·보안 설정은 공개하지 않습니다. 텍스트 넘침 검사와 별도 DPI 설정도 제공하지 않습니다.
 
 `JODAL_WEBFORM_5.txt`의 `~HE0,0`은 RFID 안테나 설정으로 확인되어 인쇄 전용 서식에서는 제외합니다. 원본은 보존하며 지원하지 않는 명령을 자동 삭제하지 않습니다. TASK-02에서 고정 SDK의 x86/x64 USB 연결·해제, AW size10/weight1·ANSI949 한글·한 장 출력과 전용 응답을 확인했습니다. 응답0은 SDK 정상 응답이며 배출 완료와 구분합니다. 정상42-byte/NUL 분석 상한과 격리 진단의 제한은 [검증 상태](docs/NATIVE_SDK_IMPLEMENTATION.md)를 따릅니다. 제품 연결·인쇄·결과 통합은 TASK-05/06 구현 검증 전까지 차단하고, 별도 NativeHost와 native 장애 격리 보장은1차 구성에 추가하지 않으며, RFID 저장값 전후 실측은 사용자 확정으로 제외했습니다. 다른 SDK/환경·용지·펌웨어·모든 장비 오류는 검증 완료로 표시하지 않습니다.
 
-SDK 원본은 상위 작업 폴더의 `BT-003 pro SDK`를 참고합니다. 기존 `docs`의 제조사 문서는 보존합니다. 이 설계 문서 작성 단계에서는 원격 push나 제조사 DLL의 업로드를 수행하지 않습니다.
+SDK 원본은 상위 작업 폴더의 `BT-003 pro SDK`를 참고합니다. 기존 `docs`의 제조사 문서는 보존합니다. 실행에 필요한 제조사 DLL 사본 네 개를 저장소에 준비했으며 원본 SDK 전체·샘플 로그는 배포하지 않습니다. 원격 push와 제조사 DLL의 외부 업로드는 수행하지 않았습니다.

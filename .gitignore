@@ -37,4 +37,9 @@ TestResults/
 /docs/verify_btpl_guide.ps1
 **/BlackfishNfcLib.dll
 **/HFModule.dll
+# Fixed runtime pairs owned by this project; other SDK copies remain excluded
+!/src/U2BIO.BT003PROLabelPrinting/Sdk/x86/BlackfishNfcLib.dll
+!/src/U2BIO.BT003PROLabelPrinting/Sdk/x86/HFModule.dll
+!/src/U2BIO.BT003PROLabelPrinting/Sdk/x64/BlackfishNfcLib.dll
+!/src/U2BIO.BT003PROLabelPrinting/Sdk/x64/HFModule.dll
 /.issue-registration-*/
