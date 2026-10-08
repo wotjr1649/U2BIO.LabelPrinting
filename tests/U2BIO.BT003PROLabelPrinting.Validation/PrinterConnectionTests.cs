@@ -27,7 +27,10 @@ namespace U2BIO.BT003PROLabelPrinting.Validation
                 Check(OwnerThread == current);
                 lock (Calls) Calls.Add(value);
             }
-            internal void Load() { Add("Load"); if (Mode == "load-throw") throw new InvalidOperationException("synthetic"); }
+            internal void Load() {
+                Add("Load"); if (Mode == "load-throw") throw new InvalidOperationException("synthetic");
+                if (Mode == "load-pending") { Entered.Set(); Check(Release.Wait(5000)); }
+            }
             internal int Set(ushort type, string name, string ip) { Add("Set"); Type = type; Name = name; Ip = ip; return Mode == "conflict" ? 1 : Mode == "set-fail" ? 9 : 0; }
             internal int Connect()
             {
@@ -73,7 +76,9 @@ namespace U2BIO.BT003PROLabelPrinting.Validation
             foreach (string mode in new[] { "load-throw", "set-fail", "connect-fail" }) {
                 var f = new Fixture { Mode = mode };
                 using (var p = f.Printer()) {
-                    Check(!p.Connect(Bt003ConnectionOptions.Usb("synthetic-failure")).IsSuccess);
+                    var failed = p.Connect(Bt003ConnectionOptions.Usb("synthetic-failure"));
+                    Check(!failed.IsSuccess);
+                    if (mode == "connect-fail") Check(failed.NativeFunction == "DeviceConnect" && failed.NativeCode == 9);
                     Check(p.GetConnectionStatus().ResourcesReleased);
                     Check(f.Calls.Count(x => x == "Disconnect") == (mode == "connect-fail" ? 1 : 0));
                 }
@@ -107,6 +112,28 @@ namespace U2BIO.BT003PROLabelPrinting.Validation
                 Check(timed.GetConnectionStatus().State == PrinterState.Disposed && result.NativeCallPending);
                 Check(pending.Calls.Count(x => x == "Disconnect") == 1);
             } finally { pending.Release.Set(); timed.Dispose(); }
+            var loading = new Fixture { Mode = "load-pending" };
+            using (var p = loading.Printer(50)) {
+                try {
+                    var result = p.Connect(Bt003ConnectionOptions.Usb("synthetic-late-load"));
+                    Check(result.Code == "NativeCallTimeout" && result.NativeCallPending);
+                    loading.Release.Set();
+                    Check(SpinWait.SpinUntil(() => p.GetConnectionStatus().ResourcesReleased, 3000));
+                    Check(!loading.Calls.Contains("Set") && !loading.Calls.Contains("Connect") && !loading.Calls.Contains("Disconnect"));
+                    Check(p.GetConnectionStatus().State == PrinterState.Faulted);
+                    Check(p.Disconnect().IsSuccess);
+                } finally { loading.Release.Set(); }
+            }
+            var disposing = new Fixture { Mode = "pending" };
+            var active = disposing.Printer();
+            var connecting = Task.Run(() => active.Connect(Bt003ConnectionOptions.Usb("synthetic-dispose")));
+            try {
+                Check(disposing.Entered.Wait(1000));
+                active.Dispose(); disposing.Release.Set();
+                Check(connecting.Wait(3000) && connecting.Result.Code == "Disposed");
+                Check(SpinWait.SpinUntil(() => active.GetConnectionStatus().ResourcesReleased, 3000));
+                Check(active.GetConnectionStatus().State == PrinterState.Disposed && disposing.Calls.Count(x => x == "Disconnect") == 1);
+            } finally { disposing.Release.Set(); active.Dispose(); }
             Console.WriteLine("PASS: owned connection dispatch, SDK worker, no queue, partial failure, conflict, timeout and late Dispose cleanup; synthetic SDK only");
         }
     }
