@@ -41,6 +41,7 @@ namespace U2BIO.BT003PROLabelPrinting.Validation
             Disposed(() => printer.ValidateForPrint(request)); Disposed(() => printer.Print(request)); Disposed(() => printer.Disconnect());
             PrinterConnectionTests.Run();
             PrinterPrintingTests.Run();
+            PrinterBatchTests.Run();
             Console.WriteLine("PASS: public connection options, disconnected and disposed result contracts; no SDK/device calls");
         }
     }

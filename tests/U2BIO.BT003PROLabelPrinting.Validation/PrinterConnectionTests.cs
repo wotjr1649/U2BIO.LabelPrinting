@@ -24,6 +24,7 @@ namespace U2BIO.BT003PROLabelPrinting.Validation
             internal string Name, Ip;
             internal Action<ushort, IntPtr> Printed;
             internal string RegisteredForm;
+            internal int FormNumber, PrintNumber, StatusNumber, ResetNumber;
             private void Add(string value)
             {
                 int current = Thread.CurrentThread.ManagedThreadId;
@@ -49,7 +50,12 @@ namespace U2BIO.BT003PROLabelPrinting.Validation
                 if (Mode == "pending") { Entered.Set(); Check(Release.Wait(5000)); }
                 return Mode == "connect-fail" ? 9 : 0;
             }
-            internal int Status() { Add("Status"); return Mode == "conflict" ? Port : Port; }
+            internal int Status() {
+                Add("Status"); StatusNumber++;
+                if (Mode == "row-closed" && StatusNumber == 2) Port = 0;
+                if (Mode == "status-pending") { Entered.Set(); Check(Release.Wait(5000)); }
+                return Port;
+            }
             internal int Disconnect() {
                 Add("Disconnect");
                 if (Mode == "disconnect-throw") {
@@ -57,14 +63,17 @@ namespace U2BIO.BT003PROLabelPrinting.Validation
                 }
                 if (Mode != "stay-open") Port = 0; return 7;
             }
-            internal void Reset() { Add("Reset"); }
+            internal void Reset() {
+                Add("Reset"); ResetNumber++;
+                if (Mode == "reset-cleanup-fail" && ResetNumber == 4) throw new InvalidOperationException("synthetic cleanup failure");
+            }
             internal int Form(string form) {
-                Add("Form"); RegisteredForm = form;
+                Add("Form"); FormNumber++; RegisteredForm = form;
                 if (Mode == "form-pending") { Entered.Set(); Check(Release.Wait(5000)); }
-                return Mode == "form-fail" ? 9 : 0;
+                return Mode == "form-fail" || Mode == "form-second-fail" && FormNumber == 2 ? 9 : 0;
             }
             internal void Print(ushort copies, IntPtr pointer) {
-                Add("Print");
+                Add("Print"); PrintNumber++;
                 if (Printed == null) throw new InvalidOperationException("Connection tests must not print.");
                 Printed(copies, pointer);
             }
