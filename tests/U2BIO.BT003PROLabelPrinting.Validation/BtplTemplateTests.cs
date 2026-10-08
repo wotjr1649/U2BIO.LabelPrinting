@@ -32,6 +32,12 @@ namespace U2BIO.BT003PROLabelPrinting.Validation
             Check(!saved.Contains("^D0") && !saved.Contains("^O0"));
             foreach (string setting in new[] { "^P1", "^C1", "^R0" }) Check(saved.Split(new[] { setting + "\r\n" }, StringSplitOptions.None).Length == 2);
             Check(BtplTemplate.Parse(saved).ToBtpl() == saved);
+            string raw = "AW,0080,00120,-10,+1,00,0,raw";
+            Check(BtplTemplate.Parse(Header + raw + "\nE").ToBtpl().Contains(raw + "\r\n"));
+            string[] arguments = { "10", "1", "0", "0" };
+            var snapshot = new BtplTextElement("AW", 0, 0, arguments, "snapshot");
+            arguments[0] = "20";
+            Check(snapshot.Arguments[0] == "10");
 
             Error("DuplicateSetting", () => BtplTemplate.Parse("^H19\n" + Header + Text + "\nE"), 6);
             Error("CommandPosition", () => BtplTemplate.Parse(Header + "^H19\n" + Text + "\nE"), 8);
