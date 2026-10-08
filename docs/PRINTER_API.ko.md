@@ -99,3 +99,5 @@ Release/Debug × x86/x64에서 기존 관리 검사와 synthetic 연결/충돌/�
 TASK-05의 새로운 실제 USB 정상/오류 검증과 TASK-07의 제품 실기는 미실행이다. 자동 배출/원점 복귀, 다른 SDK·환경·글꼴/transport·native 장애 경계는 TASK-07 및 후속 #10에서 추적한다. TASK-02의 M15/B15 진단을 자동 제품 기능으로 선언하지 않는다. 배포는 [SDK 배포 가이드](SDK_DEPLOYMENT.ko.md)를 따른다.
 
 TASK-06의 구현 커밋·실행 명령·조건별 결과·산출물 식별은 [일괄 API 검증 기록](BATCH_PRINTING_EVIDENCE.md)에 있다.
+
+2026-10-09 사용자 결정: 현재 실행할 수 없는 TASK-05/07의 새 제품 실기는 [실기 테스트 #11](HARDWARE_VALIDATION.ko.md)에 보류한다. 소프트웨어 인수 후 Tester/연동 예제 개발을 진행할 수 있다. 앞 문단의 미실행 상태와 실제 지원 제한은 유지하며 실기 통과나 runtime 게이트 해제를 뜻하지 않는다.
