@@ -21,7 +21,7 @@ namespace U2BIO.BT003PROLabelPrinting.Validation
             table.Rows.Add("ROW-1"); table.Rows.Add(invalid ? " " : "ROW-2"); table.Rows.Add("ROW-3");
             var template = PrinterTests.Request().Template;
             template = template.WithText(0, template.TextElements[0].WithPayload("^V00"));
-            var bindings = BtplBindings.Parse("{\"version\":1,\"variables\":{\"^V00\":{\"column\":\"Text\"}}}");
+            var bindings = BtplBindings.Parse("{\"variables\":{\"^V00\":{\"column\":\"Text\"}}}");
             return BtplPrintRequest.FromTable(template, bindings, table);
         }
         private static void Open(Bt003Printer p, PrinterConnectionTests.Fixture f)
