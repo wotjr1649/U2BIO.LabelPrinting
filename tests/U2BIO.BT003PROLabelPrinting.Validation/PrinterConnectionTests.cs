@@ -22,6 +22,8 @@ namespace U2BIO.BT003PROLabelPrinting.Validation
             internal int Port, OwnerThread;
             internal ushort Type;
             internal string Name, Ip;
+            internal Action<ushort, IntPtr> Printed;
+            internal string RegisteredForm;
             private void Add(string value)
             {
                 int current = Thread.CurrentThread.ManagedThreadId;
@@ -31,7 +33,14 @@ namespace U2BIO.BT003PROLabelPrinting.Validation
             }
             internal void Load() {
                 Add("Load"); if (Mode == "load-throw") throw new InvalidOperationException("synthetic");
+                if (Mode == "load-specific") throw SdkError("LoadLibraryExW", 126);
                 if (Mode == "load-pending") { Entered.Set(); Check(Release.Wait(5000)); }
+            }
+            private static Exception SdkError(string function, int system)
+            {
+                var type = typeof(Bt003ConnectionOptions).Assembly.GetType("U2BIO.BT003PROLabelPrinting.Native.NativeSdkException", true);
+                return (Exception)Activator.CreateInstance(type, BindingFlags.NonPublic | BindingFlags.Instance, null,
+                    new object[] { "NativeLoadFailed", (int?)system, function }, null);
             }
             internal int Set(ushort type, string name, string ip) { Add("Set"); Type = type; Name = name; Ip = ip; return Mode == "conflict" ? 1 : Mode == "set-fail" ? 9 : 0; }
             internal int Connect()
@@ -44,15 +53,21 @@ namespace U2BIO.BT003PROLabelPrinting.Validation
             internal int Disconnect() {
                 Add("Disconnect");
                 if (Mode == "disconnect-throw") {
-                    var type = typeof(Bt003ConnectionOptions).Assembly.GetType("U2BIO.BT003PROLabelPrinting.Native.NativeSdkException", true);
-                    throw (Exception)Activator.CreateInstance(type, BindingFlags.NonPublic | BindingFlags.Instance, null,
-                        new object[] { "NativeLoadFailed", (int?)5, "DeviceDisconnect" }, null);
+                    throw SdkError("DeviceDisconnect", 5);
                 }
                 if (Mode != "stay-open") Port = 0; return 7;
             }
             internal void Reset() { Add("Reset"); }
-            internal int Form(string form) { Add("Form"); return 0; }
-            internal void Print(ushort copies, IntPtr pointer) { throw new InvalidOperationException("Connection tests must not print."); }
+            internal int Form(string form) {
+                Add("Form"); RegisteredForm = form;
+                if (Mode == "form-pending") { Entered.Set(); Check(Release.Wait(5000)); }
+                return Mode == "form-fail" ? 9 : 0;
+            }
+            internal void Print(ushort copies, IntPtr pointer) {
+                Add("Print");
+                if (Printed == null) throw new InvalidOperationException("Connection tests must not print.");
+                Printed(copies, pointer);
+            }
             internal Bt003Printer Printer(int milliseconds = 1000)
             {
                 var assembly = typeof(Bt003ConnectionOptions).Assembly;
@@ -92,6 +107,10 @@ namespace U2BIO.BT003PROLabelPrinting.Validation
                     Check(p.GetConnectionStatus().ResourcesReleased);
                     Check(f.Calls.Count(x => x == "Disconnect") == (mode == "connect-fail" ? 1 : 0));
                 }
+            }
+            using (var p = new Fixture { Mode = "load-specific" }.Printer()) {
+                var failed = p.Connect(Bt003ConnectionOptions.Usb("synthetic-loader-error"));
+                Check(failed.NativeFunction == "LoadLibraryExW" && failed.SystemErrorCode == 126 && failed.ResourcesReleased);
             }
             var conflict = new Fixture { Mode = "conflict", Port = 1 };
             using (var p = conflict.Printer()) {

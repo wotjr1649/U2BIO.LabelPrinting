@@ -36,6 +36,7 @@
     <Compile Include="BindingTests.cs" />
     <Compile Include="PrinterTests.cs" />
     <Compile Include="PrinterConnectionTests.cs" />
+    <Compile Include="PrinterPrintingTests.cs" />
     <Compile Include="NativeTests.cs" />
     <Compile Include="ConnectionTests.cs" />
     <Compile Include="LabelResponseTests.cs" />
