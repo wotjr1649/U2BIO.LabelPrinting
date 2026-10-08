@@ -41,6 +41,7 @@
     <Compile Include="BtplBindings.cs" />
     <Compile Include="BtplPrintRequest.cs" />
     <Compile Include="BtplProcessor.cs" />
+    <Compile Include="PrinterModels.cs" />
     <Compile Include="Native\NativeApi.cs" />
     <Compile Include="Native\NativeImage.cs" />
     <Compile Include="Native\NativeSdk.cs" />
