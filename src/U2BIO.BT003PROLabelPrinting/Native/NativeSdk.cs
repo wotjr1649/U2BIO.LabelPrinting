@@ -201,13 +201,42 @@ namespace U2BIO.BT003PROLabelPrinting.Native
         internal static void CheckSystemModulePath(string path)
         {
             string systemFile = Path.GetFullPath(Path.Combine(Environment.SystemDirectory, Path.GetFileName(path)));
+            NoReparse(systemFile);
             using (var file = File.OpenRead(systemFile)) {
                 string actual = FinalFilePath(file.SafeFileHandle);
                 string candidate = Path.GetFullPath(path);
-                if (!string.Equals(candidate, systemFile, StringComparison.OrdinalIgnoreCase) && !string.Equals(candidate, actual, StringComparison.OrdinalIgnoreCase))
+                if (string.Equals(candidate, systemFile, StringComparison.OrdinalIgnoreCase) || string.Equals(candidate, actual, StringComparison.OrdinalIgnoreCase)) {
+                    NoReparse(candidate); return;
+                }
+                string windows = Environment.GetFolderPath(Environment.SpecialFolder.Windows);
+                string wowFile = Path.Combine(windows, "SysWOW64", Path.GetFileName(systemFile));
+                if (!string.Equals(actual, systemFile, StringComparison.OrdinalIgnoreCase) &&
+                    !(Environment.Is64BitOperatingSystem && !Environment.Is64BitProcess && string.Equals(actual, wowFile, StringComparison.OrdinalIgnoreCase)))
                     throw new NativeSdkException("NativeModuleConflict");
-                NoReparse(candidate);
+                string sxsRoot = Path.Combine(windows, "WinSxS") + Path.DirectorySeparatorChar;
+                if (!string.Equals(Path.GetFileName(candidate), "gdiplus.dll", StringComparison.OrdinalIgnoreCase) ||
+                    !candidate.StartsWith(sxsRoot, StringComparison.OrdinalIgnoreCase)) throw new NativeSdkException("NativeModuleConflict");
+                NoReparse(actual);
+                try {
+                    NoReparse(candidate);
+                    using (var sideBySide = new FileStream(candidate, FileMode.Open, FileAccess.Read, FileShare.Read)) {
+                        string final = FinalFilePath(sideBySide.SafeFileHandle);
+                        if (!string.Equals(final, candidate, StringComparison.OrdinalIgnoreCase) || !final.StartsWith(sxsRoot, StringComparison.OrdinalIgnoreCase) ||
+                            !SameFileContent(file, sideBySide)) throw new NativeSdkException("NativeModuleConflict");
+                    }
+                }
+                catch (Exception error) when (error is IOException || error is UnauthorizedAccessException || error is SecurityException) {
+                    throw new NativeSdkException("NativeModuleConflict", ClassifyLoaderException(error).SystemErrorCode);
+                }
             }
+        }
+        internal static bool SameFileContent(Stream reference, Stream candidate)
+        {
+            if (!reference.CanRead || !candidate.CanRead || !reference.CanSeek || !candidate.CanSeek ||
+                reference.Length < 1 || reference.Length > 16 * 1024 * 1024 || reference.Length != candidate.Length) return false;
+            reference.Position = candidate.Position = 0;
+            using (var sha = SHA256.Create())
+                return BitConverter.ToString(sha.ComputeHash(reference)) == BitConverter.ToString(sha.ComputeHash(candidate));
         }
         internal static NativeSdkException ClassifyLoaderException(Exception error)
         {
