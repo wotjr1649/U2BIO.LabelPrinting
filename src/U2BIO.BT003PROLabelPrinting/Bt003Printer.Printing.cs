@@ -100,8 +100,11 @@ namespace U2BIO.BT003PROLabelPrinting
         }
         private PrintPreflightResult PreflightResult(Work work, string resultCode, string function = null, int? value = null)
         {
-            lock (sync) return new PrintPreflightResult(resultCode, work.Printing.Managed, work.Printing.Device,
-                disposed ? PrinterState.Disposed : state, function, value, pending);
+            lock (sync) {
+                if (state == PrinterState.Validating) state = disposed ? PrinterState.Disposed : PrinterState.Connected;
+                return new PrintPreflightResult(resultCode, work.Printing.Managed, work.Printing.Device,
+                    disposed ? PrinterState.Disposed : state, function, value, pending);
+            }
         }
         public BatchPrintResult Print(string btpl) => Print(Prepare(btpl));
         public BatchPrintResult Print(BtplTemplate template) => Print(Prepare(template));

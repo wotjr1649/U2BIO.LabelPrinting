@@ -93,8 +93,9 @@ namespace U2BIO.BT003PROLabelPrinting
                                     var operation = result as PrinterOperationResult;
                                     if (disposed && operation != null && operation.IsSuccess) result = Result(work, "Disposed");
                                     var preflight = result as PrintPreflightResult;
-                                    if (disposed && preflight != null && preflight.IsReady)
-                                        result = new PrintPreflightResult("Disposed", preflight.ManagedValidation, preflight.DeviceValidation, PrinterState.Disposed);
+                                    if (disposed && preflight != null)
+                                        result = new PrintPreflightResult(preflight.IsReady ? "Disposed" : preflight.Code, preflight.ManagedValidation,
+                                            preflight.DeviceValidation, PrinterState.Disposed, preflight.NativeFunction, preflight.NativeCode, preflight.NativeCallPending);
                                     work.Completion.TrySetResult(result);
                                 }
                                 else work.Completion.TrySetException(failure);
