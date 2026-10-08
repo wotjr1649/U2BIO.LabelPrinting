@@ -57,4 +57,4 @@ dumpbin /ERRORREPORT:NONE /DISASM:NOBYTES /OUT:<task-output.txt> <BlackfishNfcLi
 
 일회 인쇄 경로의 상태 polling helper가 mode 0으로 logger를 호출한다. x86 logger `0x307D0`의 IAT와 원본 문자열을 해석한 결과, `wvsprintfA`는 상태 문자열을 만들고 `GetFileAttributesA`는 고정된 SDK 로그 디렉터리를 검사한다. 디렉터리가 없으면 `CreateDirectoryA` 경로를 거치고 날짜별 `.log` 파일을 `a+`로 연다. 이는 런타임 경로 조회가 아니라 **작업 루트 밖 고정 디렉터리에 대한 생성·추가 기록 효과**다.
 
-현재 실제 인쇄 진단은 아직 호출하지 않았다. 정확한 외부 로그 대상에 대한 사용자 허용이 있어야 실행한다. 원본 DLL 패치, 로그 API hook, 보안 정책 변경으로 이 효과를 우회하지 않는다. 실제 로그 내용·UID는 저장소나 Issue에 복사하지 않는다. 이 제한과 실행 결과는 [NATIVE_SDK_IMPLEMENTATION.md](NATIVE_SDK_IMPLEMENTATION.md)에 기록한다.
+준비 단계에서는 정확한 외부 로그 대상의 사용자 허용 전까지 실제 진단을 호출하지 않았다. 이후 사용자가 TASK-02 시험 중 SDK 자체 로그 생성·추가 기록을 명시 허용하여 x86 진단을 한 번 실행했다. 원본 DLL 패치, 로그 API hook, 보안 정책 변경은 하지 않았다. 실제 로그 내용·UID는 저장소나 Issue에 복사하지 않는다. SDK 정상 응답과 실제 미출력이라는 실행 결과는 [NATIVE_SDK_IMPLEMENTATION.md](NATIVE_SDK_IMPLEMENTATION.md)에 기록한다.
