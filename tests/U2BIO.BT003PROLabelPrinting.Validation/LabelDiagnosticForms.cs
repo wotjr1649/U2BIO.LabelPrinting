@@ -13,7 +13,8 @@ namespace U2BIO.BT003PROLabelPrinting.Validation
                 text = "AC,24,24,1,1,0,0,U2BIO TEST\r\n";
             } else if (recipe == "blackmark60x20") {
                 // Measured test stock: liner70, face60x20, pitch40, mark5, mark-end to face7.5mm.
-                media = "^Q40,5,7.5+\r\n^W70\r\n^G0\r\n";
+                // Comparison trial: omit only the 7.5+ position argument; keep the reflective sensor.
+                media = "^Q40,5\r\n^W70\r\n^G0\r\n";
                 // Compare the manufacturer's AW raster path; model support still needs physical verification.
                 text = "AW,80,120,10,2,0,0,U2BIO TEST\r\n";
             } else throw new ArgumentException("InvalidDiagnosticRecipe");
