@@ -2,6 +2,8 @@
 
 TASK-04의 .NET Framework 4.6.1 관리 API다. DB·DevExpress·native SDK 없이 템플릿 하나와 DataTable/DataRow를 검사·렌더링한다. 실제 장치 지원이나 인쇄 가능 여부를 확인하는 API는 TASK-05다.
 
+이 문서는 선택적인 데이터 자동 바인딩 경로다. 완성 문구를 가진 BTPL/템플릿을 사용하면 DataTable·JSON 없이 Fixed 요청을 생성할 수 있다. 기본 wrapper 사용과 선택 기능의 관계는 [모듈 역할](MODULE_OVERVIEW.ko.md)을 따른다. 기존 바인딩·NULL·format 검사 계약은 유지한다.
+
 ## 입력과 실행 예
 
 ```json

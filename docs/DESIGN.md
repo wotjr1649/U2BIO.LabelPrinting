@@ -2,13 +2,13 @@
 
 구현 기준: **v0.1.1-design (2026-10-08)**. [기준 문서](BASELINE.md)와 [개발 작업·완료 조건](IMPLEMENTATION_PLAN.md)을 함께 적용한다. 사용자 정책을 변경하는 작업과 확인이 필요한 장치 사실을 구분하며, 이 버전을 제품 구현 완료로 간주하지 않는다.
 
-상태: 요구사항 확정 및 구현 계약 보완(2026-10-07). TASK-01에서 DLL·최소 검증 프로젝트의 빌드 기반을 구성했다. BTPL 처리·장치 인쇄·UI는 후속 구현 대상이다. 1절의 사용자 정책, 그 정책을 만족시키는 아래 구현 설계, 제조사 계약·실기로 확인해야 할 항목을 구분한다. 사용자 가이드의 일반 기능 전체를 제품의 1차 범위로 가져오지 않는다. 이번 보완은 검사·실행·결과·수명(3~4절)을 먼저 정리하고 저장·배포·명령 처리(2·5·6절)를 이어 정리한 것이다. 계약별 인수 사례는 11절에서 추적한다.
+상태: TASK-01 기반과 TASK-02 진단, TASK-03/04 관리 처리는 완료했다. TASK-05 공개 연결·인쇄 API와 UI는 구현 중/후속 대상이다. 2026-10-08 사용자 정정에 따라 [공통 모듈의 역할·확장 범위](MODULE_OVERVIEW.ko.md)를 적용한다. 기본 사용은 wrapper의 연결·인쇄 기능이며 DataTable/JSON/편집 모델은 선택 기능이다. 1절의 사용자 정책, 그 정책을 만족시키는 아래 구현 설계, 제조사 계약·실기로 확인해야 할 항목을 구분한다. 사용자 가이드의 일반 기능 전체를 제품의 1차 범위로 가져오지 않는다. 이번 보완은 검사·실행·결과·수명(3~4절)을 먼저 정리하고 저장·배포·명령 처리(2·5·6절)를 이어 정리한 것이다. 계약별 인수 사례는 11절에서 추적한다.
 
 [SDK 함수 대조표](SDK_API_COVERAGE.md)는 native 원형·반환 규약의 근거다. [새 BTPL 가이드 검토](#10-btpl-가이드-검토)는 별도로 기록한다. 구조화된 요소·명령 정의는 메모리 편집 모델이며, 저장 서식의 기준은 계속 BTPL이다.
 
 ## 1. 목적과 범위
 
-`Checkup`, `SmartCheckup` 등에서 BTPL 서식과 출력 데이터를 전달하여 BT-003 Pro 라벨에 텍스트를 인쇄한다. 기존 RFID 값과 라벨에 원래 있는 회색 RFID 모양은 유지한다.
+`U2BIO.BT003PROLabelPrinting`은 제조사 wrapper의 연결·텍스트 인쇄 기능을 `Checkup`, `SmartCheckup` 등에서 바로 재사용하는 공통 DLL이다. 기본 입력은 호출자가 준비한 텍스트 전용 BTPL/템플릿이며 기본 흐름은 Connect → Print → Disconnect다. 서식 편집·데이터 자동 바인딩·미리보기는 같은 DLL에서 선택적으로 사용한다. 기존 RFID 값과 라벨에 원래 있는 회색 RFID 모양은 유지한다.
 
 | 항목 | 확정 내용 |
 | --- | --- |
@@ -41,7 +41,7 @@
 
 BTPL은 레이아웃과 실제 프린터 명령의 기준이다. 위치, 글꼴, 라벨 규격, 속도, 농도, 고정 문구를 JSON에 중복 저장하지 않는다. 수치 편집 화면에서 변경한 설정은 해당 BTPL 명령에 반영한다.
 
-JSON은 BTPL 변수와 `DataTable` 컬럼을 연결하는 부가 설정이다. 임의의 SQL, 연결 정보, 스크립트나 표현식을 실행하는 기능을 넣지 않는다.
+완성 문구를 가진 BTPL/템플릿은 DataTable·JSON 없이 인쇄 입력으로 사용할 수 있다. 기존 Fixed 요청이 이 경로를 담당한다. JSON은 선택 바인딩에서 BTPL 변수와 `DataTable` 컬럼을 연결하는 부가 설정이다. 임의의 SQL, 연결 정보, 스크립트나 표현식을 실행하는 기능을 넣지 않는다.
 
 TASK-04에서 확정한 JSON 자원 경계는 문서 전체 UTF-8 기준 4 MiB(4,194,304 바이트)다. Parse/Load와 ToJson/Save의 들여쓰기·이스케이프를 포함한 결과에 적용하며 초과는 BindingsTooLarge다. 파일은 BOM도 상한에 포함한다. JSON의 nullText도 포함되지만 DataTable의 실제 인쇄 문자열에는 별도 길이 제한을 추가하지 않는다. API와 실행 근거는 [BTPL_BINDING_API.ko.md](BTPL_BINDING_API.ko.md)를 따른다.
 
@@ -163,14 +163,18 @@ BtplRenderResult BtplProcessor.Render(BtplPrintRequest request, int rowIndex);
 PrinterOperationResult Bt003Printer.Connect(Bt003ConnectionOptions options);
 PrinterConnectionStatus Bt003Printer.GetConnectionStatus();
 PrintPreflightResult Bt003Printer.ValidateForPrint(BtplPrintRequest request);
+PrintPreflightResult Bt003Printer.ValidateForPrint(string btpl);
+PrintPreflightResult Bt003Printer.ValidateForPrint(BtplTemplate template);
 PrinterOperationResult Bt003Printer.Disconnect();
 void Bt003Printer.Dispose();
 BatchPrintResult Bt003Printer.Print(BtplPrintRequest request);
+BatchPrintResult Bt003Printer.Print(string btpl);
+BatchPrintResult Bt003Printer.Print(BtplTemplate template);
 Task<BatchPrintResult> Bt003Printer.PrintAsync(BtplPrintRequest request,
     CancellationToken cancellationToken);
 ```
 
-고정·단건·일괄은 같은 `BtplPrintRequest`와 결과 구조를 사용한다. 이름만 다른 `PrintBatch` 처리기나 별도 일괄 엔진을 만들지 않는다. 고정 서식은 결과 한 건, DataRow는 한 건, DataTable은 입력 행 수만큼 결과를 반환한다. 0행 DataTable은 `NoData` 작업 오류이며 native 인쇄를 호출하지 않는다. 여기의 선언 표기는 문서용이며 C# 소스에 그대로 붙이는 구현 파일이 아니다.
+기본 호출자는 Print(string)/Print(template)와 같은 편의 API를 사용하고 BtplPrintRequest를 직접 만들 필요가 없다. string은 같은 Parse, template는 Fixed 요청으로 변환하여 동일한 private 검사·인쇄 경로를 사용한다. string 구문 오류는 Parse의 위치·Code 예외 계약을 따른다. ValidateForPrint의 편의 overload도 같은 방식으로 변환한다. 고정·단건·일괄은 내부에서 같은 요청·결과 구조를 사용한다. 이름만 다른 PrintBatch 처리기나 별도 일괄 엔진을 만들지 않는다. 고정 서식은 결과 한 건, DataRow는 한 건, DataTable은 입력 행 수만큼 결과를 반환한다. 0행 DataTable은 NoData 작업 오류이며 native 인쇄를 호출하지 않는다. 여기의 선언 표기는 문서용이며 C# 소스에 그대로 붙이는 구현 파일이 아니다.
 
 | 타입 | 필수 계약 |
 | --- | --- |
@@ -305,7 +309,7 @@ USB·TCP/IP·RS-232 연결은 `SetPrinterPort()`의 인터페이스 종류와 �
 
 `SetPrintFormVariableData`, `SetRfidPort`, `SetRfidProtocol`, `SetWritingDataType(0 포함)`, `StartPrintWithRfid` 등은 이 경로에 넣지 않는다. UID-only도 RFID API이므로 인쇄 전용 증명으로 대체할 수 없다. `SetLabelSetting`은 Registry에 값을 저장하므로 기본 연결·출력에서 호출하지 않는다. 인쇄 설정은 BTPL에 명시한다. `SendData`, 응답 버퍼 설정도 결과 확인의 대체 경로로 추가하지 않는다.
 
-`StartLabelPrint`는 TASK-02에서 고정 SDK 정상 경로의 ASCII/NUL 응답 문법·42-byte 분석 상한과 x86/x64 ANSI949 실기를 확인했다. 유효한 코드0은 SdkResponse 근거이며 물리적 배출 완료를 뜻하지 않는다. timeout101·잘못된 응답·native 종료는 Unknown으로 처리한다. 제조사 문서에 없는 항목은 버전 고정 분석·실측·경계값 검사와 명시된 제한으로 확정할 수 있다. 상세 근거는 [구현·검증 상태](NATIVE_SDK_IMPLEMENTATION.md)의 채택 계약을 따른다. **제품 전용 파서·실행 경계의 통합은 TASK-05에서 완료하며, native 초과 쓰기·timeout의 호출자 보호 검증 전 PrintContractUnverified 게이트를 유지한다.** RFID API·기록 명령 미사용 검토와 저장 데이터 전후 실측을 구분한다.
+`StartLabelPrint`는 TASK-02에서 고정 SDK 정상 경로의 ASCII/NUL 응답 문법·42-byte 분석 상한과 x86/x64 ANSI949 실기를 확인했다. 유효한 코드0은 SdkResponse 근거이며 물리적 배출 완료를 뜻하지 않는다. timeout101·잘못된 응답 등 호출자가 회수할 수 있는 인쇄 결과 불명은 Unknown으로 처리한다. 같은 프로세스의 native 메모리 손상·프로세스 종료에서는 결과 객체 반환을 보장하지 않으며1차의 장애 격리 범위 밖이다. 제조사 문서에 없는 항목은 버전 고정 분석·실측·경계값 검사와 명시된 제한으로 확정할 수 있다. 상세 근거는 [구현·검증 상태](NATIVE_SDK_IMPLEMENTATION.md)의 채택 계약을 따른다. **제품 전용 파서·wrapper 실행 경계의 통합은 TASK-05에서 완료하며, 확인된 SDK·인수·응답·호출 순서·timeout/pending 정리의 구현 검증 전에는 PrintContractUnverified 게이트를 유지한다. 2026-10-08 모듈 역할 정정에 따라 별도 NativeHost와 native 손상·종료 격리 보장은1차에 포함하지 않고 #10에서 미검증으로 추적한다.** RFID API·기록 명령 미사용 검토와 저장 데이터 전후 실측을 구분한다.
 
 ### 수량·대기 제한
 

@@ -2,6 +2,8 @@
 
 RFID 값이 이미 기록된 BT-003 Pro 라벨에 프로그램이 전달한 텍스트를 BTPL로 인쇄하기 위한 공통 모듈과 테스트 프로그램입니다.
 
+`U2BIO.BT003PROLabelPrinting`은 제조사 wrapper의 연결·텍스트 인쇄 기능을 여러 호출 프로그램에서 재사용하는 공통 DLL입니다. 기본 사용은 `Connect → Print(BTPL) → Disconnect`로 정리하며, DataTable·JSON 바인딩·미리보기는 선택 기능입니다. [모듈의 역할·공개 API 계획·확장 범위](docs/MODULE_OVERVIEW.ko.md)를 기준으로 TASK-05를 진행합니다. 이 연결·인쇄 흐름은 아직 구현 완료 상태가 아닙니다.
+
 공통 DLL과 UI 없는 검증 프로젝트의 빌드 기반을 구성했고, 41개 내부 SDK 선언과 배포 검사·로더 코드를 추가했습니다. 현재 [Native SDK 구현 범위와 미검증 항목](docs/NATIVE_SDK_IMPLEMENTATION.md)을 구분합니다. 공개 장치 연결·인쇄 API와 DevExpress Tester는 후속 개발 작업입니다.
 
 TASK-03의 공개 `BtplTemplate` 관리 API로 BTPL 해석·좌표/문구 편집·고정 줄바꿈·strict 인코딩·단일 파일 저장을 지원합니다. [사용 예와 저장 계약](docs/BTPL_TEMPLATE_API.ko.md)을 참고합니다. 이 API는 프린터 없이 동작하며 수치 편집·미리보기 화면은 후속 UI 작업입니다.
@@ -18,8 +20,9 @@ TASK-04는 `BtplBindings`, `BtplPrintRequest`, `BtplProcessor`로 JSON 매핑·D
 | 테스트 UI | WinForms, DevExpress 20.2.6 |
 | 배포 | 관리 DLL AnyCPU, 제조사 DLL x86/x64 세트 |
 | 기준 서식 | BTPL `.txt` / `.btpl` |
-| 부가 설정 | JSON: 변수와 컬럼의 매핑, 출력 형식, `nullText` |
-| 데이터 입력 | 호출 프로그램이 전달하는 `DataTable` |
+| 부가 설정 | 선택 JSON: 변수와 컬럼의 매핑, 출력 형식, `nullText` |
+| 기본 입력 | 호출 프로그램이 준비한 텍스트 전용 BTPL 또는 템플릿 |
+| 선택 데이터 입력 | DB 결과 자동 바인딩이 필요할 때 `DataTable`/`DataRow` |
 
 [설계와 검증 계획](docs/DESIGN.md)에 공개 타입, 바인딩, 단계별 중단·결과·연결 수명, 저장·배포·명령 처리 계약과 24개 구현 인수 사례를 정리했습니다. [SDK 함수 대조표](docs/SDK_API_COVERAGE.md)는 내부 선언 대상 41개와 원형 미공개 export 1개, 기준 DLL 쌍의 해시를 관리합니다. 로컬 참고 자료 `docs/BTPL_API_GUIDE.ko.md`의 관련 내용을 대조했고, 일반 언어 기능과 이 제품의 1차 지원 범위를 구분했습니다.
 
@@ -33,7 +36,7 @@ TASK-04는 `BtplBindings`, `BtplPrintRequest`, `BtplProcessor`로 JSON 매핑·D
 
 관리 검사·미리보기는 프린터와 제조사 DLL 없이 실행합니다. `ValidateForPrint`가 실제 연결 대상의 검사까지 수행하며 Print는 이를 매번 다시 검사합니다. `AW` 등의 장치 지원 미확인과 관리 구문 오류를 구분하여 참고 미리보기와 인쇄 가능 여부를 따로 표시합니다. 검사를 안 했거나 완료하지 못한 결과는 null로 표현합니다.
 
-템플릿 하나에 여러 데이터 행을 바인딩합니다. NULL/DBNull/빈 문자열/공백 값은 문자열 `nullText`를 적용하고, 설정이 없으면 검사 오류입니다. 컬럼 누락도 오류입니다. 전체 행을 먼저 검사하여 한 건이라도 오류면 전체를 출력하지 않습니다. 실행 중 실패·결과 불명이면 즉시 중단하고 남은 행은 미시도로 반환합니다. 취소 시 현재 SDK 호출의 결과를 기록하며 자동 재출력·대기열은 없습니다.
+선택 바인딩을 사용하면 템플릿 하나에 여러 데이터 행을 적용합니다. NULL/DBNull/빈 문자열/공백 값은 문자열 `nullText`를 적용하고, 설정이 없으면 검사 오류입니다. 컬럼 누락도 오류입니다. 전체 행을 먼저 검사하여 한 건이라도 오류면 전체를 출력하지 않습니다. 실행 중 실패·결과 불명이면 즉시 중단하고 남은 행은 미시도로 반환합니다. 취소 시 현재 SDK 호출의 결과를 기록하며 자동 재출력·대기열은 없습니다.
 
 인쇄 함수 진입 전후를 `PrintInvoked`와 실행 단계로 구분합니다. 제한 초과 뒤 늦은 서식 등록이 성공해도 새 인쇄를 시작하지 않습니다. 이미 반환한 행 결과는 불변이며 늦은 정리 완료는 연결 상태 조회로 확인합니다. Dispose 후에도 pending·자원 정리 상태 조회는 가능합니다.
 
@@ -43,6 +46,6 @@ TASK-04는 `BtplBindings`, `BtplPrintRequest`, `BtplProcessor`로 JSON 매핑·D
 
 RFID 읽기·쓰기·잠금·보안 설정은 공개하지 않습니다. 텍스트 넘침 검사와 별도 DPI 설정도 제공하지 않습니다.
 
-`JODAL_WEBFORM_5.txt`의 `~HE0,0`은 RFID 안테나 설정으로 확인되어 인쇄 전용 서식에서는 제외합니다. 원본은 보존하며 지원하지 않는 명령을 자동 삭제하지 않습니다. TASK-02에서 고정 SDK의 x86/x64 USB 연결·해제, AW size10/weight1·ANSI949 한글·한 장 출력과 전용 응답을 확인했습니다. 응답0은 SDK 정상 응답이며 배출 완료와 구분합니다. 정상42-byte/NUL 분석 상한과 격리 진단의 제한은 [검증 상태](docs/NATIVE_SDK_IMPLEMENTATION.md)를 따릅니다. 제품 실행·보호 경계·결과 통합은 TASK-05/06 전까지 차단하고, RFID 저장값 전후 실측은 사용자 확정으로 제외했습니다. 다른 SDK/환경·용지·펌웨어·모든 장비 오류는 검증 완료로 표시하지 않습니다.
+`JODAL_WEBFORM_5.txt`의 `~HE0,0`은 RFID 안테나 설정으로 확인되어 인쇄 전용 서식에서는 제외합니다. 원본은 보존하며 지원하지 않는 명령을 자동 삭제하지 않습니다. TASK-02에서 고정 SDK의 x86/x64 USB 연결·해제, AW size10/weight1·ANSI949 한글·한 장 출력과 전용 응답을 확인했습니다. 응답0은 SDK 정상 응답이며 배출 완료와 구분합니다. 정상42-byte/NUL 분석 상한과 격리 진단의 제한은 [검증 상태](docs/NATIVE_SDK_IMPLEMENTATION.md)를 따릅니다. 제품 연결·인쇄·결과 통합은 TASK-05/06 구현 검증 전까지 차단하고, 별도 NativeHost와 native 장애 격리 보장은1차 구성에 추가하지 않으며, RFID 저장값 전후 실측은 사용자 확정으로 제외했습니다. 다른 SDK/환경·용지·펌웨어·모든 장비 오류는 검증 완료로 표시하지 않습니다.
 
 SDK 원본은 상위 작업 폴더의 `BT-003 pro SDK`를 참고합니다. 기존 `docs`의 제조사 문서는 보존합니다. 이 설계 문서 작성 단계에서는 원격 push나 제조사 DLL의 업로드를 수행하지 않습니다.

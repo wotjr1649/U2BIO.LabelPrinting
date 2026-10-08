@@ -98,13 +98,15 @@
 
 목적: 연결부터 해제까지 소유권을 유지하고 검증된 인쇄 전용 경로로 한 건을 출력한다.
 
+2026-10-08 역할 정정: [공통 모듈 정의](MODULE_OVERVIEW.ko.md)에 따라 wrapper의 연결·인쇄 API를 기본 기능으로 구현한다. Print/ValidateForPrint의 string·template 편의 overload는 기존 request 경로에 위임하고 기본 사용에 DataTable·JSON을 요구하지 않는다. 별도 NativeHost는1차에 추가하지 않는다. native 장애 격리 보장은 미검증 후속 #10에서 추적하며 아래 기본 검사·응답·수명 계약을 유지한다. TASK-02의 과거 진단 보호 조건·실행 근거와 현재 역할 정정을 구분한다.
+
 완료 조건:
 
 - [ ] USB 우선 연결과 TCP/IP·RS-232의 공개 연결 옵션·API 및 내부 SDK 경로를 구현한다. 미검증 transport를 실기 성공으로 표시하지 않는다.
 - [ ] 연결 상태·프로세스 SDK 점유·대상 장치 mutex와 소유권을 구현하고 Busy 요청을 대기열 없이 거절한다.
 - [ ] ValidateForPrint는 관리 검사 뒤 장치 검사를 수행하고 ResetForm·서식 등록·인쇄를 호출하지 않는다. Port Open을 용지·리본·헤드 준비로 해석하지 않는다.
-- [ ] 미검증 ABI·글꼴·명령 조합은 PrintContractUnverified 또는 DeviceSupportUnverified로 차단한다. TASK-02의 진단 지원 범위를 제품 흐름에 통합하고 native 초과 쓰기·종료·timeout의 오류 주입과 호출자 보호를 검증한 뒤 해당 게이트를 해제한다.
-- [ ] Print는 매번 사전검사를 하고 ResetForm→서식 등록→StartLabelPrint→전용 응답 판정 순서로 진행한다. RFID 함수는 호출하지 않는다.
+- [ ] 미검증 ABI·글꼴·명령 조합은 PrintContractUnverified 또는 DeviceSupportUnverified로 차단한다. TASK-02의 확인된 SDK·인수·응답 범위를 제품 wrapper 흐름에 통합하고 검사·호출 순서·결과·timeout/pending 정리를 검증한 구현에서만 허용한다. native 초과 쓰기·프로세스 종료의 격리 보장은1차에 포함하지 않으며 #10에 미검증으로 남긴다.
+- [ ] Print는 매번 사전검사를 하고 ResetForm→서식 등록→StartLabelPrint→전용 응답 판정 순서로 진행한다. string/template/request 입력은 같은 경로로 처리하며 기본 string/template 사용에 DataTable·JSON을 요구하지 않는다. RFID 함수는 호출하지 않는다.
 - [ ] 실행 단계·PrintInvoked·함수별 raw 코드·정리 결과를 반환하고 연결 실패/부분 연결/해제 미확인/Dispose 뒤 상태를 계약대로 처리한다.
 - [ ] C01/C05/C14/C15/C16 및 USB 단건 정상·오류를 검증하고 TCP/IP·RS-232의 API 검사와 실기 여부를 각각 기록한다.
 
