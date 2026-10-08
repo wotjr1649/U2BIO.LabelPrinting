@@ -125,7 +125,7 @@ namespace U2BIO.BT003PROLabelPrinting.Native
                 catch (NativeSdkException error) { result.ResponseError = error.Code; }
             });
         }
-        // Fixed ASCII AC diagnostic only. SendData's return does not establish print completion.
+        // Fixed ASCII print/control diagnostic only. SendData's return does not establish completion.
         internal static UsbProbeResult ProbeDirectLabel(NativeConnectionOptions options, string validatedForm)
         {
             CheckDirectDiagnosticForm(validatedForm);
