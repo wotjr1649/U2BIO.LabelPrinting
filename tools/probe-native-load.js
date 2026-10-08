@@ -8,10 +8,10 @@ const net = require('node:net');
 const { spawn, spawnSync } = require('node:child_process');
 const root = path.resolve(__dirname, '..');
 // This diagnostic manifest identifies the reviewed Release build, not an arbitrary current bin directory.
-const managedBuildCommit = '878a8e1';
+const managedBuildCommit = '72446e7';
 const managedHashes = {
-    x86: ['99ad0d7c0a6a49991800a03a4f16fa9638de4dd9b0754d0d4a8fddd8696fab42', '93bde4f28db91a90ed9f9d4058d916a61aa968ac903aa20f68dc1256cef15e95'],
-    x64: ['160a827c6cc68be72137cac75763fd1a466c41443dfa4f8e25312c387a94ebaf', '93bde4f28db91a90ed9f9d4058d916a61aa968ac903aa20f68dc1256cef15e95']
+    x86: ['3c4d88d28dbd82322c85507f72fb257cee3ef4dbf9e321a458f59788a511c016', '93bde4f28db91a90ed9f9d4058d916a61aa968ac903aa20f68dc1256cef15e95'],
+    x64: ['9517c91144780841d67f5041c20c257745093b5b287e10599e310dde09747ff1', '93bde4f28db91a90ed9f9d4058d916a61aa968ac903aa20f68dc1256cef15e95']
 };
 const passReport = 'NATIVE_LOAD|status=Passed|bound=41|deviceDelegatesInvoked=0';
 function parseArgs(args) {
