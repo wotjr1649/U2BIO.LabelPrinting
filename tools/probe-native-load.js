@@ -142,6 +142,8 @@ async function main() {
             { ...environment, TEMP: path.join(stage, 'tmp'), TMP: path.join(stage, 'tmp') }, taskkill);
         evidence.results.push({ platform, ...result, managedDllSha256: digest(path.join(stage, 'U2BIO.BT003PROLabelPrinting.dll')), managedExeSha256: digest(path.join(stage, 'U2BIO.BT003PROLabelPrinting.Validation.exe')) });
         process.stdout.write(`${platform}: ${result.report}; exit=${result.exitCode}\n`);
+        // A failed USB attempt must not trigger another architecture's connection to uncertain device state.
+        if (usb && (result.exitCode !== 0 || !usbPassed.test(result.report))) break;
     }
     fs.writeFileSync(path.join(runRoot, 'evidence.json'), JSON.stringify(evidence, null, 2) + '\n', { flag: 'wx' });
     if (evidence.results.some(r => r.exitCode !== 0 || (usb ? !usbPassed.test(r.report) : r.report !== passReport))) throw new Error('NativeLoadProbeFailed');
