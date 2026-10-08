@@ -446,3 +446,37 @@ node tools/probe-native-load.js --sdk-directory '..\BT-003 pro SDK\라이브러�
 근거는 `.work/native-load/1791442246611/evidence.json`이다. x64 결과 하나, form0·StartLabelPrint(1) 호출 경로·response parsed·native0·empty prefix·length2·disconnect0·closed0·RFID API calls0이며 supervisor exit0, 잔여 probe0이다. native0은 물리 성공 판정이 아니다. 사용자는 문구가 없거나 출력이 이상하다고 답했고 세부 상태 설명은 아직 받지 못했다. x86·한글·추가 FEED·자동 재출력은 하지 않았다.
 
 후속 사용자 로그에서 입력 E15가 SDK 가공 기록의 E0,0으로 변경된 것을 확인했다. 두 기록은 서식 저장과 내부 가공으로 구분하며 두 번 인쇄 요청의 증거가 아니다. 관리 호출·supervisor에는 retry2 또는 자동 재출력이 없다. 자세한 판정과 잔여 한계는 [로그 분석](START_LABEL_PRINT_ANALYSIS.md)의 15:50 x64 절을 따른다. 현재 TASK-02는 OPEN이며 정상 AW 인쇄·완전 배출 및 남은 응답 계약 확인 전 TASK-03에 착수하지 않는다.
+
+## AW 크기 단독 비교: 문구 확인·배출 부족
+
+사용자 순서 진행에 따라 c2a26e1에서 AW size10의 기대 검사 실패(exit1)를 확인한 뒤9f0b97c에서 시험 factory의 size만1→10으로 바꿨다. Q/W/G·X/Y·weight1·R0/E15·속도·농도·copies1·AC 비교 데이터는 유지했다. 공통 DLL에 글자 크기를 고정하지 않았다.
+
+fresh verifier의 Release/Debug x86/x64 빌드·관리 검사, 두 CLI 검사·doctor·diff는 exit0이다. 근거는 `.work/foundation/Release-1791446111905/evidence.json`이며9f0b97c 기준이다.0ceb022에서 supervisor 핀을 갱신하고 root의 Release와 CLI 검사를 다시 통과했다.
+
+2026-10-08 16:57:04 KST, HEAD0ceb022·관리 핀9f0b97c에서 USB0·x64의 blackmark60x20을 한 번 요청했다. 실제 AW 행은 `AW,80,120,10,1,0,0,U2BIO TEST2`다. 실행 전 USB1 캐시만 존재·현재 장치 일치·현재 연결된 USB printer1·COM3 정상·task probe/샘플 프로세스0·SDK 로그 대상 링크 부재를 확인했다. HKLM의 동일 모델 하위 세 항목 수를 현재 연결 수로 해석하지 않고 PresentOnly 결과로 구분했다. 기존 사용자 SDK 로그/USB1 갱신 허용 범위다.
+
+근거는 `.work/native-load/1791446224472/evidence.json`이다. form0·StartLabelPrint copies1 한 번·native0·prefix empty·length2·closed0·RFID API0, supervisor exit0·잔여 probe0이다. 사용자는 **문구 보임, 배출 부족**으로 확인했다. 이 비교는 size1의 작은 글자와 배출 문제를 분리하는 근거다. 실제 장수·한글·모든 글꼴 지원·저장 데이터 보존 실측을 완료했다고 확대하지 않는다. 자동 재출력·x86 시험·RFID 발행은 하지 않았다.
+
+## wrapper의 전진 제어 단독 진단
+
+5f62243에서 present15 fixture·CLI 기대 검사 실패를 확인한 뒤c3b0f5b에서 고정 제어 진단을 추가했다. payload는 `^M15\r\n` 한 행이며 서식 본문·문구·E 인쇄 트리거가 없다. 검증 프로젝트 factory에서만 시험 거리를 정의한다. 공통 DLL은 기존 내부 ProbeDirectLabel → RunConnectionCore → SDK SendData 호출을 사용하고 연결을 정리한다. ResetForm·SetPrintFormString·StartLabelPrint·RFID API는 이 제어 경로에서 호출하지 않는다. 임의 원문/거리/파일을 받는 공개 API를 추가하지 않았다.
+
+이는 사용자 원문 템플릿 전체를 그대로 보내는 인쇄 방식으로 전환하는 것이 아니다. AW 인쇄는 기존 wrapper 경로를 유지하며, 이미 인쇄한 라벨의 배출을 확인하기 위한 별도 SDK 제어 호출이다. SDK0은 이송 완료를 보증하지 않으므로 report의 completion은 unknown이다. supervisor evidence는 presentation-diagnostic·printApiCalls0으로 구분한다. 현재 제품 GetFunction의 PrintContractUnverified 게이트는 유지한다.
+
+root Release x86/x64·CLI는 통과했다. 실행 전 fresh verifier의 핀·검사와 현재 USB1 범위를 확인한다. 추가 인쇄 없이 전진만 한 번 요청하고 사용자 이송 관측을 받는다. 다음 인쇄의 원점 복귀와 반복 작업에서의 정렬은 별도 검증 대상으로 남긴다. M15를 모든 라벨의 기본값으로 하드코딩하거나 단일 이송을 완성된 Print-and-Present 제품 계약으로 선언하지 않는다.
+
+fresh verifier의 Release/Debug x86/x64·CLI·doctor·diff는 exit0이다. Release 근거는 `.work/foundation/Release-1791446559994/evidence.json`이며 c3b0f5b 기준이다.0558ec2에서 핀을 갱신하고 root의 Release 검사도 통과했다. 새 핀의 DLL 해시는7e8399ea864cf412d42a84496fb1958afd2be52baeeee79790d22e5bce229be0, x86 exe40bb074d228f6e753daf502f5d750673576359b7cf5ba33b21fe2eefd0d14804, x64 exeff12f7d296f280a3681daaa1e5c323ab62c84e67a492ad36a0150057e32bbf0c이다. 공통 DLL은 진단 주석만 바뀌었으며 제품 인쇄 동작을 새로 구현한 것이 아니다.
+
+2026-10-08 17:05:09 KST, HEAD0558ec2·관리 핀 c3b0f5b로 USB0·x64 present15를 한 번 실행했다. 이전과 같은 현재 USB1/활성 장치/PresentOnly USB printer1·로그 링크 부재·샘플/probe0 범위와 사용자 허용을 확인했다. 근거는 `.work/native-load/1791446709142/evidence.json`이다. send0·closed0·printApiCalls0·RFID API0·completion unknown, supervisor exit0·잔여 probe0이다. 사용자는 **전진했고 라벨을 확인할 수 있음**으로 확인했다. 인쇄 트리거가 없으므로 새 인쇄를 요청하지 않았다.
+
+전진의 물리 효과 확인 뒤21c2ca2에서 복귀 기대 검사 실패(exit1)를 관측하고7d57856에서 return15의 고정 `^B15\r\n`을 같은 SDK wrapper 제어 경로에 추가했다. 현재 전진량의 역방향 비교이며 공통 DLL 기본값/자동 보정이 아니다. 복귀·다음 인쇄 정렬을 확인하기 전 x86/한글/일괄 인쇄로 확대하지 않는다. 복귀 단독 요청의 실제 결과는 아직 미확인이다.
+
+fresh verifier의 Release/Debug x86/x64·두 CLI·repository/doctor·diff는 통과했다. 근거는 `.work/foundation/Release-1791446955062/evidence.json`이며7d57856 기준이다. c581f92에서 supervisor 핀을 갱신했고 root의 Release 검사도 통과했다. DLL 해시는7e8399ea864cf412d42a84496fb1958afd2be52baeeee79790d22e5bce229be0, x86 exea94ebb252fe8eb45fd152beaf5f71a3625b43c5772843fae53ffce680670b10a, x64 exe424eac7dada95810e7577fb3f5c5faf1c3d216d008d4b16f050fcd984d3a6e31이다.
+
+2026-10-08 17:11:02 KST, HEADc581f92·관리 핀7d57856에서 USB0·x64 return15를 한 번 요청했다. 기존 현재 USB1/활성 printer1·로그 링크 부재·샘플/probe0와 사용자 허용을 확인했다. 근거는 `.work/native-load/1791447062099/evidence.json`이다. send0·closed0·printApiCalls0·RFID API0·completion unknown, supervisor exit0·잔여 probe0이다. 사용자는 **후진했고 전진 전 위치로 돌아옴**으로 확인했다. 물리적 역방향 이송 확인이며 다음 인쇄 정렬의 확인을 대신하지 않는다.
+
+## 동일 AW 서식의 x86 다음 라벨 비교
+
+후진 관측을 받은 뒤2026-10-08 17:12:13 KST, 같은 HEADc581f92·관리 핀7d57856에서 blackmark60x20의 AW size10·weight1·E15 서식을 x86으로 한 번 요청했다. 서식·용지·좌표·수량은 x64와 같다. 실행 전 현재 USB1/PresentOnly printer1·활성 일치·로그 링크 부재·샘플/probe0를 확인했다. 근거는 `.work/native-load/1791447132801/evidence.json`이다. form0·native0·prefix empty·length2·closed0·RFID API0, supervisor exit0이다. 실제 문구·다음 라벨 위치·인쇄 장수의 사용자 관측은 대기 중이다. 추가 전진/재인쇄는 하지 않았다.
+
+현재 Windows ANSI code page는 NLS 설정 조회에서949로 확인했다. 한글 시험의 인코딩 조건으로 기록하되 실제 한글 글리프·출력 지원을 확인한 것으로 확대하지 않는다. 같은 서식의 한글 비교는 x86 물리 결과 확인 뒤 진행한다. firmware는 계속 미확인이고 RFID 리더/태깅 시험은 사용자 지시상 제외다.
