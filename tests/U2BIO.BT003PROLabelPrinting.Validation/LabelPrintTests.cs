@@ -25,6 +25,8 @@ namespace U2BIO.BT003PROLabelPrinting.Validation
             Check(LabelDiagnosticForms.Create("blackmark60x20") == second);
             Check(LabelDiagnosticForms.Create("blackmark60x20ac") == third);
             Check(LabelDiagnosticForms.Create("blackmark60x20direct") == third);
+            string presentation = "^M15\r\n";
+            Check(LabelDiagnosticForms.Create("present15") == presentation);
             string[] names = { "Set", "Connect", "Status", "Disconnect", "Reset", "Form", "Print" };
             foreach (string selected in new[] { first, second, third })
             foreach (string mode in new[] { "ok", "pre", "set", "connect", "open", "form", "invalid", "throw" }) {
@@ -55,9 +57,10 @@ namespace U2BIO.BT003PROLabelPrinting.Validation
             MethodInfo direct = library.GetType("U2BIO.BT003PROLabelPrinting.Native.NativeSdk", true).GetMethod("RunDirectLabelProbe", Static);
             Check(direct != null);
             string[] directNames = { "Set", "Connect", "Status", "Disconnect", "Send" };
+            foreach (string selected in new[] { third, presentation })
             foreach (string mode in new[] { "ok", "pre", "set", "connect", "open", "send" }) {
-                var fixture = new Fixture { Mode = mode, ExpectedForm = third };
-                object[] args = new[] { options, third }.Concat(direct.GetParameters().Skip(2).Select((p, n) => (object)Delegate.CreateDelegate(p.ParameterType, fixture, fixture.GetType().GetMethod(directNames[n])))).ToArray();
+                var fixture = new Fixture { Mode = mode, ExpectedForm = selected };
+                object[] args = new[] { options, selected }.Concat(direct.GetParameters().Skip(2).Select((p, n) => (object)Delegate.CreateDelegate(p.ParameterType, fixture, fixture.GetType().GetMethod(directNames[n])))).ToArray();
                 object result = direct.Invoke(null, args);
                 string expected = mode == "pre" ? "?" : mode == "set" ? "?S" : mode == "connect" ? "?SCD?" : mode == "open" ? "?SC?D?" : "?SC?TD?";
                 Check(fixture.Calls == expected);
