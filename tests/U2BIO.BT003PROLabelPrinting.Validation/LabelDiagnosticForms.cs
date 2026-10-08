@@ -18,7 +18,7 @@ namespace U2BIO.BT003PROLabelPrinting.Validation
                 settings = "^E7\r\n^S5\r\n^H19\r\n^P1\r\n^C1\r\n^L\r\n";
                 if (recipe == "blackmark60x20")
                     settings = "^S5\r\n^H19\r\n^P1\r\n^C1\r\n^R0\r\n^E15\r\n^L\r\n";
-                text = (recipe == "blackmark60x20" ? "AW" : "AC") + ",80,120,1,1,0,0,U2BIO TEST2\r\n";
+                text = (recipe == "blackmark60x20" ? "AW,80,120,10,1" : "AC,80,120,1,1") + ",0,0,U2BIO TEST2\r\n";
             } else throw new ArgumentException("InvalidDiagnosticRecipe");
             return media + settings + text + "E\r\n";
         }
