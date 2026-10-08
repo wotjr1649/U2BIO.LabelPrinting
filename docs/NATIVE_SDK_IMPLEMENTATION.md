@@ -277,7 +277,7 @@ Windows에서 BT-003 Pro의 USB 관련 두 PnP 항목과 FTDI COM3은 OK 상태�
 
 다음 진단은 동일 용지 후보에서 텍스트 명령만 제조사 샘플의 AW 형태로 바꾸어 native AC와 SDK의 AW 그림 변환 경로를 구분한다. AC 미지원이 원인으로 확인된 것은 아니며 AW 인수의 보편 계약도 확정하지 않는다. 합성 문구만 사용하고 위치/센서/용지 설정을 동시에 바꾸지 않는다.
 
-추가 USB 경로 분석에서 SDK가 `SetPrinterPort` 중 사용자별 USB 연결 캐시를 삭제·재등록하는 별도 효과를 확인했다. 대상은 `HKCU\Software\BitekTechnology\AXBT003`의 USBn 값이다. 현재 USB 프린터 열거 수와 캐시 값은 각각 1이며 USB1의 vendor VID/PID·USB printer interface class뿐 아니라 활성 프린터 instance와의 일치도 내용 공개 없이 확인했다. 정확한 주소와 Registry API는 [정적 분석](START_LABEL_PRINT_ANALYSIS.md)의 USB 캐시 절을 따른다. 이 효과는 SDK 자체 로그 기록 허용과 별도이며, 발견 이후 추가 native 연결·인쇄 호출은 하지 않는다. 다음 실기의 현재 대상 USB1 삭제·재등록/갱신에 대한 명시 허용이 필요하다. root에서 Registry를 수동 수정하거나 SetLabelSetting을 호출하지 않았다. TASK-02 조건 3·5·6·7과 TASK-03 착수는 계속 열어 둔다.
+추가 USB 경로 분석에서 SDK가 `SetPrinterPort` 중 사용자별 USB 연결 캐시를 삭제·재등록하는 별도 효과를 확인했다. 대상은 `HKCU\Software\BitekTechnology\AXBT003`의 USBn 값이다. 현재 USB 프린터 열거 수와 캐시 값은 각각 1이며 USB1의 vendor VID/PID·USB printer interface class뿐 아니라 활성 프린터 instance와의 일치도 내용 공개 없이 확인했다. 정확한 주소와 Registry API는 [정적 분석](START_LABEL_PRINT_ANALYSIS.md)의 USB 캐시 절을 따른다. 이 효과는 SDK 자체 로그 기록 허용과 별도이며, 발견 뒤 현재 USB1 삭제·재등록/갱신에 대한 명시 허용 전까지 추가 native 호출을 보류했다. 이후 사용자가 TASK-02 동안 현재 USB1 캐시 갱신을 명시 허용했다. root에서 Registry를 수동 수정하거나 SetLabelSetting을 호출하지 않았다. TASK-02 조건 3·5·6·7과 TASK-03 착수는 계속 열어 둔다.
 
 ## AW 비교 후보 준비
 
@@ -291,4 +291,21 @@ fresh verifier가 일반 Release/Debug × x86/x64 네 빌드·검증 실행, doc
 | x86 validation exe | `a568ba12d17d6c3c820d7ed81a323643fcdc67e3cd293e3294ce9e6a791ffbfe` |
 | x64 validation exe | `f3268f0c54030a72f43b6d1e3ca04b33776dd939bdf8bb5f3363efc86f52a0ea` |
 
-실기 명령은 위 blackmark60x20과 같지만 이 핀에서는 AW 후보가 선택된다. 명령 선택 이름이 같아도 실행 커밋·해시·텍스트 명령으로 두 실험을 구분한다. 현재 AW 실기는 미실행이며 USB1 캐시 효과에 대한 명시 허용 이후 단일 x86 호출로 확인한다. 다른 USB cache 값이 존재하거나 활성 장치가 바뀌면 현재 한 값의 허용으로 확대하지 않는다.
+실기 명령은 위 blackmark60x20과 같지만 이 핀에서는 AW 후보가 선택된다. 명령 선택 이름이 같아도 실행 커밋·해시·텍스트 명령으로 두 실험을 구분한다. 허용 후 실제 호출 결과는 아래와 같다. 다른 USB cache 값이 존재하거나 활성 장치가 바뀌면 현재 한 값의 허용으로 확대하지 않는다.
+
+## AW 후보 단일 실기: SDK 정상 응답, 한 장 배출·문구 없음
+
+사용자가 TASK-02 동안 현재 USB1 캐시 갱신을 명시 허용한 뒤, 2026-10-08 12:28:03 KST에 `c5c27f5`에서 관리 핀 `d7a07ab`으로 USB 0·x86의 AW 후보를 한 번 요청했다. 재연결한 BT-003 Pro USB와 COM3은 Windows에서 OK로 열거됐으며, 실행 전 캐시 USB1/USB print 열거 각각 1개와 활성 instance의 일치, 네 Release 해시, SDK 로그 대상 링크 부재, 잔여 probe 0을 확인했다. 기존 SDK 자체 로그 허용도 유효하다.
+
+| 항목 | 관측 결과 |
+| --- | --- |
+| 연결·서식 | Pre=0, SetPort=0, Connect=0, Open=1, Form=0 |
+| 요청 | StartLabelPrint(1) 1회; Q40,5,7.5+·W70·G0·P1·C1; AW,80,24,10,2,0,0,U2BIO TEST |
+| 응답 | response=parsed, native=0, prefix=empty, length=2 |
+| 정리·종료 | Disconnect raw=0, Closed=0; child/supervisor exit 0, 잔여 task probe 0 |
+| 캐시 | 호출 후 USBn 값 1개, USB1 존재; 다른 값의 갱신 범위로 확대하지 않음 |
+| 물리적 결과 | 사용자 확인: 한 장 배출, 문구 없음; 흰 라벨과 뒷종이 모두 잉크 흔적 없음 |
+
+근거는 `.work/native-load/1791430083799/evidence.json`이다. 사용자가 제공한 후속 사진에는 한 장의 흰 라벨이 배출됐고 원래 회색 RFID 모양만 보인다. 새 문구 출력 성공으로 처리하지 않는다. 원본 사진은 저장소·Issue에 복사하지 않았다. x64와 자동 재출력은 시도하지 않았다. 코드 0과 한 장 배출만으로 글꼴 지원·한글·RFID 저장 데이터 보존을 완료 처리하지 않는다. AW와 AC의 결과 차이에는 앞선 케이블 재연결도 포함되므로 글꼴만을 단독 원인으로 확정하지 않는다. 실제 값이나 원문 vendor 로그를 수집·게시하지 않는다. TASK-02 조건 3·5·6·7은 계속 열어 둔다.
+
+후속 정적 대조에서 AW는 Windows GDI로 글자를 그린 후 Q 그림 명령과 bitmap bytes로 변환된다. 이번 회전 0·정렬 인수 0 경로의 x/y는 변경하지 않고 그림 헤더로 전달하므로, 확인하지 않은 다른 회전/정렬의 좌표 보정 분기를 이번 원인으로 사용하지 않는다. 그림 픽셀의 실제 생성·프린터 수신과 현재 원점·인쇄 모드·소모품 상태는 별도 검증 대상이다. 로컬 제조사 제품 자료는 열전사와 감열 두 인쇄 방식을 명시한다. 현재 리본 장착과 본체 인쇄 방식 상태를 사용자에게 확인 요청했고, 답변 전에는 방식을 임의 변경하거나 추가 출력하지 않는다. DPI 설정·텍스트 넘침 검사·SDK 패치·raw 전송을 추가하지 않았다.

@@ -91,7 +91,7 @@ USB 전송 helper `0x66B0`은 객체 `+0x214`의 vtable `+0x0C`를 호출한다.
 
 SetPrinterPort의 USB 분기 `0xF459`는 `0x42B0`을 호출하고 이 함수의 `0x434C`은 USB 경로 탐색 `0x4580`으로 이어진다. `0x4580`은 HKLM의 usbprint 열거와 USB printer interface class를 읽고, 사용자별 `Software\BitekTechnology\AXBT003` 캐시도 갱신한다. `0x4744`–`0x477A`는 이전 USBn 값을 삭제한다. 삭제 wrapper `0x259A0`의 IAT `0x32F02C`는 원본 PE import에서 RegDeleteValueA로 대조했다. `0x4C89`/`0x4D24`는 `0x5E30`을 통해 새 USBn 값을 저장하며 `0x26B30` 계열은 RegSetValueExA를 사용한다.
 
-이것은 출력용 용지 설정을 저장하는 SetLabelSetting과 다른 연결 캐시 효과다. 현재 캐시 USB1과 USB print 열거 각각 1개, vendor VID/PID와 interface class 일치만 관측했다. 실제 경로·instance 식별자를 출력하거나 저장하지 않았다. SDK 로그 허용을 Registry 갱신 허용으로 확대하지 않는다. 추가 native 호출 전에는 현재 USB1의 SDK 삭제·재등록/갱신에 대한 정확한 허용을 받아야 하며, 캐시를 수동 수정하거나 SDK를 패치해 다른 경로로 실행하지 않는다.
+이것은 출력용 용지 설정을 저장하는 SetLabelSetting과 다른 연결 캐시 효과다. 현재 캐시 USB1과 USB print 열거 각각 1개, vendor VID/PID·interface class·활성 instance의 일치를 관측했다. 실제 경로·instance 식별자를 출력하거나 저장하지 않았다. SDK 로그 허용을 Registry 갱신 허용으로 확대하지 않는다. 이후 사용자가 TASK-02 동안 현재 USB1 캐시 갱신을 명시 허용하여 범위 확인 후 단일 AW 진단을 실행했다. 다른 USBn 값이나 장치로 허용을 확대하지 않으며 캐시 수동 수정·SDK 패치로 우회하지 않는다. 실제 실행 결과는 구현·검증 문서를 따른다.
 
 ## SDK 자체 로그의 별도 효과
 
