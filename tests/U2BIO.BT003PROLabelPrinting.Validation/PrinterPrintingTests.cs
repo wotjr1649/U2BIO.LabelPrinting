@@ -30,6 +30,7 @@ namespace U2BIO.BT003PROLabelPrinting.Validation
                 Open(p, f);
                 var ready = p.ValidateForPrint(request);
                 Check(ready.IsReady && ready.ManagedValidation.IsValid && ready.DeviceValidation.IsValid);
+                Check(ready.State == PrinterState.Connected);
                 Check(string.Join("|", f.Calls) == "Status");
                 f.Calls.Clear();
                 var result = p.Print(request.Template.ToBtpl());
@@ -42,6 +43,7 @@ namespace U2BIO.BT003PROLabelPrinting.Validation
                 var blocked = p.Print(unsupported);
                 Check(blocked.StopReason == PrintStopReason.ValidationFailed && blocked.NotAttemptedCount == 1);
                 Check(blocked.DeviceValidation.Rows[0].Issues.Any(x => x.Code == "DeviceSupportUnverified") && !f.Calls.Contains("Print"));
+                Check(p.ValidateForPrint(unsupported).State == PrinterState.Connected);
                 f.Calls.Clear();
                 var unmappable = p.Print(request.Template.WithText(0, request.Template.TextElements[0].WithPayload("\ud83d\ude00")));
                 Check(unmappable.DeviceValidation.Rows[0].Issues.Any(x => x.Code == "EncodingNotSupported") && !f.Calls.Contains("Print"));
