@@ -80,8 +80,7 @@ namespace U2BIO.BT003PROLabelPrinting
             if (json == null) throw new ArgumentNullException(nameof(json));
             CheckEnvelope(json);
             try {
-                var quotas = new XmlDictionaryReaderQuotas { MaxDepth = 4, MaxStringContentLength = int.MaxValue,
-                    MaxArrayLength = int.MaxValue, MaxBytesPerRead = 4096, MaxNameTableCharCount = int.MaxValue };
+                var quotas = new XmlDictionaryReaderQuotas { MaxDepth = 4, MaxStringContentLength = int.MaxValue };
                 using (var reader = JsonReaderWriterFactory.CreateJsonReader(new UTF8Encoding(false, true).GetBytes(json), quotas)) {
                     var document = new XmlDocument { XmlResolver = null }; document.Load(reader);
                     var root = Object(document.DocumentElement);
