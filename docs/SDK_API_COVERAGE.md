@@ -50,7 +50,7 @@
 | `StartPrintWithRfid` | `void StartPrintWithRfid(LPTSTR _strReturn)` | O / O | RFID 내부 전용; 출력에서 호출 금지 | void 출력 버퍼; 문서의 UID,결과코드. 인쇄 전용 경로 금지 |
 | `CheckPrtConnection` | `int CheckPrtConnection()` | O / O | 연결·인쇄 후보 | 1=연결, 0=닫힘; 기타 값은 미확인 상태 |
 | `CheckRFConnection` | `int CheckRFConnection()` | O / O | RFID 내부 전용; 출력에서 호출 금지 | 1=연결, 0=닫힘; 태그 감지 아님 |
-| `DeviceConnect` | `int DeviceConnect()` | O / O | 연결·인쇄 후보 | 0=정상. RFID 포트 없이 성공하는 조건은 실기 확인 |
+| `DeviceConnect` | `int DeviceConnect()` | O / O | 연결·인쇄 후보 | 문서의 정상값 0만으로 연결을 판정하지 않으며 CheckPrtConnection=1도 요구. SetRfidPort 미호출 USB 실기와 정적 근거는 구현·검증 문서 참조 |
 | `DeviceDisconnect` | `int DeviceDisconnect()` | O / O | 연결·인쇄 후보 | int 원형, 의미 있는 반환값 미정의. CheckPrtConnection으로 해제 확인 |
 | `StartLabelPrint` | 샘플: `void StartLabelPrint(ushort iCopies, StringBuilder strReturn)` / LPStr, SizeConst=100 | — / O | 인쇄 전용 후보; 실기 계약 확인 전 사용 확정 아님 | copies·응답·RFID 무기록 동작 미확인 |
 

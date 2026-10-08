@@ -290,7 +290,7 @@ USB·TCP/IP·RS-232 연결은 `SetPrinterPort()`의 인터페이스 종류와 �
 | 단계 | 호출·입력 | 확인 / 실패 시 처리 |
 | --- | --- | --- |
 | 연결 | `SetPrinterPort(ifType, port, ip)` | 0만 새 설정 성공. 새 소유권에서 1은 SdkStateConflict. 소유권 없는 포트 교체·해제 없음 |
-| 연결 | `DeviceConnect()` → `CheckPrtConnection()` | DeviceConnect=0 및 CheckPrtConnection=1 요구. RFID 포트 없는 연결 가능 조건은 실기 확인 전 보류. RFID 연결을 추가하는 우회 없음 |
+| 연결 | `DeviceConnect()` → `CheckPrtConnection()` | DeviceConnect=0 및 CheckPrtConnection=1 요구. USB "0"의 SetRfidPort 미호출 연결·해제는 x86/x64 실기로 확인. 물리적 케이블 조건은 구현·검증 문서에 기록하며 RFID 연결을 추가하는 우회 없음 |
 | 작업 준비 | 전체 관리 검사·렌더링 → 전체 장치 검사 | 두 층 모두 통과해야 시작. 한 건이라도 오류면 인쇄 호출 0회 |
 | 각 행 직전 | 중단 검사 → `CheckPrtConnection()` | 1이면 계속. 0이면 Failed/NotConnected, 기타면 Failed/StatusUnavailable. StopReason 대응은 아래 결과 표 적용 |
 | 서식 초기화 | `ResetForm()` | 파일·문자열 초기화. void이므로 성공 코드 생성 안 함. 이전 변수 데이터 초기화까지 보장한다고 가정하지 않음 |
@@ -510,7 +510,7 @@ SDK 확인은 작은 범위에서 수행하고, 확인되지 않은 응답이나
 
 관리 코드 검증에는 정상·누락 컬럼·정확한 대소문자·NULL/DBNull/빈 문자열/공백·명시적 빈 nullText·형식 오류·인코딩 오류·payload 쉼표/공백/!!·예약 문자·^V03 단독/등장 순서 변경/반복·수동 줄바꿈/빈 줄/누락 LineAdvance·복사 뒤 원본 변경·전체 건 실패·결과 순서/집계·수량 위반·RFID/unsupported 명령을 포함한다. 명령 규격 안에서 길이가 늘어도 넘침 오류·자동 축소·자르기가 없음을 확인한다.
 
-하드웨어 완료 조건은 기준 DLL 쌍의 x86/x64 ABI, USB 식별 문자열, RFID 포트 없는 연결, StartLabelPrint 전용 응답, 한 행 한 장, 한글/AW 또는 사용할 글꼴, 용지/리본/헤드 오류, timeout/취소/늦은 결과, 프로세스·앱 동시 점유, 해제 후 재연결이다. 기존 RFID 값을 변경하지 않았다는 검증은 별도 시험 도구/절차로 전후 비교하며 DLL에 RFID 읽기 API를 공개하지 않는다. TCP/IP·RS-232도 별도 실기로 상태를 표시한다. SDK를 fake 성공 처리한 결과는 이러한 실기의 대체 증거가 아니다.
+하드웨어 완료 조건은 기준 DLL 쌍의 x86/x64 ABI, USB 식별 문자열, SetRfidPort 미호출 연결과 물리적 케이블 조건, StartLabelPrint 전용 응답, 한 행 한 장, 한글/AW 또는 사용할 글꼴, 용지/리본/헤드 오류, timeout/취소/늦은 결과, 프로세스·앱 동시 점유, 해제 후 재연결이다. 기존 RFID 값을 변경하지 않았다는 검증은 별도 시험 도구/절차로 전후 비교하며 DLL에 RFID 읽기 API를 공개하지 않는다. TCP/IP·RS-232도 별도 실기로 상태를 표시한다. SDK를 fake 성공 처리한 결과는 이러한 실기의 대체 증거가 아니다.
 
 ## 8. 현재 확인 사실과 구현 전 확인 사항
 

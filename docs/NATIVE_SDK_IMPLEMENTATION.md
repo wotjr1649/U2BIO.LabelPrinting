@@ -120,6 +120,16 @@ RS-232/TCP/IP 명령은 입력 예시이며 COM3의 인쇄 포트 역할이나 �
 
 StartLabelPrint의 추가 정적 근거와 남은 버퍼·응답 경계는 [정적 분석 결과](START_LABEL_PRINT_ANALYSIS.md)에 기록한다. 실제 인쇄 호출을 실행하거나 게이트를 해제하지 않았다.
 
+2026-10-08, `49e9b86`에서 fresh verifier가 CLI·문서 검사를 통과하고 Release 실행 파일/DLL 네 개가 관리 소스 `9c62367`의 manifest와 일치함을 확인했다. `3dbbad2`에서 독립적으로 실행한 validation csproj 직접 Release/Debug × x86/x64 빌드·검증도 모두 exit 0이었다. root의 일반 verify-build는 기존 사용자 솔루션에 Release|x86 구성이 없어 MSB4126/exit 1로 실패했다. 직접 프로젝트 검사를 솔루션 검사 성공으로 표시하지 않는다. 관리 검증에서는 vendor를 실행하지 않았고 양쪽 새 연결 CLI의 SDK 없는 경로는 NativeLibraryMissing/exit 3이었다. 양쪽 `--list-ports`는 COM3을 반환했으며 포트를 열지 않았다.
+
+| 명시적 진단 Release 산출물 | SHA-256 |
+| --- | --- |
+| DLL, x86/x64 공통 | `4ea005499d7355d67e070c7d4aa9a40bd9e42e252b21f389e019c22ccbecea71` |
+| x86 validation exe | `cec1f0c5e3845826a49086b000eb44d47cb0df2f838b8d5a9e7536c5f4af26b6` |
+| x64 validation exe | `364338dced85c05a72ae7d0428a4ddbec21b3158b74a57c16446a944b5165ad4` |
+
+같은 root 진단에서 명시적으로 입력한 USB 0의 대상 mutex 점유 시 x86 ProbeSlotBusy/exit 4, supervisor exit 1이며 x64는 미시도였다. 점유를 해제한 뒤 실제 x86/x64 연결은 모두 Pre=0·SetPort=0·Connect=0·Open=1·Disconnect raw=0·Closed=0, child/supervisor exit 0이었다. task probe 프로세스 잔여 수는 0이다. 근거는 `.work/native-load/1791422038951/evidence.json`(Busy)과 `.work/native-load/1791422039454/evidence.json`(실제 연결), `.work/explicit-connection-verification/`(관리 검사)이다. TCP/IP·RS-232 및 인쇄·RFID 실기는 실행하지 않았다. 인쇄/RFID 호출 0회는 앞서 설명한 관리 call graph 범위다.
+
 ## 남은 수용 근거
 
 | TASK-02 조건 | 현재 경계 |
