@@ -92,7 +92,7 @@ process 슬롯과 SHA-256("USB:0")의 Local 대상 mutex를 worker가 취득하�
 
 supervisor도 exit 0이었다. 이는 제공 샘플의 USB 문자열 "0"을 사용한 프린터 포트 연결·해제 근거다. RFID 포트를 설정하지 않았고 관리 call graph에서 RFID·서식·인쇄 API를 호출하지 않았다. report의 printApiCalls/rfidApiCalls=0은 해당 관리 코드 경로에 대한 값이며 제조사 DllMain 내부를 계측한 값은 아니다. 용지·리본·헤드 준비, 인쇄 응답, 실제 출력 및 RFID 전후 일치는 이 결과로 증명하지 않는다. 실제 근거는 `.work/native-load/1791418473250/evidence.json`이다.
 
-사용자는 두 케이블을 함께 연결해야 COM3이 나타난다는 앞선 관찰을 정정했다. BT-003 PRO USB와 COM3은 각각 연결해도 Windows에 나타난다. Windows의 읽기 전용 조회에서도 BT-003 Pro와 FTDI USB Serial Port(COM3)의 상태 OK를 확인했지만, 케이블 하나만 연결한 조건의 SDK 연결 시험과 COM3의 통신 역할은 아직 확인하지 않았다. 위 시험에서 확인한 것은 **SetRfidPort 미호출 상태의 SDK 연결 성공**이며, RFID 케이블을 물리적으로 분리한 상태의 독립 동작을 검증한 것이 아니다. Windows 장치 표시와 SDK 연결 성공은 별도로 기록하며 COM3을 자동으로 인쇄 포트 또는 리더 포트에 배정하지 않는다.
+사용자 확인 결과, BT-003 PRO USB와 COM3은 각각 연결해도 Windows에 나타나지만 현재 장치의 프린터 연결은 케이블 하나만 연결하면 실패하고 두 케이블을 모두 연결해야 성공한다. 따라서 Windows에서 각각 표시되는 것을 단일 케이블로 프린터 연결이 가능하다는 뜻으로 해석하지 않는다. Windows의 읽기 전용 조회에서도 BT-003 Pro와 FTDI USB Serial Port(COM3)의 상태 OK를 확인했다. 단일 케이블 실패·두 케이블 성공은 사용자 확인 결과이며, 이 조건별 SDK 시험을 에이전트가 재현한 것은 아니다. 위 SDK 시험에서 확인한 것은 **SetRfidPort 미호출 상태의 연결 성공**이다. 두 케이블이 필요한 원인과 COM3의 통신 역할은 아직 확인하지 않았으므로 COM3을 자동으로 인쇄 포트 또는 리더 포트에 배정하거나 SetRfidPort 호출이 필수라고 단정하지 않는다.
 
 | 현재 Release 산출물 | SHA-256 |
 | --- | --- |
@@ -111,7 +111,7 @@ fresh verifier는 `1ea595b`에서 validation csproj를 직접 Release/Debug × x
 | 41개 내부 래핑 | 선언·offline ABI 검사와 실제 두 아키텍처 41개 바인딩 통과; 모든 native 함수 호출을 검증했다는 뜻은 아님 |
 | 아키텍처·해시·충돌·export·절대경로 로더 | metadata/negative 검사와 gdiplus 내용 검증, 실제 두 아키텍처 로딩·바인딩 통과; 장시간 모듈 수명 통합은 후속 범위 |
 | ANSI·방향·StdCall·버퍼 상한·종료 규칙 | 제공 선언 대조, buffer/문자열 실기·제조사 계약 미확인 |
-| USB 식별·RFID 포트 없는 연결·해제 | 샘플 문자열 "0", x86/x64 실제 연결·해제 통과. "USB1" 별칭은 시도하지 않음 |
+| USB 식별·SetRfidPort 미호출 연결·해제 | 샘플 문자열 "0", x86/x64 실제 연결·해제 통과. 물리적 케이블 조건은 위 사용자 확인 결과와 구분하며 "USB1" 별칭은 시도하지 않음 |
 | StartLabelPrint 전용 응답·완료 의미 | 미확인, UID/코드 parser나 void 성공으로 대체하지 않음 |
 | 한글·BTPL 글꼴·한 행 한 장·RFID 보존 | 실제 출력 전 위 계약 확보 필요, 아직 미실행 |
 | 장치·펌웨어·시험 결과 | 장치 정보·실제 시험 기록은 아직 없음 |
