@@ -30,11 +30,17 @@
   <ItemGroup>
     <Reference Include="System" />
     <Reference Include="System.Core" />
+    <Reference Include="System.Data" />
+    <Reference Include="System.Xml" />
+    <Reference Include="System.Runtime.Serialization" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="BtplModels.cs" />
     <Compile Include="BtplSyntax.cs" />
     <Compile Include="BtplFileStore.cs" />
     <Compile Include="BtplTemplate.cs" />
+    <Compile Include="BtplBindings.cs" />
+    <Compile Include="BtplPrintRequest.cs" />
+    <Compile Include="BtplProcessor.cs" />
     <Compile Include="Native\NativeApi.cs" />
     <Compile Include="Native\NativeImage.cs" />
     <Compile Include="Native\NativeSdk.cs" />

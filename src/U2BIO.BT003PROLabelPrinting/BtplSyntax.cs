@@ -9,6 +9,7 @@ namespace U2BIO.BT003PROLabelPrinting
     internal static class BtplSyntax
     {
         internal static readonly string[] Settings = { "^Q", "^W", "^S", "^H", "^G", "^P", "^C", "^R", "^E", "^D", "^O" };
+        internal static readonly Regex Variables = new Regex("\\^V[0-9]{2}", RegexOptions.CultureInvariant);
         internal static int Number(string value, int min, int max, int? line)
         {
             int number;
@@ -97,10 +98,15 @@ namespace U2BIO.BT003PROLabelPrinting
                     throw new BtplFormatException("InvalidArguments", text.Line);
             }
             CheckPayload(text.Payload, allowLines, text.Line);
-            if (text.Command.StartsWith("V", StringComparison.Ordinal) && SplitLines(text.Payload).Any(x => x.Length > 239))
+            if (text.Command.StartsWith("V", StringComparison.Ordinal) && SplitLines(text.Payload).Any(x => Variables.Replace(x, "").Length > 239))
                 throw new BtplFormatException("TextCommandLimit", text.Line);
         }
         internal static string[] SplitLines(string payload) => payload.Replace("\r\n", "\n").Replace('\r', '\n').Split('\n');
+        internal static void CheckLiteral(string payload, int? line)
+        {
+            if (payload.IndexOf('^') >= 0) throw new BtplFormatException("InvalidText", line);
+            CheckPayload(payload, true, line);
+        }
         private static void CheckPayload(string payload, bool allowLines, int? line)
         {
             for (int i = 0; i < payload.Length; i++) {

@@ -20,6 +20,8 @@
 | TASK-08 | DevExpress WinForms Tester 구현 | #7 | [#8](https://github.com/wotjr1649/U2BIO.LabelPrinting/issues/8) |
 | TASK-09 | Checkup·SmartCheckup 연동 예시 정리 | #7 | [#9](https://github.com/wotjr1649/U2BIO.LabelPrinting/issues/9) |
 
+후속 추적 이슈 [#10](https://github.com/wotjr1649/U2BIO.LabelPrinting/issues/10)을 사용자 지시에 따라 등록하고 #2의 후속 관계를 확인했다. TASK-02의 미검증 보호·결과·수명·장치 지원을 기존 #5/#6/#7의 근거와 연결하며, 별도 인쇄 엔진이나 중복 시험을 구현하는 작업이 아니다. TASK-02의 진단 완료 상태와 사용자 제외 RFID 실측 정책은 유지한다.
+
 ## 초기 실패와 후속 확인
 
 1. `gh issue create`의 GraphQL 생성 요청이 서버 오류로 실패했다.

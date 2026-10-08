@@ -19,9 +19,9 @@ namespace U2BIO.BT003PROLabelPrinting
         public string Column { get; }
         public string Message { get; }
 
-        internal ValidationIssue(string code, int? line)
+        internal ValidationIssue(string code, int? line, int? row = null, string variable = null, string column = null, ValidationSeverity severity = ValidationSeverity.Error)
         {
-            Code = code; TemplateLine = line; Severity = ValidationSeverity.Error;
+            Code = code; TemplateLine = line; Severity = severity; RowIndex = row; Variable = variable; Column = column;
             Message = "BTPL validation failed: " + code + ".";
         }
     }
@@ -99,6 +99,18 @@ namespace U2BIO.BT003PROLabelPrinting
             BtplSyntax.CheckText(result, true); return result;
         }
         internal string ToLine() => Command + "," + xLiteral + "," + yLiteral + "," + string.Join(",", Arguments) + "," + Payload;
+        internal IReadOnlyList<BtplTextElement> ExpandLines(BtplLineAdvance advance)
+        {
+            string[] lines = BtplSyntax.SplitLines(Payload);
+            if (lines.Length > 1 && (advance == null || (advance.DeltaX == 0 && advance.DeltaY == 0))) throw new BtplFormatException("MissingLineAdvance", Line);
+            var result = new List<BtplTextElement>();
+            for (int k = 0; k < lines.Length; k++) {
+                try {
+                    result.Add(k == 0 ? WithPayload(lines[k]) : WithPosition(checked(X + checked(k * advance.DeltaX)), checked(Y + checked(k * advance.DeltaY))).WithPayload(lines[k]));
+                } catch (OverflowException) { throw new BtplFormatException("CoordinateOverflow", Line); }
+            }
+            return result.AsReadOnly();
+        }
     }
 
     public sealed class BtplLineAdvance

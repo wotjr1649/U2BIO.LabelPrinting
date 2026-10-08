@@ -9,7 +9,7 @@ namespace U2BIO.BT003PROLabelPrinting
         public IReadOnlyList<BtplSetting> Settings { get; }
         public IReadOnlyList<BtplTextElement> TextElements { get; }
         private readonly BtplFileOrigin origin;
-        private BtplTemplate(IEnumerable<BtplSetting> settings, IEnumerable<BtplTextElement> texts, BtplFileOrigin source)
+        internal BtplTemplate(IEnumerable<BtplSetting> settings, IEnumerable<BtplTextElement> texts, BtplFileOrigin source)
         {
             Settings = Array.AsReadOnly(settings.ToArray()); TextElements = Array.AsReadOnly(texts.ToArray()); origin = source;
         }
@@ -61,10 +61,14 @@ namespace U2BIO.BT003PROLabelPrinting
             var missing = new[] { "^Q", "^W", "^S", "^H" }.Where(c => !settings.Any(x => x.Command == c)).Select(c => new ValidationIssue("MissingSetting", null)).ToArray();
             if (missing.Length != 0) throw new BtplFormatException(missing);
         }
-        public string ToBtpl()
+        internal void CheckSettings()
         {
             CheckRequired(Settings);
             foreach (var setting in Settings) BtplSyntax.CheckSetting(setting);
+        }
+        public string ToBtpl()
+        {
+            CheckSettings();
             foreach (var text in TextElements) {
                 if (text.Payload.IndexOfAny(new[] { '\r', '\n' }) >= 0) throw new BtplFormatException("UnexpandedTextLines", text.Line);
                 BtplSyntax.CheckText(text, false);
@@ -125,15 +129,9 @@ namespace U2BIO.BT003PROLabelPrinting
             if (options.LineAdvances.Keys.Any(x => x >= TextElements.Count)) throw new ArgumentOutOfRangeException(nameof(renderOptions));
             var output = new List<BtplTextElement>(); var remapped = new BtplRenderOptions();
             for (int i = 0; i < TextElements.Count; i++) {
-                var text = TextElements[i]; string[] lines = BtplSyntax.SplitLines(text.Payload);
+                var text = TextElements[i];
                 BtplLineAdvance advance; bool hasAdvance = options.LineAdvances.TryGetValue(i, out advance);
-                if (lines.Length > 1 && (!hasAdvance || (advance.DeltaX == 0 && advance.DeltaY == 0)))
-                    throw new BtplFormatException("MissingLineAdvance", text.Line);
-                for (int k = 0; k < lines.Length; k++) {
-                    BtplTextElement element;
-                    try {
-                        element = k == 0 ? text.WithPayload(lines[k]) : text.WithPosition(checked(text.X + checked(k * advance.DeltaX)), checked(text.Y + checked(k * advance.DeltaY))).WithPayload(lines[k]);
-                    } catch (OverflowException) { throw new BtplFormatException("CoordinateOverflow", text.Line); }
+                foreach (var element in text.ExpandLines(advance)) {
                     if (hasAdvance) remapped = remapped.WithLineAdvance(output.Count, advance);
                     output.Add(element);
                 }

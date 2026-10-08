@@ -192,7 +192,7 @@ Task<BatchPrintResult> Bt003Printer.PrintAsync(BtplPrintRequest request,
 
 `BtplProcessor.Validate/Render`는 순수 관리 처리이며 제조사 DLL 로드·장치 연결을 하지 않는다. 관리 검사 대상은 구조, 허용 명령, 위치·중복, 인수 문법, 바인딩·빈 값·format, 예약 문자·명령 자체 상한, 수동 줄 배치다. 장치 지원 미확인을 이 단계의 데이터 오류로 넣지 않는다.
 
-`Render`의 `CanPreview`는 해석·바인딩 가능한 텍스트 요소가 한 개 이상 있음을 뜻한다. 실패한 요소는 값·좌표를 추측하지 않고 오류 목록에 표시한다. 다른 요소 오류 또는 unsupported 명령이 있으면 `IsPartialPreview=true`로 표시하며 화면에 불완전 미리보기임을 알린다. 이때 `BtplText=null`이다. 구조가 파싱 불가능하면 Load/Parse 단계에서 예외로 중단한다. AW는 원형으로 해석할 수 있으므로 관리 인수가 정상이라면 참고 앵커·문구 미리보기가 가능하다. 의미 미확정 글꼴 인수는 원문을 유지한다.
+`Render`의 `CanPreview`는 해석·바인딩 가능한 텍스트 요소가 한 개 이상 있음을 뜻한다. 실패한 요소는 값·좌표를 추측하지 않고 오류 목록에 표시한다. 다른 요소의 바인딩·문법·줄 배치 오류가 있으면 `IsPartialPreview=true`로 표시하며 화면에 불완전 미리보기임을 알린다. 이때 `BtplText=null`이다. 구조가 파싱 불가능하거나 금지/미지원 원문 명령이 있으면 Load/Parse 단계에서 예외로 중단하며 원문 보기는 호출자가 보관한 입력으로 제공한다. AW는 원형으로 해석할 수 있으므로 관리 인수가 정상이라면 참고 앵커·문구 미리보기가 가능하다. 의미 미확정 글꼴 인수는 원문을 유지한다.
 
 `ValidateForPrint`는 작업 점유를 얻은 뒤 전체 관리 검사 → 전체 장치 검사를 수행한다. 장치 검사는 실제 ANSI 변환, 기준 배포/ABI, 배포 버전에서 검증한 명령·글꼴 조합, `CheckPrtConnection`이다. 장치 지원 미확인은 `DeviceSupportUnverified`로 차단한다. 해당 장치에 글꼴이 설치되었다는 자동 조회나 모든 글리프 검증을 했다고 주장하지 않는다. 관리 오류면 장치 검사를 하지 않고, 장치 오류면 모든 행의 출력이 차단된다.
 
@@ -204,7 +204,7 @@ Task<BatchPrintResult> Bt003Printer.PrintAsync(BtplPrintRequest request,
 
 Busy·사전 취소·Disposed·NotConnected 등으로 검사 전에 종료한 결과는 `Validation=null`이다. 관리 검사를 완료했으면 관리 결과는 보존하고, 장치 검사를 시작하지 않았거나 완료하지 못했다면 `DeviceValidation=null`이다. 일부 native 포트 확인이 pending이라면 완료된 것으로 표시하지 않는다. 중도 취소로 batch 검사가 null이어도 개별적으로 완료한 행 검사는 RowPrintResult에 보존한다. IsValid=false는 검사 실행 후 오류가 발견된 경우만 사용한다. 0행은 순수 Validate 또는 연결된 Print의 관리 검사에서 `NoData` CommonIssues와 빈 Rows를 반환한다. 진입 단계에서 Busy/Cancelled/NotConnected로 먼저 종료하면 그 사유와 빈 Rows를 반환한다.
 
-`BtplTemplate.TextElements`/`Settings`는 읽기 전용이다. `BtplTextElement`는 명령명·X/Y·명령별 글꼴 인수·Text, `BtplSetting`은 명령명·해당 인수다. With/Add/Remove는 새 템플릿을 반환한다. 업무별 요소 모델이나 별도 JSON 레이아웃을 만들지 않는다. 아직 지원하지 않는 원문 명령은 읽기·원문 표시 단계에서 보존하고, Validate에서 UnsupportedCommand로 차단한다. 편집 API는 지원 명령만 만들 수 있으며 저장은 같은 파서로 재검사한 BTPL을 strict encoding·BOM 없는 CRLF로 기록한다. 기존 파일 덮어쓰기는 테스트 UI가 명시적 저장 동작으로 수행한다.
+`BtplTemplate.TextElements`/`Settings`는 읽기 전용이다. `BtplTextElement`는 명령명·X/Y·명령별 글꼴 인수·Payload, `BtplSetting`은 명령명·해당 인수다. With/Add/Remove는 새 템플릿을 반환한다. 업무별 요소 모델이나 별도 JSON 레이아웃을 만들지 않는다. 아직 지원하지 않는 원문 명령은 Parse에서 UnsupportedCommand로 반환하고 원문 표시 단계에서 호출자가 보존한다. 편집 API는 지원 명령만 만들 수 있으며 저장은 같은 파서로 재검사한 BTPL을 strict encoding·BOM 없는 CRLF로 기록한다. 기존 파일 덮어쓰기는 테스트 UI가 명시적 저장 동작으로 수행한다.
 
 ### 연결 옵션과 수명
 
