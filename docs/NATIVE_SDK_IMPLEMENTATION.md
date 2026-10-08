@@ -385,3 +385,7 @@ fresh verifier의 Release/Debug × x86/x64 빌드·관리 검증과 두 CLI 회�
 2026-10-08 14:30:37 KST, 7702cb5에서 관리 핀5c44e12로 USB0·x86·blackmark60x20direct를 한 번 실행했다. 실행 전 현재 USB1 캐시만 존재하며 USB print 1개와 활성 instance 일치, USB/COM3 정상 열거, task probe0, SDK 로그 대상 링크 부재, 네 Release 핀 일치를 확인했다. 기존 USB1 갱신·SDK 로그 허용 범위에서 수행했다.
 
 DIRECT_LABEL 상태 Returned, pre0/setport0/connect0/open1/disconnect0/closed0/send0/invoked1, completion=unknown, printApiCalls0, rfidApiCalls0이었다. child/supervisor exit0, 잔여 task probe0이며 근거는 `.work/native-load/1791437437846/evidence.json`이다. 사용자 AC 서식의 Q/W/G/E7/S5/H19/P1/C1/L·AC80,120,1,1,0,0,U2BIO TEST2·E를 CRLF로 원문 전달했다. 실제 문구·배출·장수는 사용자에게 확인 요청했으며 답변 대기다. SendData0을 실제 전송/인쇄 완료로 판정하지 않는다. 추가 이송·자동 재출력·x64·RFID 함수는 실행하지 않았다.
+
+## 후속 방향: AW 기준
+
+사용자는 속도·농도의 영향이 크지 않았으며 AW를 사용할 것으로 확정했다. 현재 blackmark60x20 진단은 이미 제공된 AW 서식과 인수를 그대로 사용하는 상태다. 이후 기준은 이 AW 선택이며 AC 직접전송의 결과를 제품 인쇄 성공·AW 지원의 근거로 대체하지 않는다. 기존 AC 비교 코드와 이력은 보존하되 추가 AC 시험을 진행하지 않는다. SDK의 AW 처리와 정지·배출 경로를 우선 분석한다. 이번 방향 확정은 문서 변경만이며 새 빌드·장치 호출·출력은 수행하지 않았다.
