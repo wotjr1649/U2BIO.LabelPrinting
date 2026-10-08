@@ -103,7 +103,7 @@
 - [ ] USB 우선 연결과 TCP/IP·RS-232의 공개 연결 옵션·API 및 내부 SDK 경로를 구현한다. 미검증 transport를 실기 성공으로 표시하지 않는다.
 - [ ] 연결 상태·프로세스 SDK 점유·대상 장치 mutex와 소유권을 구현하고 Busy 요청을 대기열 없이 거절한다.
 - [ ] ValidateForPrint는 관리 검사 뒤 장치 검사를 수행하고 ResetForm·서식 등록·인쇄를 호출하지 않는다. Port Open을 용지·리본·헤드 준비로 해석하지 않는다.
-- [ ] 미검증 ABI·글꼴·명령 조합은 PrintContractUnverified 또는 DeviceSupportUnverified로 차단한다. TASK-02의 진단 지원 범위를 제품 흐름에 통합하고 native 초과 쓰기·종료·timeout의 호출자 보호를 검증한 뒤 해당 게이트를 해제한다.
+- [ ] 미검증 ABI·글꼴·명령 조합은 PrintContractUnverified 또는 DeviceSupportUnverified로 차단한다. TASK-02의 진단 지원 범위를 제품 흐름에 통합하고 native 초과 쓰기·종료·timeout의 오류 주입과 호출자 보호를 검증한 뒤 해당 게이트를 해제한다.
 - [ ] Print는 매번 사전검사를 하고 ResetForm→서식 등록→StartLabelPrint→전용 응답 판정 순서로 진행한다. RFID 함수는 호출하지 않는다.
 - [ ] 실행 단계·PrintInvoked·함수별 raw 코드·정리 결과를 반환하고 연결 실패/부분 연결/해제 미확인/Dispose 뒤 상태를 계약대로 처리한다.
 - [ ] C01/C05/C14/C15/C16 및 USB 단건 정상·오류를 검증하고 TCP/IP·RS-232의 API 검사와 실기 여부를 각각 기록한다.
