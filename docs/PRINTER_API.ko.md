@@ -44,6 +44,8 @@ foreach (var row in result.Rows)
 
 진입 순서는 Disposed/null 계약 확인 → Busy → 사전 취소 → 연결 확인이다. 검사 전 종료하면 batch/row 검사는 null이다. 관리 검사 도중 취소하면 batch `Validation=null`이고 이미 완료한 행의 `Validation`만 보존한다. 관리 검사를 완료했다면 장치 검사 도중 중단돼도 관리 결과를 보존하며 미완료 `DeviceValidation`은 null이다.
 
+같은 프로세스의 다른 `Bt003Printer`가 SDK 슬롯을 소유하면 Print/ValidateForPrint/Disconnect도 `Busy`다. 장치 preflight에서 확인된 포트 오류는 취소/Dispose보다 우선하며 완료된 장치 검사와 NativeCode를 보존한다.
+
 취소는 현재 native 호출을 강제로 중단하지 않는다. 인쇄 호출 중 취소/Dispose 뒤 정상 응답이 돌아오면 현재 행은 `Succeeded`, 다음 행부터 미시도다. 확인된 실패/불명/timeout이 취소보다 우선한다. 마지막 행까지 완료했다면 뒤늦은 취소로 `StopReason=None`을 바꾸지 않는다. 정상 취소 후 정리가 성공하면 연결을 유지한다.
 
 ## 연결
@@ -60,6 +62,8 @@ foreach (var row in result.Rows)
 동일 객체의 다른 옵션으로 연결을 교체하면 `AlreadyConnected`다. 다른 소유자 또는 진행 중 작업은 `Busy`이며 대기열을 만들지 않는다. abandoned mutex 취득 후에는 설정·연결 전에 native 상태를 재확인한다. `SetPrinterPort=1` 또는 기존 Open 충돌에서는 다른 연결의 `DeviceDisconnect`를 호출하지 않는다.
 
 기본 managed 대기 제한은 각 native 호출당 30초이며 `Bt003Printer(TimeSpan)`으로 1ms~Int32.MaxValue ms 안에서 설정한다. SDK의 통신 timeout 설정이나 실제 장치 중단이 아니다. timeout 결과의 `NativeCallPending`은 불변이며 늦은 정리 상태는 `GetConnectionStatus`에서 확인한다. Dispose 후에는 상태 조회만 허용한다.
+
+실제 native가 아직 진행 중일 때 timeout을 확정하면 `NativeCallPending=true`다. native가 이미 반환한 뒤 제한 초과를 판정하면 false이며, 늦은 정상 응답으로 Unknown을 Succeeded로 바꾸지 않는다.
 
 ## 사전검사와 현재 지원 프로필
 
@@ -93,3 +97,5 @@ SDK 모듈은 프로세스 수명 동안 유지한다. mutex는 취득한 worker
 Release/Debug × x86/x64에서 기존 관리 검사와 synthetic 연결/충돌/부분 실패/abandoned/Dispose 경합·late loader, 출력 없는 preflight·단건 호출 순서·긴 두 줄 문구·오류/불명 응답·late 등록/인쇄 및 C02~C13/C16 일괄 계약을 검증한다. 정상 검증은 `nativeSDK=not-loaded`이며 실제 장치 성공 증거로 사용하지 않는다. TASK-06에는 관리 검사 중 취소와 등록 중 취소의 추가 검사가 포함된다.
 
 TASK-05의 새로운 실제 USB 정상/오류 검증과 TASK-07의 제품 실기는 미실행이다. 자동 배출/원점 복귀, 다른 SDK·환경·글꼴/transport·native 장애 경계는 TASK-07 및 후속 #10에서 추적한다. TASK-02의 M15/B15 진단을 자동 제품 기능으로 선언하지 않는다. 배포는 [SDK 배포 가이드](SDK_DEPLOYMENT.ko.md)를 따른다.
+
+TASK-06의 구현 커밋·실행 명령·조건별 결과·산출물 식별은 [일괄 API 검증 기록](BATCH_PRINTING_EVIDENCE.md)에 있다.

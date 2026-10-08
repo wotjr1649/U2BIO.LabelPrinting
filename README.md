@@ -46,6 +46,6 @@ TASK-04는 `BtplBindings`, `BtplPrintRequest`, `BtplProcessor`로 JSON 매핑·D
 
 RFID 읽기·쓰기·잠금·보안 설정은 공개하지 않습니다. 텍스트 넘침 검사와 별도 DPI 설정도 제공하지 않습니다.
 
-`JODAL_WEBFORM_5.txt`의 `~HE0,0`은 RFID 안테나 설정으로 확인되어 인쇄 전용 서식에서는 제외합니다. 원본은 보존하며 지원하지 않는 명령을 자동 삭제하지 않습니다. TASK-02에서 고정 SDK의 x86/x64 USB 연결·해제, AW size10/weight1·ANSI949 한글·한 장 출력과 전용 응답을 확인했습니다. 응답0은 SDK 정상 응답이며 배출 완료와 구분합니다. 정상42-byte/NUL 분석 상한과 격리 진단의 제한은 [검증 상태](docs/NATIVE_SDK_IMPLEMENTATION.md)를 따릅니다. TASK-05의 공개 동기 wrapper는 이 확인 범위의 검사·응답·수명 경로를 합성 SDK로 검증했습니다. 다른 글꼴 조합·인쇄 transport는 차단하고 raw/RFID delegate를 공개하지 않습니다. 새 제품 실기와 TASK-06 통합은 미완료이며 별도 NativeHost/native 장애 격리 보장은1차에 추가하지 않습니다. RFID 저장값 실측은 사용자 확정으로 제외했고 다른 SDK/환경·용지·펌웨어·모든 장비 오류를 검증 완료로 표시하지 않습니다.
+`JODAL_WEBFORM_5.txt`의 `~HE0,0`은 RFID 안테나 설정으로 확인되어 인쇄 전용 서식에서는 제외합니다. 원본은 보존하며 지원하지 않는 명령을 자동 삭제하지 않습니다. TASK-02에서 고정 SDK의 x86/x64 USB 연결·해제, AW size10/weight1·ANSI949 한글·한 장 출력과 전용 응답을 확인했습니다. 응답0은 SDK 정상 응답이며 배출 완료와 구분합니다. 정상42-byte/NUL 분석 상한과 격리 진단의 제한은 [검증 상태](docs/NATIVE_SDK_IMPLEMENTATION.md)를 따릅니다. TASK-05의 공개 동기 wrapper는 이 확인 범위의 검사·응답·수명 경로를 합성 SDK로 검증했습니다. 다른 글꼴 조합·인쇄 transport는 차단하고 raw/RFID delegate를 공개하지 않습니다. TASK-06 관리/synthetic 통합은 완료했으며 새 제품 실기는 미완료다. 별도 NativeHost/native 장애 격리 보장은1차에 추가하지 않습니다. RFID 저장값 실측은 사용자 확정으로 제외했고 다른 SDK/환경·용지·펌웨어·모든 장비 오류를 검증 완료로 표시하지 않습니다.
 
 SDK 원본은 상위 작업 폴더의 `BT-003 pro SDK`를 참고합니다. 기존 `docs`의 제조사 문서는 보존합니다. 실행에 필요한 제조사 DLL 사본 네 개를 저장소에 준비했으며 원본 SDK 전체·샘플 로그는 배포하지 않습니다. 원격 push와 제조사 DLL의 외부 업로드는 수행하지 않았습니다.
