@@ -60,6 +60,7 @@ namespace U2BIO.BT003PROLabelPrinting.Validation
         { return RunWithNonce(library, ""); }
         internal static int RunWithNonce(Assembly library, string nonce, string transport = null, string port = null, string ip = "", string labelForm = null, bool directSend = false)
         {
+            library = typeof(NativeLoadProbe).Assembly;
             bool label = labelForm != null;
             string suffix = nonce.Length == 0 ? "" : "|nonce=" + nonce;
             if (label && transport != "usb") { Console.WriteLine("NATIVE_LOAD|status=Failed|code=InvalidConnectionOptions" + suffix); return 2; }

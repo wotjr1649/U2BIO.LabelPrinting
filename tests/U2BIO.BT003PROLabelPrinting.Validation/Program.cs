@@ -90,6 +90,7 @@ namespace U2BIO.BT003PROLabelPrinting.Validation
                 WrapperMvpTests.Run();
                 PrinterPresentationTests.Run();
                 NativeTests.Run(library);
+                WrapperAdoptionTests.Run();
 
                 PortableExecutableKinds libraryKind;
                 ImageFileMachine libraryMachine;

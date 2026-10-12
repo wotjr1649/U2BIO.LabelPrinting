@@ -1,6 +1,6 @@
 # 제조사 SDK 런타임
 
-이 폴더는 공통 모듈의 빌드·배포에 필요한 제조사 DLL 원본 사본을 보관한다. `Interop/`의 C# Wrapper 연결·지원 코드와 구분하며, 제조사 DLL을 .NET 참조로 추가하거나 수정하지 않는다.
+이 폴더는 공통 모듈의 빌드·배포에 필요한 제조사 DLL 원본 사본을 보관한다. `Interop/BT003CtrlWrapper.cs`는 HFSample_UL의 원본 선언이며 namespace와39개 API·마샬링을 보존한다. 자체 정책은 이 파일에 넣지 않는다. 제조사 DLL을 .NET 참조로 추가하거나 수정하지 않는다.
 
 | 폴더 | 파일 | 용도 |
 | --- | --- | --- |
@@ -14,3 +14,5 @@
 Visual Studio 프로젝트에 네 DLL을 표시하되 기본 빌드에는 복사하지 않는다. 실제 앱 배포를 준비할 때 `Bt003NativePlatform=x86` 또는 `x64`를 지정하면 해당 두 파일만 관리 DLL과 같은 출력 폴더에 복사한다. 관리 DLL 자체는 AnyCPU다. [빌드·배포 방법](../../../docs/SDK_DEPLOYMENT.ko.md)을 따른다.
 
 사본 준비는 제품 연결·인쇄 API 구현 완료나 실기 지원 확대를 뜻하지 않는다. SDK 로드는 연결 시점으로 지연하고, 오프라인 템플릿 편집·검사는 SDK 없이 동작한다. 임의 버전 교체·다른 해시의 파일 혼합은 지원하지 않는다.
+
+SdkRuntime은 고정 파일·경로·모듈을 확인한다. 제품의 일반 PE 파서와41개 delegate 카탈로그는 Validation/LegacySdk로 옮겼다. PrintResponse는 기존 출력 보호를 유지하며 StartLabelPrint는 아직 포인터 bridge를 쓴다. 원본 StringBuilder 선언 채택과 제품 출력 처리 전환 완료는 구분한다.

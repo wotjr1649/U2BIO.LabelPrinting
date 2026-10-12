@@ -37,11 +37,11 @@ namespace U2BIO.BT003PROLabelPrinting
         {
             if (path == null) throw new ArgumentNullException(nameof(path));
             string absolute = Path.GetFullPath(path);
-            IDisposable lease = NativeSdk.LeaseDirectoryTree(Path.GetDirectoryName(absolute));
+            IDisposable lease = SdkRuntime.LeaseDirectoryTree(Path.GetDirectoryName(absolute));
             FileStream stream = null;
             try {
                 stream = new FileStream(absolute, FileMode.Open, FileAccess.Read, FileShare.Read);
-                if (!string.Equals(NativeSdk.FinalFilePath(stream.SafeFileHandle), absolute, StringComparison.OrdinalIgnoreCase))
+                if (!string.Equals(SdkRuntime.FinalFilePath(stream.SafeFileHandle), absolute, StringComparison.OrdinalIgnoreCase))
                     throw new IOException("Print form path changed.");
                 BtplFileOrigin unused;
                 string form = BtplFileStore.Read(absolute, 949, out unused, 4 * 1024 * 1024, "TemplateTooLarge");

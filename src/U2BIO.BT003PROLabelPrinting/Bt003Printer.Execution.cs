@@ -1,3 +1,4 @@
+using VendorWrapper = HFSample.BT003CtrlWrapper;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -653,4 +654,42 @@ namespace U2BIO.BT003PROLabelPrinting
             }
         }
     }
+}
+
+
+namespace U2BIO.BT003PROLabelPrinting.Native
+{
+    internal sealed class PrinterSdkCalls
+    {
+        internal readonly Action Load;
+        internal readonly Func<ushort, string, string, int> SetPort;
+        internal readonly Func<int> Connect, Status, Disconnect;
+        internal readonly Action Reset;
+        internal readonly Func<string, int> Form;
+        internal readonly Action<ushort, IntPtr> Print;
+        internal readonly Func<int, bool, int> Move;
+        internal Func<string, int> FileForm = value => { throw new NativeSdkException("SdkFunctionNotAvailable"); };
+        internal Func<string, int> Variables = value => { throw new NativeSdkException("SdkFunctionNotAvailable"); };
+        internal Func<ushort, ushort, int> Options = (speed, darkness) => { throw new NativeSdkException("SdkFunctionNotAvailable"); };
+
+        internal PrinterSdkCalls(Action load, Func<ushort, string, string, int> setPort, Func<int> connect,
+            Func<int> status, Func<int> disconnect, Action reset, Func<string, int> form, Action<ushort, IntPtr> print, Func<int, bool, int> move)
+        { Load = load; SetPort = setPort; Connect = connect; Status = status; Disconnect = disconnect; Reset = reset; Form = form; Print = print; Move = move; }
+
+        private static int MovePaper(int millimeters, bool forward)
+        {
+            if (millimeters < 1 || millimeters > 1000) throw new ArgumentOutOfRangeException(nameof(millimeters));
+            return VendorWrapper.SendData((forward ? "^M" : "^B") + millimeters.ToString(System.Globalization.CultureInfo.InvariantCulture) + "\r\n");
+        }
+
+        internal static PrinterSdkCalls Create() => new PrinterSdkCalls(SdkRuntime.LoadForConnection,
+            VendorWrapper.SetPrinterPort, VendorWrapper.DeviceConnect, VendorWrapper.CheckPrtConnection,
+            VendorWrapper.DeviceDisconnect, VendorWrapper.ResetForm, VendorWrapper.SetPrintFormString,
+            SdkRuntime.StartLabelPrint, MovePaper) {
+                FileForm = VendorWrapper.SetPrintFormFile,
+                Variables = VendorWrapper.SetPrintFormVariableData,
+                Options = VendorWrapper.SetPrintingOption
+            };
+    }
+
 }

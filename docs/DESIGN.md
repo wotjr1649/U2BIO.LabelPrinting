@@ -1,6 +1,6 @@
 # 제조사 Wrapper 기반 USB 인쇄 MVP 설계
 
-현재 기준: 이슈 #15. 기능 명세는 **NFC_BT003-M01-04_Programming_Manual_v1.3.md**만 사용한다. 제공 C# Wrapper의 API 원형을 연결 코드로 사용하고 제조사 SDK 기능을 재구현하지 않는다. 구현 전 설계·인수 기록은 [기존 설계](history/DESIGN_before_wrapper_mvp.md)에 보존한다. 기준 태그 v0.1.1-design은 변경하지 않는다.
+현재 기준: 이슈 #15. 기능 명세는 **NFC_BT003-M01-04_Programming_Manual_v1.3.md**만 사용한다. 제공 HFSample_UL의 BT003CtrlWrapper.cs 원본 선언을 채택하고 제조사 SDK 기능을 재구현하지 않는다. 변환본의 선언 불일치는 원본 .cs로 대조한다. 이전 설계·인수 기록은 [기존 설계](history/DESIGN_before_wrapper_mvp.md)에 보존한다. 기준 태그 v0.1.1-design은 변경하지 않는다.
 
 ## 1. 목적과 범위
 
@@ -16,11 +16,14 @@
 | Bt003Printer.Execution.cs | 기존 worker·연결 소유권·인쇄·배출·정리 |
 | PrinterModels.cs | 옵션·상태·결과 타입 |
 | PrintInput.cs | SDK 파일/문자열 입력, 변수 슬롯, 파일 읽기 보호 |
-| Sdk/Interop/BT003CtrlWrapper.cs | 제조사 API 단일 진입점과 기존 내부 선언·검사 주입점 |
-| Sdk/Interop의 지원 파일 | 기존 SDK 로드·DLL 형식·응답 검증 재사용 |
+| Sdk/Interop/BT003CtrlWrapper.cs | 제조사 원본의 HFSample namespace·39개 DllImport 선언 |
+| Sdk/Interop/SdkRuntime.cs | 고정 SDK 배포·경로·모듈 확인 및 보류 중인 인쇄 출력 bridge |
+| Sdk/Interop/PrintResponse.cs | 기존 응답 문법·출력 포인터 보호; 결과 분류는 Execution |
 | Templates/ | 기존 편집·TXT/JSON/XML·DataTable 바인딩의 선택 기능 |
 
-기존 Native 소스 디렉터리는 없애고 지원 코드를 Sdk/Interop으로 배치한다. Interop의 기존 보호 분류를 유지한다. 내부 Native namespace와 선언 카탈로그는 기존 진단 호환성을 위해 유지하며 공개 API가 아니다. 제조사 샘플의 단순 DllImport 재검색 및 StringBuilder 출력 버퍼로 기존 검증을 대체하지 않는다. Wrapper의 기능 구현은 제조사 DLL이고, 우리 연결부는 확인한 module handle과 기존 출력 포인터를 사용한다. 제조사 파일은 수정하지 않는다.
+Wrapper 파일에는 자체 delegate·연결 옵션·테스트 연결점을 섞지 않는다. PrinterSdkCalls는 Execution에, 연결 인수는 PrinterModels에 둔다. 제품의41개 delegate 카탈로그·일반 PE 파서·Probe 흐름은 제거하고 기존 진단은 Validation/LegacySdk로 옮긴다. 기존 진단은 역사 경로 검사이며 새 제품 P/Invoke 연결 성공의 증거가 아니다. Interop 보호 분류와 제조사 원본은 유지한다.
+
+연결·서식·변수·옵션·제한된 SendData는 원본 Wrapper를 직접 호출한다. StartLabelPrint만 기존 출력 포인터 bridge를 사용한다. 원본의 StringBuilder 선언은 변경하지 않고 이 제품 경로에서는 아직 사용하지 않는다. SizeConst=100과 정상 경로42-byte 기록만으로 접근 금지 페이지와 메모리 지우기를 대체할 근거가 없어 이 전환은 보류한다. 완전한 sample-only 전환 완료로 표시하지 않는다.
 
 ## 3. 공개 API와 제조사 API
 
@@ -49,7 +52,7 @@ SetPrintingOption의 농도는1~19, 속도는 양의 ushort이며 실제 모델 
 
 ## 5. 배출과 결과
 
-이전 전진이 있으면 검사 성공 뒤 B 명령으로 복귀하고, 전체 정상 응답 뒤 설정 거리만큼 M 명령을 한 번 보낸다. SendData의 임의 공개 API는 제공하지 않는다. 배출 거리는 호출자가 지정하며15mm를 공통 기본값으로 고정하지 않는다. ^E는 정지 위치 설정이고 ^M은 명시 전진이므로 ^E15를 단독 SendData로 보내는 효과를 배출 성공으로 가정하지 않는다. 원문 전체 SendData 인쇄로 전환하지 않는다.
+이전 전진이 있으면 검사 성공 뒤 B 명령으로 복귀하고, 전체 정상 응답 뒤 설정 거리만큼 M 명령을 한 번 보낸다. 이동 문자열은 우리 실행 코드에서 구성하여 제조사 SendData(string)를 호출한다. SendData의 임의 공개 API는 제공하지 않는다. 배출 거리는 호출자가 지정하며15mm를 공통 기본값으로 고정하지 않는다. ^E는 정지 위치 설정이고 ^M은 명시 전진이므로 ^E15를 단독 SendData로 보내는 효과를 배출 성공으로 가정하지 않는다. 원문 전체 SendData 인쇄로 전환하지 않는다.
 
 기존 Succeeded/Failed/Unknown/NotAttempted, 인쇄 진입 여부, raw 숫자 코드, cleanup/pending, 배출·복귀 상태와 불명 위치 차단을 보존한다. 자동 재출력·대기열을 추가하지 않는다. BTPL·실제 문구·UID를 우리 진단에 기록하지 않는다.
 
@@ -58,6 +61,8 @@ SetPrintingOption의 농도는1~19, 속도는 양의 ushort이며 실제 모델 
 참조 DLL은 U2BIO.BT003PROLabelPrinting 하나이며 실행 폴더에는 BlackfishNfcLib.dll과 HFModule.dll을 함께 둔다. 실행 프로세스와 제조사 DLL의 x86/x64를 맞춘다. Bt003NativePlatform을 지정한 빌드가 해당 두 파일을 복사한다. 제조사 DLL을 내장·추출하는 단일 파일 배포 코드는 만들지 않는다.
 
 변경한 공개 흐름과 필수 검사를 한 번 수행한다. 대표 검사는 USB 인수·파일/문자열 전환·변수 원문 전달·옵션 적용·등록 실패 중단·파일 보호·기존 호출 호환성이다. 반복적인 전체 재시험·추가 오류 주입은 하지 않는다. 실제 SDK·장치·인쇄·배출은 이번 작업에서 실행하지 않는다.
+
+SdkRuntime은 부모·파일 lease, 아키텍처·고정 SHA-256, 명시 경로 로드, 기존/후속 모듈 충돌 검사와 부분 실패 기억을 유지한다. 고정 해시가 이전에 검사한 imports/exports/형식까지 식별하므로 제품에서는 일반 PE 파싱을 반복하지 않는다. 원본 선언을 위한 assembly 검색 범위는 ApplicationDirectory와 System32로 제한하며 전역 PATH/로더 설정은 바꾸지 않는다. 같은 이름의 확인된 모듈을 preload한 뒤 사용하는 설계다. [Windows DLL 검색 규칙](https://learn.microsoft.com/en-us/windows/win32/dlls/dynamic-link-library-search-order)을 대조했으며 실제 .NET Framework4.6.1 x86/x64 P/Invoke 연결은 미실행이다.
 
 ## 7. 기존 인수 식별자 보존
 

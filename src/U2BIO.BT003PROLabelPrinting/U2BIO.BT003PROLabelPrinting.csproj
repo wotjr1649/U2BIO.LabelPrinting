@@ -48,9 +48,8 @@
     <Compile Include="Sdk\Interop\BT003CtrlWrapper.cs" />
     <Compile Include="Bt003Printer.cs" />
     <Compile Include="Bt003Printer.Execution.cs" />
-    <Compile Include="Sdk\Interop\NativeImage.cs" />
-    <Compile Include="Sdk\Interop\NativeSdk.cs" />
-    <Compile Include="Sdk\Interop\NativeLabelResponse.cs" />
+    <Compile Include="Sdk\Interop\SdkRuntime.cs" />
+    <Compile Include="Sdk\Interop\PrintResponse.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="Sdk\README.ko.md" />

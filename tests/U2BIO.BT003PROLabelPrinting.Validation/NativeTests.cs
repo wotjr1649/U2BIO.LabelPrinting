@@ -49,8 +49,10 @@ namespace U2BIO.BT003PROLabelPrinting.Validation
 
         internal static void Run(Assembly library)
         {
+            Assembly product = library;
+            library = typeof(NativeTests).Assembly;
             ConnectionTests.Run(library);
-            LabelResponseTests.Run(library);
+            LabelResponseTests.Run(product);
             LabelPrintTests.Run(library);
             Type probe = typeof(NativeTests).Assembly.GetType("U2BIO.BT003PROLabelPrinting.Validation.NativeLoadProbe", true);
             Type job = typeof(NativeTests).Assembly.GetType("U2BIO.BT003PROLabelPrinting.Validation.NativeLoadProbe+JobLimits", true);
@@ -215,6 +217,7 @@ namespace U2BIO.BT003PROLabelPrinting.Validation
 
         internal static void InspectSdk(Assembly library, string root)
         {
+            library = typeof(NativeTests).Assembly;
             Type sdk = Required(library, "NativeSdk");
             foreach (string platform in new[] { "x86", "x64" })
                 Check((int)Invoke(sdk, "InspectPair", Path.Combine(root, platform, "lib"), platform == "x64") == 41);

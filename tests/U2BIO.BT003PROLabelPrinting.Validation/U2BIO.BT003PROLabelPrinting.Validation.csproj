@@ -37,10 +37,16 @@
     <Compile Include="BindingTests.cs" />
     <Compile Include="PrinterTests.cs" />
     <Compile Include="WrapperMvpTests.cs" />
+    <Compile Include="WrapperAdoptionTests.cs" />
     <Compile Include="PrinterPresentationTests.cs" />
     <Compile Include="PrinterConnectionTests.cs" />
     <Compile Include="PrinterPrintingTests.cs" />
     <Compile Include="PrinterBatchTests.cs" />
+    <Compile Include="LegacySdk\NativeApi.cs" />
+    <Compile Include="LegacySdk\NativeSdk.cs" />
+    <Compile Include="LegacySdk\NativeConnectionOptions.cs" />
+    <Compile Include="LegacySdk\NativeImage.cs" />
+    <Compile Include="..\..\src\U2BIO.BT003PROLabelPrinting\Sdk\Interop\PrintResponse.cs"><Link>LegacySdk\NativeLabelResponse.cs</Link></Compile>
     <Compile Include="NativeTests.cs" />
     <Compile Include="ConnectionTests.cs" />
     <Compile Include="LabelResponseTests.cs" />

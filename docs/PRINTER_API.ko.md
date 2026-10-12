@@ -2,6 +2,8 @@
 
 기능 명세는 NFC_BT003-M01-04_Programming_Manual_v1.3.md다. 공개 메서드는 Bt003Printer.cs 한 파일에 모여 있다. 제조사 SDK·실제 장치 동작은 이번 소프트웨어 검사에서 실행하지 않는다.
 
+제조사 원본 BT003CtrlWrapper의 namespace·39개 선언·마샬링을 채택했다. 연결·서식·변수·옵션·SendData는 원본 P/Invoke를 사용한다. StartLabelPrint 출력은 기존 보호된 포인터 bridge를 유지하며 StringBuilder 전환은 미완료다. 기존 공개 API와 결과 계약은 보존한다.
+
 ## 기본 파일 인쇄
 
 ```csharp

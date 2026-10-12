@@ -1,4 +1,4 @@
-현재 #15 기능 명세는 NFC_BT003-M01-04_Programming_Manual_v1.3.md만 사용한다. 제조사 Wrapper API의 USB·서식 파일/문자열·SDK 변수·인쇄 옵션·인쇄·해제·제한된 SendData 제어11개를 Sdk/Interop/BT003CtrlWrapper.cs에 모은다. 아래41개 카탈로그와 헤더/export 대조는 기존 로드·진단 호환성 기록이며 새 기능 명세를 확장하는 기준이 아니다. 기존 보호는 재사용하고 제조사 파일은 수정하지 않는다.
+현재 #15 기능 명세는 NFC_BT003-M01-04_Programming_Manual_v1.3.md만 사용한다. Sdk/Interop/BT003CtrlWrapper.cs는 제조사 원본의 HFSample namespace·39개 DllImport 선언이다. 제품은 필요한 연결·서식·변수·옵션·SendData만 사용하며 StartLabelPrint는 기존 출력 보호 bridge를 유지한다. StringBuilder 제품 전환은 미완료다. 인코딩·줄끝만 저장소 형식으로 정규화하고 선언은 보존했다. 아래41개 카탈로그와 헤더/export 대조는 Validation/LegacySdk로 옮긴 역사 기록이며 새 제품의 함수 검색 체계가 아니다.
 
 # SDK 장치 API 대조표
 
@@ -67,7 +67,7 @@
 
 ## 2. ABI와 배포
 
-헤더의 `USHORT`→`ushort`, `BYTE`→`byte`, `int`→`int`를 유지한다. 호출 규약은 제공 선언의 StdCall이다. 샘플의 문자열은 ANSI/LPStr이며 헤더의 LPCTSTR/LPTSTR만 보고 Unicode로 변경하지 않는다. Wrapper 연결부는 현재 설계 2·6절의 절대경로 로더가 반환한 module handle과 GetProcAddress로 내부 delegate를 바인딩한다. 샘플 DllImport의 이름 재검색 경로와 혼합하지 않는다. 과거 ANSI949 문자 ABI·한글 실기 및 ASCII/NUL 응답 분석 기록은 보존한다. 다른 버전이나 native 상태 손상까지 포함한 in-process 보장은 아니며 `SizeConst=100`을 안전성 증거로 보지 않는다. 현재 제품 호출 경계는 USB 인쇄에 필요한 typed accessor만 허용하며 일반 delegate 검색과 RFID 호출은 차단한다.
+헤더의 `USHORT`→`ushort`, `BYTE`→`byte`, `int`→`int`를 유지한다. 호출 규약은 원본 선언의 StdCall이다. 원본의 DLL 이름·ANSI/LPStr와 기본 문자열 선언은 보존하며 LPCTSTR/LPTSTR만 보고 Unicode로 변경하지 않는다. SdkRuntime은 고정 파일을 명시 경로로 preload하고 필요한 경로·모듈 검사를 유지한다. 일반 호출은 원본 P/Invoke이며 출력 보호가 필요한 StartLabelPrint만 module handle의 단일 delegate로 호출한다. 제품에 일반 함수 검색과 RFID 공개 API는 없다. 원본에 RFID 선언이 있는 것과 제품이 사용하는 것은 구분한다. 과거 실기 기록은 현재 전환의 검증 결과가 아니며 SizeConst=100은 출력 안전성 증거가 아니다. 실제 x86/x64 P/Invoke 연결과 StringBuilder 전환은 미검증이다.
 
 문서의 두 보안 함수는 반환을 C/C++ `long`으로 표기하지만 헤더/샘플은 int다. Windows native long도 32-bit이므로 .NET `long`(Int64)으로 바꾸지 않는다. 모든 원형에서 문자열의 입력·출력 방향도 유지하고 x86 장식 이름과 실제 인수 크기를 대조한다.
 

@@ -1,5 +1,7 @@
 # TASK-02 Native SDK 구현·검증 상태
 
+이 문서는 버전별 native 진단·실기 이력이다. 현재 #15 제품은 제조사 원본39개 Wrapper 선언을 채택하고41개 delegate 카탈로그·일반 PE 파서·Probe를 Validation/LegacySdk로 옮겼다. SdkRuntime은 고정 파일·경로·모듈을 확인하며 StartLabelPrint의 보호된 출력 bridge만 남긴다. 아래 과거 바인딩·제품 차단·실기 기록을 새 제품 P/Invoke 또는 StringBuilder 전환의 성공 증거로 사용하지 않는다. 현재 계약은 [설계](DESIGN.md)와 [공개 API](PRINTER_API.ko.md)다.
+
 기준: v0.1.1-design, SDK_API_COVERAGE.md의 두 native 배포 쌍. .NET Framework 4.6.1 관리 DLL은 AnyCPU다. 후속 TASK-05에서 고정 제조사 런타임 사본을 Sdk/x86·x64에 준비했으며 [배포 가이드](SDK_DEPLOYMENT.ko.md)를 따른다.
 
 2026-10-09 TASK-05 현황: [제품 API 가이드](PRINTER_API.ko.md)의 동기 연결·사전검사·단건 wrapper를 구현·합성 검사했다. 아래는 TASK-02 시점의 진단/게이트 이력이다. raw GetFunction 게이트는 유지하고 현재 제품은 허용된 네 연결 함수·세 인쇄 함수의 typed 접근과 사전검사를 사용한다. 새 실제 장치 검증·일괄/취소·native 장애 격리 완료를 뜻하지 않는다. 과거 “제품 인쇄 미구현/차단” 문구는 당시 버전의 상태로 읽는다.

@@ -13,6 +13,7 @@ namespace U2BIO.BT003PROLabelPrinting.Validation
         private static void Check(bool condition) { if (!condition) throw new InvalidOperationException("Label diagnostic check failed."); }
         internal static void Run(Assembly library)
         {
+            library = typeof(LabelPrintTests).Assembly;
             object options = library.GetType("U2BIO.BT003PROLabelPrinting.Native.NativeConnectionOptions", true).GetMethod("Create", Static)
                 .Invoke(null, new object[] { "usb", "0", "" });
             MethodInfo run = library.GetType("U2BIO.BT003PROLabelPrinting.Native.NativeSdk", true).GetMethod("RunLabelProbe", Static);

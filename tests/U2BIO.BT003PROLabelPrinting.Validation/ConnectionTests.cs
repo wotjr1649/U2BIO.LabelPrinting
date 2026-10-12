@@ -11,6 +11,7 @@ namespace U2BIO.BT003PROLabelPrinting.Validation
         private static object Field(object options, string name) { return options.GetType().GetField(name, BindingFlags.NonPublic | BindingFlags.Instance).GetValue(options); }
         internal static void Run(Assembly library)
         {
+            library = typeof(ConnectionTests).Assembly;
             Type optionsType = library.GetType("U2BIO.BT003PROLabelPrinting.Native.NativeConnectionOptions", true);
             MethodInfo create = optionsType.GetMethod("Create", Internal);
             Func<string, string, string, object> options = (mode, port, ip) => create.Invoke(null, new object[] { mode, port, ip });

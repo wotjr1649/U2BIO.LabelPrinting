@@ -6,7 +6,7 @@
 
 1. 제공 API·USB 범위·책임·배포 단위를 설계·작업 지침·사용 가이드에 반영한다.
 2. 기존 실행·정리·보호를 재사용하여 파일/문자열 서식, SDK 가변 데이터, 인쇄 옵션을 연결한다.
-3. 공개 메서드를 한 파일에 모으고 Native 디렉터리를 Sdk/Interop으로, 선택 기능을 Templates로 정리한다.
+3. 제조사 원본 Wrapper를 채택하고 제품의 delegate 카탈로그·일반 PE 파서·과거 진단을 분리한다. 출력 보호 전환은 별도 근거로 판단한다.
 4. 필요한 빌드·변경 핵심·문서 검사를 수행하고 사용자 원본 작업 보존을 확인한다.
 
 실제 SDK·USB 장치·인쇄·배출·외부 SDK 로그와 캐시는 실행하지 않는다. push/merge와 새 Tester 구현은 이번 작업 범위가 아니다. 제조사 결함 수정·장애 격리·광범위한 실기·오류 주입은 MVP 완료 조건에서 제외한다. 기존 보안·입력 검증 및 필수 검사 경로는 유지한다.
@@ -17,7 +17,7 @@ DESIGN·AGENTS·PRINTER_API를 현재 기준으로 일치시킨다. 기존 문�
 
 ## TASK-02: 제조사 Wrapper 연결
 
-SetPrinterPort·DeviceConnect·CheckPrtConnection·DeviceDisconnect·ResetForm·SetPrintFormFile·SetPrintFormString·SetPrintFormVariableData·SetPrintingOption·StartLabelPrint·SendData를 연결한다. 기존 로드/응답 보호를 재사용하며 제조사 원본을 수정하지 않는다.
+제조사 원본39개 선언을 namespace·시그니처·마샬링까지 채택하고 인코딩·줄끝만 정규화한다. 연결·서식·변수·옵션·SendData를 직접 사용한다. SdkRuntime으로 배포 확인을 축소하고 일반 PE 파서·카탈로그·Probe는 Validation으로 옮긴다. StartLabelPrint만 기존 출력 보호 bridge를 유지하며 StringBuilder 전환은 근거 미확보로 보류한다.
 
 ## TASK-03: 선택 서식 기능 보존
 
@@ -54,10 +54,20 @@ Release x86/x64 빌드와 기존 필수 검사 및 새 핵심 사례를 한 실�
 - 선택 기능·호출 호환성·기존 보호·사용자 작업 보존.
 - 관측한 빌드/검사 결과와 실기 미실행 기록.
 
-## #15 구현 확인
+## 첫 구현 확인: 9fbbe3a
 
 공개 API와 Wrapper 호출 연결, 선택 기능 분리를 구현했다. 제품 C# 소스는19개에서17개로 줄였으며 기존 공개 타입과 선택 기능을 보존했다. Release 솔루션의 x86/x64 빌드와 두 검증 실행 파일, 문서 검사가 통과했다. 검증은 제조사 DLL을 로드하지 않고 합성 호출로 순서·오류 중단·파일 보호를 확인했다.
 
 Bt003NativePlatform=x86/x64의 Release 제품 빌드도 통과했다. 각 출력 폴더의 관리 DLL은 검증한 바이너리와 같고, 제조사 두 DLL은 원본과 SHA-256이 일치한다. 출력 위치는 src/U2BIO.BT003PROLabelPrinting/bin/{x86,x64}/Release다.
 
 devflow의 별도 시험 잠금은 선행 실패 증거 조건을 충족하지 못해 등록되지 않았다. 이 상태를 검사 통과로 표시하지 않으며 실제 빌드 검사의 통과 결과와 구분한다. 실제 SDK/장치 호출, 인쇄·배출, push/merge는 실행하지 않았다. 이번 구현은 전용 작업 브랜치에 있으며 원래 작업 트리와 원격 통합은 별도다.
+
+## 원본 Wrapper 채택 후속
+
+첫 구현은 자체 native 구조를 재배치한 것이므로 후속에서는 원본39개 선언과 제품 호출을 실제 연결한다. 기존 공개 API·선택 기능·입력/정리 책임을 보존하며 제품 C# source는16개다. 새 관리 검사는 원본 선언·호출 연결·고정 배포 거부·파일 보호를 확인한다. 기존 진단 검사도 보존하되 Validation/LegacySdk의 역사 경로로 구분한다.
+
+완전한 sample-only 전환은 미완료다. StringBuilder의 기존 출력 보호 대체 근거, 실제 .NET Framework x86/x64 P/Invoke 연결과 실물 위치·문구·배출 확인은 남겨 둔다. 미검증 부분을 검사 통과나 출력 완료로 표시하지 않는다.
+
+관측 결과: Release x86/x64 빌드·관리 검사와 문서 검사가 통과했다. 원본 Wrapper의 정규화한 텍스트는 제조사 파일과 동일하다. 제품 SdkRuntime으로 x86/x64 고정 쌍을 정적으로 확인했고 제조사 SDK는 실행하지 않았다. 두 아키텍처의 제품 빌드 출력은 관리 검사 바이너리와 동일하며 제조사 두 파일의 원본 해시도 일치한다. 원래 작업 트리의 사용자 수정 다섯 파일은 그대로다.
+
+초기 검사는 원본 BOM 때문에 문서 검사에서 실패했고 인코딩만 정규화했다. 새 선언 검사의 SizeConst 반영 가정도 CLR 관측과 달라 실패했으며 실제 LPStr 마샬링 메타데이터와 원본 텍스트 대조를 구분해 수정했다. 최종 검사는 통과했다. 이를 StringBuilder 안전성 또는 실제 P/Invoke 실행 확인으로 확대하지 않는다.
