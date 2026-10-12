@@ -1,5 +1,33 @@
 # StartLabelPrint 정적 분석 결과
 
+## 2026-10-12: 원본 StringBuilder 전환 재검토
+
+이번 재검토는 #15의 `add38f4` 작업본을 기준으로 한다. 아래 기존 분석·실기 이력과 구분하며, 제조사 DLL을 로드하거나 SDK·장치를 실행하지 않았다. 제품 소스와 기존 검사는 변경하지 않았다.
+
+제품의 x86/x64 BlackfishNfcLib.dll·HFModule.dll 네 파일의 SHA-256이 SdkRuntime에 고정한 값과 일치함을 다시 확인했다. Microsoft dumpbin 14.12.25835.0으로 두 Blackfish 파일을 새로 disassemble하여 다음을 재관측했다. 로컬 출력은 `.work/output-review-20261012/`에 두고 배포·커밋하지 않는다.
+
+| 확인 대상 | 이번 관측 | 전환 판단 |
+| --- | --- | --- |
+| x86 최종 복사 RVA `0x1264A`–`0x1268B` | 한 바이트를 출력 포인터에 쓰고 source/destination을 증가시킨 뒤, 그 바이트가 NUL인지 비교한다 | 이 루프에는 대상 길이 비교가 없다 |
+| x64 최종 복사 RVA `0x18B21`–`0x18B61` | x86과 같은 바이트 복사·포인터 증가·NUL 종료 흐름이다 | 이 루프에도 대상 길이 비교가 없다 |
+| formatter x86 `0xE200`, x64 `0x13D60` | 내부 UID 길이 필드까지 반복하는 분기를 재확인했다 | 이번에 모든 setter·오류 경로의 출력 상한을 새로 증명한 것은 아니다 |
+| 원본 Wrapper·매뉴얼 부록 | `void StartLabelPrint(ushort, StringBuilder)`와 LPStr/SizeConst=100 선언이며 출력 길이 인수가 없다 | 선언 채택과 출력 쓰기 상한 보장은 다른 사항이다 |
+| 제품 PrintResponse | 42-byte 뒤 PAGE_NOACCESS, 지정 범위 내 NUL/ASCII/응답 문법 검사, finally에서 관리·native 버퍼 지우기를 수행한다 | 응답 코드·길이·prefix 종류만 반환하고 UID 문자열은 보존하지 않는다 |
+
+42 bytes는 아래 과거 분석에서 고정 SDK의 정상 상태에 대해 얻은 값이다. 이번에는 네 파일의 동일성과 최종 복사·formatter 루프를 재확인했으며, 정상 길이 분석을 모든 native 상태의 보편 상한으로 확대하지 않았다.
+
+Microsoft의 [문자열 마샬링 설명](https://learn.microsoft.com/en-us/dotnet/standard/native-interop/default-marshalling-for-strings#fixed-length-string-buffers)은 StringBuilder 사용 시 callee가 버퍼 용량을 넘지 않아야 한다는 조건을 둔다. [interop 설명](https://learn.microsoft.com/en-us/dotnet/standard/native-interop/best-practices#dllimport-specific-guidance)에 따르면 StringBuilder 마샬링에는 별도 native 버퍼와 관리 복사가 있으며 반환은 첫 NUL까지 처리한다. 이 문서에서 PAGE_NOACCESS나 버퍼 지우기를 보장하는 계약은 확인되지 않았다. 공개 Reference Source의 AsAny/StringBuilder 구현도 참고했지만, 이것을 해당 LPStr P/Invoke stub이나 설치된 .NET Framework 4.6.1 대상 실행 환경의 관측 결과로 사용하지 않는다.
+
+`new StringBuilder(100)`, 반환 후 Length/ASCII 검사, `Clear()`만으로는 기존 쓰기 경계와 모든 중간 버퍼 지우기를 대체할 근거가 되지 않는다. 반환 후 문법 검사는 계속 필요하지만 호출 중의 초과 쓰기를 막는 검사는 아니다. NUL이 없거나 native가 정상 분석 범위를 넘겨 쓰는 경우를 관리 콜백 검사 성공으로 해결했다고 표시하지 않는다.
+
+**판정: StringBuilder 제품 전환 근거는 여전히 부족하다.** 원본 Wrapper는 보존하고 StartLabelPrint 한 곳의 기존 pointer bridge·PrintResponse를 유지한다. SDK 기능 재구현, 별도 격리 engine, 추가 원형 또는 광범위한 시험을 만들지 않는다. #15 수용 기준5는 미완료이며, 이 정적 검토를 제품 출력 전환이나 실제 P/Invoke 성공으로 처리하지 않는다.
+
+전환 재개에는 길이·종료·오류 경로의 확인뿐 아니라 기존 출력 보호와 지우기를 대체할 구체적인 근거가 필요하다. 공식 정상 출력 상한만 확보하거나 정상 응답 시험을 늘리는 것은 PAGE_NOACCESS·중간 버퍼 지우기의 대체를 증명하지 않는다. 장치 미실행은 현재 사용자 범위이며 이 검토를 위해 장치 시험을 요구하지 않는다.
+
+이번 변경은 이 판단과 계획 기록뿐이다. 문서·저장소 검사와 최종 diff를 확인하며, 변경하지 않은 제품의 빌드·관리 검사는 반복하지 않는다. 아래 2026-10-08 이후 내용은 과거 분석·실기 이력이다.
+
+## 기존 분석·실기 이력
+
 2026-10-08, SDK_API_COVERAGE.md에 고정한 x86/x64 BlackfishNfcLib.dll의 SHA-256을 대조한 뒤 설치된 Microsoft dumpbin 14.12.25835.0으로 분석했다. 원본 SDK는 수정하지 않았으며 DLL을 로드하거나 장치·인쇄·RFID 함수를 실행하지 않았다. 전체 disassembly는 Git에서 제외한 로컬 작업 폴더에만 보존한다.
 
 ## 관측한 구현
