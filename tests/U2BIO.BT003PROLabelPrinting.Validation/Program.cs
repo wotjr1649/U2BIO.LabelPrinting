@@ -61,7 +61,8 @@ namespace U2BIO.BT003PROLabelPrinting.Validation
                 }
                 catch (Exception error) { Console.Error.WriteLine("FAIL: SDK inspection (" + error.GetType().Name + ")"); return 1; }
             }
-            if (args.Length != 1 || (args[0] != "--expect-x86" && args[0] != "--expect-x64"))
+            bool txtOnly = args.Length == 2 && args[1] == "--txt-only";
+            if ((args.Length != 1 && !txtOnly) || (args[0] != "--expect-x86" && args[0] != "--expect-x64"))
             {
                 Console.Error.WriteLine("Usage: Validation.exe --expect-x86|--expect-x64");
                 return 2;
@@ -81,8 +82,10 @@ namespace U2BIO.BT003PROLabelPrinting.Validation
                 CheckFramework(library);
                 CheckFramework(Assembly.GetExecutingAssembly());
                 BtplTemplateTests.Run();
-                TemplateFormatTests.Run();
-                BindingTests.Run();
+                if (!txtOnly) {
+                    TemplateFormatTests.Run();
+                    BindingTests.Run();
+                } else Console.WriteLine("SCOPE: TXT and common printer contracts; JSON/XML template validation DEFERRED");
                 PrinterTests.Run();
                 PrinterPresentationTests.Run();
                 NativeTests.Run(library);

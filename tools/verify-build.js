@@ -7,9 +7,12 @@ const { spawn, spawnSync } = require('node:child_process');
 
 if (process.platform === 'win32') process.env.NoDefaultCurrentDirectoryInExePath = '1';
 const root = path.resolve(__dirname, '..');
-const configuration = process.argv.length === 2 ? 'Release'
-    : process.argv.length === 4 && process.argv[2] === '--configuration' ? process.argv[3] : '';
-const evidence = { configuration, commands: [], artifacts: [] };
+const cli = process.argv.slice(2);
+const txtOnly = cli.length >= 2 && cli[cli.length - 2] === '--scope' && cli[cli.length - 1] === 'txt';
+if (txtOnly) cli.splice(-2);
+const configuration = cli.length === 0 ? 'Release'
+    : cli.length === 2 && cli[0] === '--configuration' ? cli[1] : '';
+const evidence = { configuration, scope: txtOnly ? 'txt-and-printer' : 'full', deferredFormats: txtOnly ? ['JSON', 'XML'] : [], commands: [], artifacts: [] };
 let logRoot;
 let childEnv, taskkill;
 
@@ -134,7 +137,7 @@ async function main() {
             `BUILD_SETTINGS|U2BIO.BT003PROLabelPrinting.Validation|v4.6.1|${platform}|false`])
             if (!build.includes(setting)) throw new Error(`Evaluated project settings missing for ${platform}.`);
         const output = path.join(root, 'tests', 'U2BIO.BT003PROLabelPrinting.Validation', 'bin', platform, configuration);
-        await run(path.join(output, 'U2BIO.BT003PROLabelPrinting.Validation.exe'), [`--expect-${platform}`], `validate-${platform}`);
+        await run(path.join(output, 'U2BIO.BT003PROLabelPrinting.Validation.exe'), [`--expect-${platform}`, ...(txtOnly ? ['--txt-only'] : [])], `validate-${platform}`);
         for (const name of ['U2BIO.BT003PROLabelPrinting.dll', 'U2BIO.BT003PROLabelPrinting.Validation.exe']) {
             const file = path.join(output, name);
             const snapshotFolder = path.join(logRoot, platform);

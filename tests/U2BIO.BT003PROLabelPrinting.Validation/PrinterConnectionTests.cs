@@ -53,6 +53,7 @@ namespace U2BIO.BT003PROLabelPrinting.Validation
             }
             internal int Status() {
                 Add("Status"); StatusNumber++;
+                if (Mode == "first-row-status-throw" && StatusNumber == 3) throw new InvalidOperationException("synthetic status failure");
                 if (Mode == "row-closed" && StatusNumber == 2) Port = 0;
                 if (Mode == "status-pending") { Entered.Set(); Check(Release.Wait(5000)); }
                 return Port;
@@ -94,8 +95,34 @@ namespace U2BIO.BT003PROLabelPrinting.Validation
                     new[] { (object)TimeSpan.FromMilliseconds(milliseconds), calls }, null);
             }
         }
+        private static void FirstRowStatusFailure()
+        {
+            var f = new Fixture { Mode = "first-row-status-throw" };
+            using (var p = f.Printer()) {
+                var target = Bt003ConnectionOptions.Usb("synthetic-status-exception");
+                Check(p.Connect(target).IsSuccess);
+                var failed = p.Print(PrinterTests.Request());
+                Check(failed.Failed == 1 && !failed.Rows[0].PrintInvoked && failed.Code == "NativeCallFailed");
+                Check(failed.CleanupCode == "NativeCallFailed" && !f.Calls.Contains("Form") && !f.Calls.Contains("Print"));
+                var flags = BindingFlags.Instance | BindingFlags.NonPublic;
+                Check((PrinterState)typeof(Bt003Printer).GetField("state", flags).GetValue(p) == PrinterState.Faulted);
+                Check((PrinterPortState)typeof(Bt003Printer).GetField("port", flags).GetValue(p) == PrinterPortState.Unknown);
+                Check(typeof(Bt003Printer).GetField("nativeCode", flags).GetValue(p) == null);
+                var queried = p.GetConnectionStatus();
+                Check(queried.State == PrinterState.Faulted && !queried.ResourcesReleased && queried.CleanupCode == "NativeCallFailed");
+                int count = f.Calls.Count;
+                Check(p.Print(PrinterTests.Request()).Code == "PrinterFaulted" && f.Calls.Count == count);
+                using (var other = new Fixture().Printer()) Check(other.Connect(target).Code == "Busy");
+                Check(p.Disconnect().IsSuccess && p.GetConnectionStatus().ResourcesReleased);
+                f.OwnerThread = 0;
+                Check(p.Connect(target).IsSuccess);
+                Check(p.Disconnect().IsSuccess);
+            }
+            Console.WriteLine("PASS: first-row status exception faults connection until explicit disconnect");
+        }
         internal static void Run()
         {
+            FirstRowStatusFailure();
             foreach (var target in new[] { Bt003ConnectionOptions.Usb("synthetic-usb"), Bt003ConnectionOptions.Serial("COM3"), Bt003ConnectionOptions.Tcp("192.0.2.1", 9100) }) {
                 var f = new Fixture();
                 using (var p = f.Printer()) {
