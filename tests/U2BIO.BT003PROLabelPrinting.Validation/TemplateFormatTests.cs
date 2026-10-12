@@ -61,6 +61,17 @@ namespace U2BIO.BT003PROLabelPrinting.Validation
             Error(() => Parse(json.Replace("\"parameters\"", "\"PRIVATE\""), "Json"));
             Error(() => Parse(json.Replace("SECOND", "\\uD800"), "Json"));
             Error(() => Parse("{\"variables\":{}}", "Json"));
+            const string numericJson = "{\"settings\":[{\"command\":\"^Q\",\"parameters\":\"40,5\"},{\"command\":\"^W\",\"parameters\":\"70\"},{\"command\":\"^S\",\"parameters\":\"5\"},{\"command\":\"^H\",\"parameters\":\"19\"}],\"texts\":[{\"command\":\"AW\",\"x\":80,\"y\":120,\"arguments\":[\"10\",\"1\",\"0\",\"0\"],\"payload\":\"X\"}]}";
+            Check(Parse(numericJson, "Json").TextElements[0].X == 80);
+            foreach (string malformed in new[] {
+                numericJson.Insert(numericJson.Length - 1, ","),
+                numericJson.Replace("\"payload\":\"X\"}", "\"payload\":\"X\",}"),
+                numericJson.Replace("\"0\"]", "\"0\",]"),
+                numericJson.Replace("\"x\":80", "\"x\":0080"),
+                numericJson.Replace("\"x\":80", "\"x\":+80"),
+                numericJson.Replace("\"payload\":\"X\"", "\"payload\":\"\\q\"")
+            }) Error(() => Parse(malformed, "Json"), "InvalidTemplateDocument");
+            Check(Parse(numericJson.Replace("\"payload\":\"X\"", "\"payload\":\"literal ,} ,] and 0080\""), "Json").TextElements[0].Payload == "literal ,} ,] and 0080");
             Error(() => Parse("<!DOCTYPE labelTemplate [<!ENTITY x SYSTEM 'file:///PRIVATE'>]>" + xml, "Xml"));
             Error(() => Parse(xml.Replace("<labelTemplate>", "<labelTemplate PRIVATE='x'>"), "Xml"));
             Error(() => Parse(xml.Replace("<texts>", "<texts/><texts>"), "Xml"));
