@@ -81,6 +81,7 @@ namespace U2BIO.BT003PROLabelPrinting.Validation
                 CheckFramework(library);
                 CheckFramework(Assembly.GetExecutingAssembly());
                 BtplTemplateTests.Run();
+                TemplateFormatTests.Run();
                 BindingTests.Run();
                 PrinterTests.Run();
                 NativeTests.Run(library);

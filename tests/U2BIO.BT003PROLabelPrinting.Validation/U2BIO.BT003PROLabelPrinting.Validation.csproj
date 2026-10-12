@@ -33,6 +33,7 @@
     <Reference Include="System.Data" />
     <Compile Include="Program.cs" />
     <Compile Include="BtplTemplateTests.cs" />
+    <Compile Include="TemplateFormatTests.cs" />
     <Compile Include="BindingTests.cs" />
     <Compile Include="PrinterTests.cs" />
     <Compile Include="PrinterConnectionTests.cs" />
