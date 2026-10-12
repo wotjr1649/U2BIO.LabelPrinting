@@ -44,12 +44,8 @@
     <Compile Include="Templates\BtplPrintRequest.cs" />
     <Compile Include="Templates\BtplProcessor.cs" />
     <Compile Include="PrinterModels.cs" />
-    <Compile Include="PrintInput.cs" />
     <Compile Include="Sdk\Interop\BT003CtrlWrapper.cs" />
     <Compile Include="Bt003Printer.cs" />
-    <Compile Include="Bt003Printer.Execution.cs" />
-    <Compile Include="Sdk\Interop\SdkRuntime.cs" />
-    <Compile Include="Sdk\Interop\PrintResponse.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="Sdk\README.ko.md" />

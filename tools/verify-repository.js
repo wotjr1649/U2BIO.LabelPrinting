@@ -34,14 +34,16 @@ try {
         if (actual !== expected) throw new Error(`Baseline hash mismatch: ${file}`);
     }
 
-    const design = fs.readFileSync(path.join(root, 'docs', 'DESIGN.md'), 'utf8');
-    const cases = [...design.matchAll(/^\| (C\d{2}) \|/gm)].map(match => match[1]);
-    const expectedCases = Array.from({ length: 24 }, (_, i) => `C${String(i + 1).padStart(2, '0')}`);
-    if (cases.join(',') !== expectedCases.join(',')) throw new Error('C01-C24 acceptance cases are inconsistent.');
-    const plan = fs.readFileSync(path.join(root, 'docs', 'IMPLEMENTATION_PLAN.md'), 'utf8');
-    const tasks = [...plan.matchAll(/^## TASK-(\d{2}):/gm)].map(match => match[1]);
-    const expectedTasks = Array.from({ length: 9 }, (_, i) => String(i + 1).padStart(2, '0'));
-    if (tasks.join(',') !== expectedTasks.join(',')) throw new Error('Expected TASK-01 through TASK-09.');
+    // 과거 C01-C24/TASK-01..09 대신 현재 #16 문서와 실제 제품 구조의 일치를 확인한다.
+    const spec = fs.readFileSync(path.join(root, 'docs', 'specs', 'SYNC_USB_MVP.md'), 'utf8');
+    for (const term of ['StringBuilder', 'Encoding.Default.CodePage', 'FileShare.Read', 'CleanupCode', 'ConfirmPrintPosition', 'Bt003NativePlatform'])
+        if (!spec.includes(term)) throw new Error(`Current MVP contract is missing ${term}.`);
+    for (const file of ['README.md', 'AGENTS.md', 'docs/DESIGN.md', 'docs/IMPLEMENTATION_PLAN.md', 'docs/PRINTER_API.ko.md'])
+        if (!fs.readFileSync(path.join(root, file), 'utf8').includes('SYNC_USB_MVP.md')) throw new Error(`Current contract link missing: ${file}`);
+    const project = fs.readFileSync(path.join(root, 'src', 'U2BIO.BT003PROLabelPrinting', 'U2BIO.BT003PROLabelPrinting.csproj'), 'utf8');
+    const core = [...project.matchAll(/<Compile Include="([^"]+)"/g)].map(m => m[1])
+        .filter(file => !file.startsWith('Templates\\') && file !== 'Properties\\AssemblyInfo.cs' && file !== 'Sdk\\Interop\\BT003CtrlWrapper.cs');
+    if (core.sort().join(',') !== 'Bt003Printer.cs,PrinterModels.cs') throw new Error('MVP must compile exactly two owned core sources.');
     process.stdout.write('Repository checks passed (documents and devflow structure; no product build or printer test).\n');
 } catch (error) {
     process.stderr.write(`${error.message}\n`);

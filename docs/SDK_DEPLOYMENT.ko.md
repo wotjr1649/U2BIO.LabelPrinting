@@ -1,6 +1,6 @@
 # SDK 빌드·배포
 
-공통 DLL의 소스와 실행에 필요한 제조사 DLL을 같은 저장소에서 관리한다. 제조사 런타임의 정확한 사본은 `src/U2BIO.BT003PROLabelPrinting/Sdk/x86` 및 `Sdk/x64`에 있다. `Sdk/Interop/`는 C# Wrapper 연결과 기존 보호 코드이며 제조사 바이너리 폴더가 아니다.
+공통 DLL의 소스와 실행에 필요한 제조사 DLL을 같은 저장소에서 관리한다. 제조사 런타임의 정확한 사본은 `src/U2BIO.BT003PROLabelPrinting/Sdk/x86` 및 `Sdk/x64`에 있다. `Sdk/Interop/`는 제조사 원본 C# Wrapper이며 제조사 바이너리 폴더가 아니다.
 
 ## 빌드
 
@@ -38,6 +38,6 @@ powershell -NoProfile -File tests/VerifySdkAssets.ps1
 
 이 검사는 저장소의 네 파일이 고정 제조사 해시와 같은지만 확인하며 SDK를 로드하거나 프린터를 호출하지 않는다. 아키텍처별 복사, 기본 빌드의 SDK 미복사, 잘못된 속성 오류 및 ProjectReference 전달은 별도 MSBuild 구성 검사 대상이다.
 
-런타임 사본 준비와 공개 `Bt003Printer` 구현 완료를 구분한다. TASK-05의 `Connect → GetConnectionStatus → ValidateForPrint → Print → Disconnect/Dispose`와 TASK-06의 PrintAsync·다건·취소·결과는 관리/synthetic 경로에서 구현·검증했다. 기본 입력은 호출 프로그램이 준비한 BTPL 문자열 또는 `BtplTemplate`이며 DataTable·JSON은 자동 매핑이 필요한 경우에만 사용한다. TASK-07의 제품 인수·지원 범위·배포 검증 후 TASK-08의 DB 없는 WinForms/DevExpress Tester와 TASK-09의 실제 호출 예를 진행한다. TASK-09는 TASK-08 완료를 기다릴 필요가 없다.
+현재 #16은 [동기 USB 스펙](specs/SYNC_USB_MVP.md)과 [공개 API](PRINTER_API.ko.md)를 따른다. node tools/verify-build.js가 x86/x64 각각 Bt003NativePlatform 배포 빌드를 수행하고 복사한 두 SDK 파일의 PE·고정 해시를 Validation --inspect-deployment로 검사한다. SDK를 로드하지 않는다. 제품 실행 중 해시 검사는 하지 않으며 DllImport 기본 로딩과 ApplicationDirectory/System32 검색 제한을 사용한다.
 
-공개 API의 [사용법·지원 조건](PRINTER_API.ko.md), [일괄 소프트웨어 완료 근거](BATCH_PRINTING_EVIDENCE.md), [인수·배포 상태](DLL_ACCEPTANCE.ko.md)를 구분한다. 새 제품 실기와 runtime 로드/ABI는 미완료이며 TASK-05/07 및 장치별 후속 #10에서 관리한다. 실제 출력 금지 기간에는 SDK·장치·용지 이송을 실행하지 않는다.
+관리 대체 harness·제품 DLL 메타데이터 검사와 실제 P/Invoke/물리 출력 확인은 구분한다. 현재 SDK·장치·인쇄·배출 실기는 수행하지 않았다. 이전 비동기/일괄 인쇄 증거는 이전 API의 역사 기록이다.

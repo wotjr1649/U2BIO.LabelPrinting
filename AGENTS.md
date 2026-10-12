@@ -1,36 +1,17 @@
 # U2BIO.LabelPrinting
 
-A .NET Framework 4.6.1 DLL provides USB text label printing through the manufacturer Wrapper API. Callers own database access and UI. Existing template editing and binding are optional.
+현재 작업은 이슈 #16의 동기 USB 인쇄 MVP다. [스펙](docs/specs/SYNC_USB_MVP.md), [공개 API](docs/PRINTER_API.ko.md), [계획](docs/IMPLEMENTATION_PLAN.md)을 따른다. #15의 공개 API 호환·포인터 bridge 유지 조건은 사용자 결정으로 대체됐다.
 
-## Current contract
-
-Use `NFC_BT003-M01-04_Programming_Manual_v1.3.md` as the sole feature/API specification. Adopt the provided HFSample_UL BT003CtrlWrapper.cs declarations unchanged; keep our input, sequencing and result policy outside that file so SDK updates can be compared directly. Manufacturer files remain read-only references. Resolve converted-manual declaration errors against the original .cs; undocumented behavior is not a supported feature by assumption.
-
-For public API, input or print changes, read [DESIGN.md](docs/DESIGN.md) and [PRINTER_API.ko.md](docs/PRINTER_API.ko.md). For sequencing and completion, read [IMPLEMENTATION_PLAN.md](docs/IMPLEMENTATION_PLAN.md). Prior contracts are historical records under docs/history; the current MVP contract takes precedence for this change.
-
-## MVP scope
-
-- USB connection, file/string forms, SDK variable substitution, speed/darkness, printing and optional presentation/disconnection.
-- TCP/IP, RS-232, RFID writing/security and new UI are outside this task. Preserve existing compatibility APIs and optional template/binding behavior.
-- Manufacturer internal defects, new crash-isolation infrastructure and broad hardware/fault-injection campaigns are outside MVP completion. Our input validation, SDK call order, failure stop, result propagation and cleanup remain our responsibility.
-- Reevaluate existing native implementation by responsibility; its presence does not require retaining its architecture. Preserve necessary protection through the simplest supported replacement. Fixed hashes replace general PE parsing for the pinned pair; legacy catalogs/probes belong to Validation. Keep the guarded StartLabelPrint pointer bridge until a StringBuilder replacement has equivalent output protection. Do not claim this exception is a completed sample-only conversion.
+- 기본 제품 코드는 Bt003Printer.cs와 PrinterModels.cs 두 파일이다. 제조사 HFSample Wrapper 원본 39개 선언을 직접 사용한다. SDK 원본·바이너리·매뉴얼은 읽기 전용이다.
+- 호출 순서·실패 중단·자원 수명의 이유를 한글 주석으로 설명한다. 자체 로더·실행 프레임워크·BTPL 해석기를 추가하지 않는다. Templates는 선택 기능으로 보존한다.
+- 한 프로그램에서만 물리 프린터를 사용한다. 프로세스 안의 단일 연결과 직렬화를 유지한다. SDK 정상 응답은 물리 출력 완료 증거가 아니다.
+- 현재 승인은 이슈 등록과 대상 worktree의 로컬 구현·검사까지다. SDK 로딩·장치·인쇄·배출 실행, push·merge·배포는 승인 범위에 없다. 사용자의 다른 worktree 변경은 보존한다.
+- Issue 읽기·쓰기는 설치된 devflow-state를 사용한다. 공개 기록에는 검토한 요약과 합성 증거만 넣으며 경로·라벨 값·UID·비밀 정보는 넣지 않는다.
 
 ## Commands
 
-```text
-node tools/verify-repository.js
-node tools/verify-build.js
-git diff --check
-```
-
-Use the installed devflow root through the process-local DEVFLOW_ROOT when needed. Limit checks to the changed surface and existing required path; repeat only after a new change/failure. Do not add broad test campaigns or vendor SDK/device execution. Report unrun P/Invoke binding and StringBuilder/device checks as unverified, rather than making them successful by assumption.
+검사: node tools/verify-build.js, node tools/verify-repository.js, git diff --check. DEVFLOW_ROOT는 설치된 플러그인 위치를 프로세스 환경으로 지정한다. 관리 대체 harness와 실제 제품 DLL의 메타데이터 검사는 SDK 실기와 구분한다.
 
 ## Boundaries
 
-Work on a dedicated task branch and preserve unrelated tracked/untracked/ignored state. Use the installed devflow-state command for Issue reads and writes. The current request authorizes Issue #15 registration/tracking and local implementation, not push, merge, releases or deployment.
-
-Manufacturer binaries, converted manuals, the BTPL reference and neighboring SDK/phase2 trees are read-only references. Publish only reviewed summaries and synthetic evidence; keep private paths, logs, label values, UID and credentials out of Issues. Preserve baseline tags and historical completion evidence. Interop code stays under Sdk/Interop so the existing protected review classification remains applicable.
-
-## Deployment
-
-Callers reference U2BIO.BT003PROLabelPrinting.dll. Runtime deployment also needs BlackfishNfcLib.dll and HFModule.dll matching the executable process bitness. Wrapper source is compiled into the managed DLL; vendor DLLs remain separate files. Do not add embedding/extraction, global installation or COM registration.
+배포: 호출자는 관리 DLL을 참조하고 실제 프로세스 비트수와 맞는 BlackfishNfcLib.dll/HFModule.dll 두 파일을 실행 폴더에 둔다. 바이너리 포함·추출이나 COM 등록은 하지 않는다.

@@ -138,6 +138,28 @@ async function main() {
             if (!build.includes(setting)) throw new Error(`Evaluated project settings missing for ${platform}.`);
         const output = path.join(root, 'tests', 'U2BIO.BT003PROLabelPrinting.Validation', 'bin', platform, configuration);
         await run(path.join(output, 'U2BIO.BT003PROLabelPrinting.Validation.exe'), [`--expect-${platform}`, ...(txtOnly ? ['--txt-only'] : [])], `validate-${platform}`);
+        const harness = path.join(root, 'tests', 'U2BIO.BT003PROLabelPrinting.SdkHarness');
+        await run(msbuild, [path.join(harness, 'U2BIO.BT003PROLabelPrinting.SdkHarness.csproj'), '/t:Rebuild', '/m:1', '/nr:false', '/nologo', '/v:minimal',
+            `/p:Configuration=${configuration}`, `/p:Platform=${platform}`], `harness-build-${platform}`);
+        await run(path.join(harness, 'bin', platform, configuration, 'U2BIO.BT003PROLabelPrinting.SdkHarness.exe'), [], `harness-${platform}`);
+        const example = path.join(root, 'examples', 'OfflineSmoke');
+        await run(msbuild, [path.join(example, 'OfflineSmoke.csproj'), '/t:Rebuild', '/m:1', '/nr:false', '/nologo', '/v:minimal',
+            `/p:Configuration=${configuration}`, `/p:Platform=${platform}`], `example-build-${platform}`);
+        await run(path.join(example, 'bin', platform, configuration, 'U2BIO.LabelPrinting.OfflineSmoke.exe'), [`--expect-${platform}`], `example-${platform}`);
+        // 실제 배포 속성을 사용해 복사된 SDK의 PE·고정 해시를 검사한다. DLL 로딩은 하지 않는다.
+        const product = path.join(root, 'src', 'U2BIO.BT003PROLabelPrinting');
+        await run(msbuild, [path.join(product, 'U2BIO.BT003PROLabelPrinting.csproj'), '/t:Rebuild', '/m:1', '/nr:false', '/nologo', '/v:minimal',
+            `/p:Configuration=${configuration}`, `/p:Bt003NativePlatform=${platform}`], `deployment-build-${platform}`);
+        const deployment = path.join(product, 'bin', platform, configuration);
+        const hash = file => crypto.createHash('sha256').update(fs.readFileSync(file)).digest('hex');
+        if (hash(path.join(deployment, 'U2BIO.BT003PROLabelPrinting.dll')) !== hash(path.join(output, 'U2BIO.BT003PROLabelPrinting.dll')))
+            throw new Error(`Deployed managed DLL differs from validated product (${platform}).`);
+        await run(path.join(output, 'U2BIO.BT003PROLabelPrinting.Validation.exe'), ['--inspect-deployment', platform, deployment], `deployment-inspect-${platform}`);
+        for (const name of ['BlackfishNfcLib.dll', 'HFModule.dll']) {
+            const file = path.join(deployment, name);
+            evidence.artifacts.push({ platform, path: path.relative(root, file).replace(/\\/g, '/'),
+                sha256: crypto.createHash('sha256').update(fs.readFileSync(file)).digest('hex') });
+        }
         for (const name of ['U2BIO.BT003PROLabelPrinting.dll', 'U2BIO.BT003PROLabelPrinting.Validation.exe']) {
             const file = path.join(output, name);
             const snapshotFolder = path.join(logRoot, platform);

@@ -1,4 +1,4 @@
-현재 #15 기능 명세는 NFC_BT003-M01-04_Programming_Manual_v1.3.md만 사용한다. Sdk/Interop/BT003CtrlWrapper.cs는 제조사 원본의 HFSample namespace·39개 DllImport 선언이다. 제품은 필요한 연결·서식·변수·옵션·SendData만 사용하며 StartLabelPrint는 기존 출력 보호 bridge를 유지한다. StringBuilder 제품 전환은 미완료다. 인코딩·줄끝만 저장소 형식으로 정규화하고 선언은 보존했다. 아래41개 카탈로그와 헤더/export 대조는 Validation/LegacySdk로 옮긴 역사 기록이며 새 제품의 함수 검색 체계가 아니다.
+현재 #16은 [동기 USB MVP 스펙](specs/SYNC_USB_MVP.md)을 따른다. 제조사 원본 39개 Wrapper 선언을 직접 사용하며 StartLabelPrint도 StringBuilder 방식이다. 아래 41개 카탈로그·과거 포인터 보호 설명은 Validation/LegacySdk의 역사 진단 기록이며 현재 제품 실행 구조가 아니다.
 
 # SDK 장치 API 대조표
 
