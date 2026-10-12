@@ -12,6 +12,7 @@ namespace U2BIO.BT003PROLabelPrinting
         public int? NativeCode { get; internal set; }
         public bool PrintInvoked { get; internal set; }
         public int? PrintCode { get; internal set; }
+        /// <summary>마지막으로 시도한 복귀 또는 배출의 응답입니다. 응답 전 예외는 null입니다.</summary>
         public int? MovementCode { get; internal set; }
         public string CleanupCode { get; internal set; }
         public bool IsSuccess { get { return Status == PrinterResultStatus.Succeeded; } }

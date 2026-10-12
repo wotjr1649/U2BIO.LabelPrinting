@@ -41,7 +41,7 @@ GetConnectionStatus의 1은 포트 Open, 0은 Closed다. 포트 상태와 물리
 
 ## 작은 결과
 
-PrinterResult는 Status(Succeeded/Failed/Unknown), Code, Function, NativeCode, PrintInvoked, PrintCode, MovementCode, CleanupCode를 제공한다. GetConnectionStatus에서 NativeCode는 원래 상태 코드다. 성공 이름은 SDK 수준의 처리 결과이며 물리 완료를 보장하지 않는다. 입력 오류는 인쇄 전의 인수 예외로 거부한다. DLL 누락·아키텍처·entrypoint 오류는 실패 단계와 식별 코드를 전달한다. 원문 서식·변수·UID·경로를 예외 메시지나 결과에 복사하지 않는다.
+PrinterResult는 Status(Succeeded/Failed/Unknown), Code, Function, NativeCode, PrintInvoked, PrintCode, MovementCode, CleanupCode를 제공한다. GetConnectionStatus에서 NativeCode는 원래 상태 코드다. MovementCode는 마지막으로 시도한 복귀 또는 배출의 응답이며 응답 전 예외는 null이다. 성공 이름은 SDK 수준의 처리 결과이며 물리 완료를 보장하지 않는다. 입력 오류는 인쇄 전의 인수 예외로 거부한다. DLL 누락·아키텍처·entrypoint 오류는 실패 단계와 식별 코드를 전달한다. 원문 서식·변수·UID·경로를 예외 메시지나 결과에 복사하지 않는다.
 
 파일 크기·CP949 내용은 SDK에 넘길 경로를 열어 둔 동일 FileStream으로 읽고 확인한다. Path/FileStream/디코딩의 원래 예외 메시지와 InnerException을 넘기지 않고 고정 식별 코드로 바꾼다. finally 정리 실패에도 파일은 해제되며, 호출 중 공유 충돌이나 부모 경로 교체의 실제 SDK 동작을 관리 검사로 증명했다고 주장하지 않는다.
 

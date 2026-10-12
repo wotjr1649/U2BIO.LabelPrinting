@@ -34,7 +34,7 @@ selectedUsbPort, formPath와 배출 거리는 호출자가 준비한다. 용지 
 
 ANSI 코드 페이지 949 환경만 지원한다. 포트·경로·문자열·변수는 엄격한 CP949 왕복과 NUL 검사를 거친다. 서식/합친 변수/파일은 각각 4 MiB 이내다. 입력 오류는 고정 식별 코드의 인수 예외로 전달하며 원문·경로·InnerException을 포함하지 않는다. 지원하지 않는 코드 페이지는 UnsupportedAnsiCodePage 예외다.
 
-PrinterResult.Status는 Succeeded/Failed/Unknown이다. PrintInvoked와 PrintCode는 인쇄 단계 증거, MovementCode는 배출/복귀 응답, CleanupCode는 별도 정리 오류다. SDK 코드 0과 SendData 0은 물리 완료 증거가 아니다. 인쇄 불명 또는 이동 실패 뒤 다음 자동 인쇄는 MediaPositionUnknown으로 차단한다. 재연결·새 객체도 이를 지우지 않는다. 수동 정렬 후 ConfirmPrintPosition이 필요하다.
+PrinterResult.Status는 Succeeded/Failed/Unknown이다. PrintInvoked와 PrintCode는 인쇄 단계 증거, MovementCode는 마지막으로 시도한 배출/복귀의 응답(응답 전 예외는 null), CleanupCode는 별도 정리 오류다. SDK 코드 0과 SendData 0은 물리 완료 증거가 아니다. 인쇄 불명 또는 이동 실패 뒤 다음 자동 인쇄는 MediaPositionUnknown으로 차단한다. 재연결·새 객체도 이를 지우지 않는다. 수동 정렬 후 ConfirmPrintPosition이 필요하다.
 
 cleanup 실패는 원래 인쇄 코드와 Unknown 상태를 보존한다. 원래 정상 응답에 cleanup 실패가 더해지면 전체 Failed이며 PrintCode=0은 유지된다. 연결 정리 실패는 Disconnect로 Closed 확인 후 재연결해야 해제된다. Dispose가 해제를 확인하지 못하면 DisconnectFailed 예외를 던지고 명시적 Disconnect 재시도를 허용한다.
 

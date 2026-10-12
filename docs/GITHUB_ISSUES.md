@@ -46,3 +46,7 @@ devflow-doctor, 추적 파일만 있는 별도 체크아웃, 잘못된 인수 ID
 후속 사용자 지시는 제조사 원본 Wrapper를 실제 채택하는 것이다. #15의 기존 원형 진입점 정리와 구분하여 원본39개 선언·제품 연결·진단 분리·배포/응답 책임 축소를 진행한다. StartLabelPrint의 StringBuilder 전환은 출력 보호 대체 근거 미확보로 보류하며 sample-only 완료로 표시하지 않는다. 이전 커밋의 검사 결과를 새 전환의 성공 증거로 사용하지 않는다.
 
 사용자 지시에 따라 [#15](https://github.com/wotjr1649/U2BIO.LabelPrinting/issues/15)를 등록했다. 제조사 매뉴얼 단일 기능 명세·USB 연결·파일/문자열·SDK 변수·인쇄 옵션·공개 API 위치 정리와 선택 기능 보존을 담당한다. 브랜치는 feature/15-usb-wrapper-mvp이며 #14의 소프트웨어 수정이 포함된 현재 HEAD에서 분리했다. 기존 #14 사용자 작업과 #12/#13 및 기준 태그는 보존한다. #10/#11의 제조사·실기 미검증 기록을 해결 완료로 변경하지 않고 이번 MVP 완료 선행 조건에서 분리한다. 이번 작업은 실제 SDK/장치 실행·push/merge를 포함하지 않는다.
+
+## 동기 USB 두 파일 재설계
+
+사용자 결정에 따라 [#16](https://github.com/wotjr1649/U2BIO.LabelPrinting/issues/16)을 별도로 등록했다. [스펙](specs/SYNC_USB_MVP.md)은 #15의 고급 API 호환·출력 bridge 유지 조건을 이번 작업에서 대체한다. 브랜치는 feature/16-sync-usb-sdk-mvp이며 기존 wrapper-mvp worktree를 사용한다. 원본 StringBuilder·DllImport 로딩·Validation 배포 해시·파일 읽기 잠금·동기 작은 결과·SDK 서식 해석을 따른다. 오른쪽 Codex의 설계 및 코드 적대적 검토와 별도 문맥 실행 검증을 수행한다. 장치 실행·push·merge는 포함하지 않는다. 실제 상태와 수용 체크는 원격 이슈 #16이 기준이다.

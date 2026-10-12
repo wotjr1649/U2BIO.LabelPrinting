@@ -173,6 +173,8 @@ namespace U2BIO.BT003PROLabelPrinting
         private PrinterResult DisconnectCore()
         {
             if (owner != this) return Success();
+            // 해제 중·실패 연결은 닫힘이 확인될 때까지 인쇄와 옵션 변경에 재사용하지 않는다.
+            faulted = true;
             var result = Success();
             try
             {
@@ -262,6 +264,7 @@ namespace U2BIO.BT003PROLabelPrinting
         private bool Move(PrinterResult result, string command, int distance)
         {
             result.Function = "SendData"; result.NativeCode = null;
+            result.MovementCode = null;
             // 실패 코드도 일부 이동 후 반환될 수 있으므로 SDK 진입 전에 위치를 불명으로 둔다.
             Positions[port] = null;
             result.MovementCode = Vendor.SendData(command + distance.ToString(CultureInfo.InvariantCulture) + "\r\n");

@@ -1,3 +1,7 @@
+# 현재 계약 안내
+
+이슈 #16의 [동기 USB MVP 스펙](specs/SYNC_USB_MVP.md)과 [공개 API](PRINTER_API.ko.md)를 따른다. 아래 모듈 설명의 비동기·일괄·BtplTemplate 인쇄와 큰 결과 체계는 이전 버전 이력이다. 현재 기본 코드는 Bt003Printer.cs와 PrinterModels.cs 두 파일이며 선택 Templates는 독립적으로 보존한다.
+
 # 공통 USB 라벨 인쇄 DLL
 
 현재 기준은 [USB Wrapper MVP 설계](DESIGN.md)와 이슈 #15다. 기능 명세는 NFC_BT003-M01-04_Programming_Manual_v1.3.md만 사용한다. 제공 Wrapper API를 연결하고 제조사 파일·기능은 수정하거나 재구현하지 않는다.

@@ -1,6 +1,6 @@
 # TASK-02 Native SDK 구현·검증 상태
 
-이 문서는 버전별 native 진단·실기 이력이다. 현재 #15 제품은 제조사 원본39개 Wrapper 선언을 채택하고41개 delegate 카탈로그·일반 PE 파서·Probe를 Validation/LegacySdk로 옮겼다. SdkRuntime은 고정 파일·경로·모듈을 확인하며 StartLabelPrint의 보호된 출력 bridge만 남긴다. 아래 과거 바인딩·제품 차단·실기 기록을 새 제품 P/Invoke 또는 StringBuilder 전환의 성공 증거로 사용하지 않는다. 현재 계약은 [설계](DESIGN.md)와 [공개 API](PRINTER_API.ko.md)다.
+이 문서는 버전별 native 진단·실기 이력이다. 현재 #16 제품은 제조사 원본 Wrapper 39개 선언과 StringBuilder를 직접 사용하고 자체 로더·실행 시 해시·포인터 bridge를 제거했다. 현재 계약은 [동기 스펙](specs/SYNC_USB_MVP.md)과 [공개 API](PRINTER_API.ko.md)다. 아래 과거 보호·바인딩·실기 기록은 새 구현의 native 성공 증거가 아니다.
 
 기준: v0.1.1-design, SDK_API_COVERAGE.md의 두 native 배포 쌍. .NET Framework 4.6.1 관리 DLL은 AnyCPU다. 후속 TASK-05에서 고정 제조사 런타임 사본을 Sdk/x86·x64에 준비했으며 [배포 가이드](SDK_DEPLOYMENT.ko.md)를 따른다.
 
