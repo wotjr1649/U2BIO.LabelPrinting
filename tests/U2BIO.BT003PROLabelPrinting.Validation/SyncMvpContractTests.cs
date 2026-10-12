@@ -1,0 +1,50 @@
+using System;
+using System.IO;
+using System.Linq;
+using System.Reflection;
+using System.Runtime.InteropServices;
+using System.Text;
+
+namespace U2BIO.BT003PROLabelPrinting.Validation
+{
+    // 실제 제품 DLL의 공개 계약을 확인하며 제조사 SDK는 호출하지 않는다.
+    internal static class SyncMvpContractTests
+    {
+        internal static void Run(Assembly library)
+        {
+            Type printer = library.GetType("U2BIO.BT003PROLabelPrinting.Bt003Printer", true);
+            Type result = library.GetType("U2BIO.BT003PROLabelPrinting.PrinterResult", true);
+            string[] methods = { "ConnectUsb", "GetConnectionStatus", "SetPrintingOptions", "Print", "PrintFile", "ConfirmPrintPosition", "Disconnect", "Dispose" };
+            var actual = printer.GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly);
+            if (actual.Length != methods.Length || actual.Any(method => !methods.Contains(method.Name)))
+                throw new InvalidOperationException("Unexpected public printer API.");
+            foreach (var method in actual.Where(method => method.Name != "Dispose"))
+                if (method.ReturnType != result) throw new InvalidOperationException("PrinterResult contract missing.");
+            foreach (string property in new[] { "Status", "Code", "Function", "NativeCode", "PrintInvoked", "PrintCode", "MovementCode", "CleanupCode", "IsSuccess" })
+                if (result.GetProperty(property) == null) throw new InvalidOperationException("Result metadata missing.");
+            foreach (string removed in new[] { "BatchPrintResult", "Bt003ConnectionOptions", "PrintInput", "Native.SdkRuntime", "Native.NativeLabelResponse", "Native.PrinterSdkCalls" })
+                if (library.GetType("U2BIO.BT003PROLabelPrinting." + removed) != null) throw new InvalidOperationException("Legacy runtime remains.");
+            var search = library.GetCustomAttribute<DefaultDllImportSearchPathsAttribute>();
+            if (search == null || search.Paths != (DllImportSearchPath.ApplicationDirectory | DllImportSearchPath.System32))
+                throw new InvalidOperationException("DLL search restriction differs.");
+            Type wrapper = library.GetType("HFSample.BT003CtrlWrapper", true);
+            var declarations = wrapper.GetMethods(BindingFlags.Public | BindingFlags.Static | BindingFlags.DeclaredOnly);
+            if (declarations.Length != 39) throw new InvalidOperationException("Manufacturer declarations differ.");
+            foreach (var declaration in declarations) {
+                var import = declaration.GetCustomAttribute<DllImportAttribute>();
+                if (import == null || import.Value != "BlackfishNfcLib.dll" || import.CallingConvention != CallingConvention.StdCall)
+                    throw new InvalidOperationException("Manufacturer ABI declaration differs.");
+            }
+            var print = wrapper.GetMethod("StartLabelPrint");
+            if (print.ReturnType != typeof(void) || print.GetParameters()[1].ParameterType != typeof(StringBuilder))
+                throw new InvalidOperationException("Original StringBuilder contract missing.");
+            Console.WriteLine("PASS: actual product synchronous API, result, original Wrapper and DLL search contract; SDK not loaded");
+        }
+
+        private static int Main(string[] args)
+        {
+            try { Run(Assembly.LoadFrom(Path.GetFullPath(args[0]))); return 0; }
+            catch (Exception error) { Console.Error.WriteLine("FAIL: sync API contract (" + error.GetType().Name + ")"); return 1; }
+        }
+    }
+}
