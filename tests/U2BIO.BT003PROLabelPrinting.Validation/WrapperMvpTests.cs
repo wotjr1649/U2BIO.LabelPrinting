@@ -41,8 +41,8 @@ namespace U2BIO.BT003PROLabelPrinting.Validation
                         catch (IOException) { locked = true; }
                         Check(locked); fixture.Calls.Add("FileForm"); return 0;
                     }));
-                    type.GetField("Variables", BindingFlags.NonPublic | BindingFlags.Instance).SetValue(sdk, new Func<string, int>(values => {
-                        received = values; fixture.Calls.Add("Variables"); return variableCode;
+                    type.GetField("Variables", BindingFlags.NonPublic | BindingFlags.Instance).SetValue(sdk, new Func<string, int>(data => {
+                        received = data; fixture.Calls.Add("Variables"); return variableCode;
                     }));
                     Check(printer.ConnectUsb("synthetic-wrapper").IsSuccess && fixture.Type == 1 && fixture.Ip == "");
                     string[] values = { "FIRST", "UNUSED", "THIRD" };
