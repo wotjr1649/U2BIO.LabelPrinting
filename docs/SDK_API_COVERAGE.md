@@ -6,6 +6,8 @@
 
 ## 1. 기준과 커버리지
 
+다음 41개 대조표는 이전 진단과 #15 Wrapper 전환 당시의 역사 기록이다. 표의 #15 표기는 당시 추적 번호이며 현재 #16 제품의 실행 보장이나 완료 판정이 아니다. 현재 사용법은 [동기 USB 스펙](specs/SYNC_USB_MVP.md)을 따른다.
+
 - 기준 파일: SDK `라이브러리/x86/lib`, `라이브러리/x64/lib`의 `BlackfishNfcLib.dll` + `HFModule.dll`.
 - 헤더 40개, 샘플 선언 39개, 합집합 41개. 두 아키텍처의 장치 export는 정규화 후 각각 42개다. COM 인프라 `Dll*` export는 제외했다.
 - 합집합 41개는 내부 선언 대상이다. `StartPrintWithRfid2` 1개는 원형이 없는 미공개 export이므로 선언·호출 보류 목록에 둔다. 이를 임의 래핑하지 않으며 “전체 구현 완료”로 주장하지 않는다.
@@ -80,15 +82,19 @@
 
 두 Blackfish 파일의 버전 표기는 2.1.0.0이다. SDK 내 같은 버전 번호의 다른 해시 파일과 혼합하지 않는다. Blackfish의 HFModule 의존성을 배포 세트로 고정한다. 관리 DLL AnyCPU와 native 아키텍처 일치는 별도로 확인한다. COM 등록·전역 설치는 하지 않는다.
 
-실행 프로그램 폴더에 프로세스와 같은 native 한 세트를 배치한다. 파일/아키텍처/해시/기존 모듈 충돌/로드/export 실패는 서로 구분한 연결 오류다. 제조사 DLL 로드는 Connect로 지연하며 오프라인 검사·미리보기는 이 파일들이 없어도 동작한다. 후속 TASK-02에서 현재 Windows 환경의 실제 x86/x64 로딩·41개 바인딩과 USB "0"의 SetRfidPort 미호출 상태 연결·해제를 확인했다. RFID 케이블을 물리적으로 분리한 조건은 검증하지 않았다. 근거와 제한은 [구현·검증 상태](NATIVE_SDK_IMPLEMENTATION.md)에 기록하며 모든 OS·함수 호출·인쇄 계약을 검증했다는 뜻은 아니다. 배포 폴더와 오류·모듈 수명은 [현재 설계 2·6절](DESIGN.md)에 단일 기준으로 정리했다.
+실행 프로그램 폴더에 프로세스와 같은 native 한 세트를 배치한다. 현재 #16의 배포 파일 PE·아키텍처·고정 해시는 Validation에서 검사한다. 실행 시 해시나 기존 모듈 충돌 검사는 하지 않는다. ConnectUsb에서 원본 DllImport를 처음 호출하며 DLL 누락·아키텍처·entrypoint 예외는 현재 공개 API의 고정 식별 코드로 전달한다. 오프라인 검사·미리보기는 SDK 파일 없이 동작한다. 실제 로딩 정책과 수명은 [동기 USB 스펙](specs/SYNC_USB_MVP.md), 오류 전달은 [공개 API](PRINTER_API.ko.md)가 기준이다.
+
+과거 TASK-02는 당시 Windows 환경의 실제 x86/x64 로딩·41개 바인딩과 USB "0"의 SetRfidPort 미호출 연결·해제를 확인했다. 파일·해시·기존 모듈 충돌을 구분한 자체 로더 오류 체계도 당시 구현의 역사다. RFID 케이블을 물리적으로 분리한 조건은 검증하지 않았다. [당시 구현·검증 상태](NATIVE_SDK_IMPLEMENTATION.md)의 근거는 현재 #16 로더·StringBuilder 또는 모든 OS·인쇄 계약의 실행 검증으로 사용하지 않는다.
 
 ## 3. 반환값 해석과 인쇄 경로
+
+아래는 제조사 원형과 과거 진단의 반환값 검토 기록이다. 현재 제품의 정상 응답·Closed 확인, 실패/불명 분류와 서식 정리는 [#16 스펙](specs/SYNC_USB_MVP.md)의 명시적 정책을 따른다.
 
 - `SetPrinterPort`의 1(이미 연결), `CheckPrtConnection`의 1(연결), 장치 오류표의 1(Paper out)은 서로 다른 계약이다. 함수명·호출 단계·원래 int를 함께 보존한다.
 - `DeviceDisconnect`의 int를 근거 없이 0만 성공이라고 정의하지 않는다. 반환값과 후속 포트 상태를 각각 기록한다.
 - void 함수의 반환을 0 성공으로 만들지 않는다. 특히 `StartLabelPrint`에 RFID 함수의 UID,code 파서를 전용해서 성공 판정하지 않는다.
 - 원본 오류표의 Hex/Dec 불일치는 6행이다. 0x006A는 원문 Dec=107/계산=106, 0x271B~0x271F는 원문 Dec=10010~10014/계산=10011~10015다. 관측한 raw 정수를 임의 보정하지 않는다.
-- 연결·인쇄 후보의 순서와 중단 조건은 [설계](DESIGN.md)의 3~5절에 있다. RFID 함수와 SetLabelSetting의 Registry 변경을 기본 흐름에 섞지 않는다.
+- 현재 연결·인쇄 순서와 중단 조건은 [동기 USB 스펙](specs/SYNC_USB_MVP.md)에 있다. RFID 함수와 SetLabelSetting의 Registry 변경을 기본 흐름에 섞지 않는다.
 
 ## 4. 확인 근거
 
