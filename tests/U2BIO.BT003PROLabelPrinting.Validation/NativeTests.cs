@@ -49,10 +49,9 @@ namespace U2BIO.BT003PROLabelPrinting.Validation
 
         internal static void Run(Assembly library)
         {
-            Assembly product = library;
             library = typeof(NativeTests).Assembly;
             ConnectionTests.Run(library);
-            LabelResponseTests.Run(product);
+            LabelResponseTests.Run(library);
             LabelPrintTests.Run(library);
             Type probe = typeof(NativeTests).Assembly.GetType("U2BIO.BT003PROLabelPrinting.Validation.NativeLoadProbe", true);
             Type job = typeof(NativeTests).Assembly.GetType("U2BIO.BT003PROLabelPrinting.Validation.NativeLoadProbe+JobLimits", true);
@@ -226,6 +225,17 @@ namespace U2BIO.BT003PROLabelPrinting.Validation
                     Check(!string.Equals(module.ModuleName, "BlackfishNfcLib.dll", StringComparison.OrdinalIgnoreCase) &&
                         !string.Equals(module.ModuleName, "HFModule.dll", StringComparison.OrdinalIgnoreCase));
             Console.WriteLine("PASS: pinned x86/x64 native pairs architecture/hash/41 exports/imports inspected; vendor code not executed");
+        }
+
+        internal static void InspectDeployment(string directory, bool is64)
+        {
+            // 제품 출력 폴더 자체를 검사하며 SDK 함수는 호출하지 않는다.
+            Check((int)Invoke(Required(typeof(NativeTests).Assembly, "NativeSdk"), "InspectPair", directory, is64) == 41);
+            using (var process = System.Diagnostics.Process.GetCurrentProcess())
+                foreach (System.Diagnostics.ProcessModule module in process.Modules)
+                    Check(!string.Equals(module.ModuleName, "BlackfishNfcLib.dll", StringComparison.OrdinalIgnoreCase) &&
+                        !string.Equals(module.ModuleName, "HFModule.dll", StringComparison.OrdinalIgnoreCase));
+            Console.WriteLine("PASS: deployed " + (is64 ? "x64" : "x86") + " pair architecture/hash/exports/imports; SDK not loaded");
         }
     }
 }

@@ -139,6 +139,13 @@ internal static class Program
         using (var printer = new Bt003Printer()) {
             Check(!printer.ConnectUsb("SYNTH-PARTIAL").IsSuccess && Fake.PortState == 0 && Fake.Calls.Contains("DeviceDisconnect"), "Partial connect not cleaned.");
         }
+        Fake.Clear(); Fake.FailAt = "DeviceConnect"; Fake.FailCode = 13; Fake.KeepOpen = true;
+        var partial = new Bt003Printer();
+        try {
+            Check(!partial.ConnectUsb("SYNTH-PARTIAL-UNCLOSED").IsSuccess, "Partial failure accepted.");
+            Fake.Calls.Clear();
+            Check(partial.Print(Literal).Code == "ConnectionFaulted" && !Fake.Calls.Contains("StartLabelPrint"), "Failed connection cleanup allowed printing.");
+        } finally { Fake.KeepOpen = false; partial.Dispose(); }
         Fake.Clear(); var blocked = Connected("SYNTH-DISCONNECT"); Fake.KeepOpen = true;
         Check(!blocked.Disconnect().IsSuccess, "Unconfirmed disconnect succeeded.");
         using (var other = new Bt003Printer()) Check(!other.ConnectUsb("SYNTH-OTHER").IsSuccess, "Unconfirmed owner was released.");

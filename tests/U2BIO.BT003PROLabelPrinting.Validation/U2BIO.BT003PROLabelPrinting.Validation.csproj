@@ -5,6 +5,7 @@
     <Platform Condition="'$(Platform)' == ''">x86</Platform>
     <ProjectGuid>{936E0559-4094-4F5D-83D1-CCB509FC0061}</ProjectGuid>
     <OutputType>Exe</OutputType>
+    <StartupObject>U2BIO.BT003PROLabelPrinting.Validation.Program</StartupObject>
     <RootNamespace>U2BIO.BT003PROLabelPrinting.Validation</RootNamespace>
     <AssemblyName>U2BIO.BT003PROLabelPrinting.Validation</AssemblyName>
     <TargetFrameworkVersion>v4.6.1</TargetFrameworkVersion>
@@ -32,21 +33,15 @@
     <Reference Include="System.Core" />
     <Reference Include="System.Data" />
     <Compile Include="Program.cs" />
+    <Compile Include="SyncMvpContractTests.cs" />
     <Compile Include="BtplTemplateTests.cs" />
     <Compile Include="TemplateFormatTests.cs" />
     <Compile Include="BindingTests.cs" />
-    <Compile Include="PrinterTests.cs" />
-    <Compile Include="WrapperMvpTests.cs" />
-    <Compile Include="WrapperAdoptionTests.cs" />
-    <Compile Include="PrinterPresentationTests.cs" />
-    <Compile Include="PrinterConnectionTests.cs" />
-    <Compile Include="PrinterPrintingTests.cs" />
-    <Compile Include="PrinterBatchTests.cs" />
     <Compile Include="LegacySdk\NativeApi.cs" />
     <Compile Include="LegacySdk\NativeSdk.cs" />
     <Compile Include="LegacySdk\NativeConnectionOptions.cs" />
     <Compile Include="LegacySdk\NativeImage.cs" />
-    <Compile Include="..\..\src\U2BIO.BT003PROLabelPrinting\Sdk\Interop\PrintResponse.cs"><Link>LegacySdk\NativeLabelResponse.cs</Link></Compile>
+    <Compile Include="LegacySdk\NativeLabelResponse.cs" />
     <Compile Include="NativeTests.cs" />
     <Compile Include="ConnectionTests.cs" />
     <Compile Include="LabelResponseTests.cs" />

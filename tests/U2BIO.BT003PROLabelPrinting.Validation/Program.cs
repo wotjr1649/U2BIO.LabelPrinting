@@ -53,6 +53,11 @@ namespace U2BIO.BT003PROLabelPrinting.Validation
                     transport, args[2], transport == "tcp" ? args[3] : "", label ? LabelDiagnosticForms.Create(args[0].Substring("--probe-label-".Length)) : null, args[0] == "--probe-label-blackmark60x20direct" || args[0] == "--probe-label-present15" || args[0] == "--probe-label-return15"); }
                 catch (Exception) { Console.Error.WriteLine("NATIVE_LOAD|status=Failed|code=ProbeInternalError" + (nonce.Length == 0 ? "" : "|nonce=" + nonce)); return 8; }
             }
+            if (args.Length == 3 && args[0] == "--inspect-deployment" && (args[1] == "x86" || args[1] == "x64"))
+            {
+                try { NativeTests.InspectDeployment(args[2], args[1] == "x64"); return 0; }
+                catch (Exception error) { Console.Error.WriteLine("FAIL: deployment inspection (" + error.GetType().Name + ")"); return 1; }
+            }
             if (args.Length == 2 && args[0] == "--inspect-sdk")
             {
                 try {
@@ -86,11 +91,8 @@ namespace U2BIO.BT003PROLabelPrinting.Validation
                     TemplateFormatTests.Run();
                     BindingTests.Run();
                 } else Console.WriteLine("SCOPE: TXT and common printer contracts; JSON/XML template validation DEFERRED");
-                PrinterTests.Run();
-                WrapperMvpTests.Run();
-                PrinterPresentationTests.Run();
+                SyncMvpContractTests.Run(library);
                 NativeTests.Run(library);
-                WrapperAdoptionTests.Run();
 
                 PortableExecutableKinds libraryKind;
                 ImageFileMachine libraryMachine;
