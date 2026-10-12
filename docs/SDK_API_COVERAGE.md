@@ -67,7 +67,7 @@
 
 ## 2. ABI와 배포
 
-헤더의 `USHORT`→`ushort`, `BYTE`→`byte`, `int`→`int`를 유지한다. 호출 규약은 원본 선언의 StdCall이다. 원본의 DLL 이름·ANSI/LPStr와 기본 문자열 선언은 보존하며 LPCTSTR/LPTSTR만 보고 Unicode로 변경하지 않는다. SdkRuntime은 고정 파일을 명시 경로로 preload하고 필요한 경로·모듈 검사를 유지한다. 일반 호출은 원본 P/Invoke이며 출력 보호가 필요한 StartLabelPrint만 module handle의 단일 delegate로 호출한다. 제품에 일반 함수 검색과 RFID 공개 API는 없다. 원본에 RFID 선언이 있는 것과 제품이 사용하는 것은 구분한다. 과거 실기 기록은 현재 전환의 검증 결과가 아니며 SizeConst=100은 출력 안전성 증거가 아니다. 실제 x86/x64 P/Invoke 연결과 StringBuilder 전환은 미검증이다.
+헤더의 `USHORT`→`ushort`, `BYTE`→`byte`, `int`→`int`를 유지한다. 호출 규약은 원본 선언의 StdCall이다. 원본의 DLL 이름·ANSI/LPStr와 기본 문자열 선언은 보존하며 LPCTSTR/LPTSTR만 보고 Unicode로 변경하지 않는다. 현재 제품은 자체 preload·경로/모듈 검사 없이 원본 DllImport와 .NET 기본 로딩을 사용한다. StartLabelPrint도 원본 StringBuilder 선언을 직접 호출한다. ApplicationDirectory/System32 검색 제한은 유지하고 고정 해시는 Validation에서만 검사한다. 제품에 일반 함수 검색과 RFID 공개 API는 없다. 원본에 RFID 선언이 있는 것과 제품이 사용하는 것은 구분한다. 과거 실기 기록은 현재 전환의 검증 결과가 아니며 SizeConst=100은 출력 안전성 증거가 아니다. 실제 x86/x64 P/Invoke 연결과 StringBuilder native 반환은 미검증이다.
 
 문서의 두 보안 함수는 반환을 C/C++ `long`으로 표기하지만 헤더/샘플은 int다. Windows native long도 32-bit이므로 .NET `long`(Int64)으로 바꾸지 않는다. 모든 원형에서 문자열의 입력·출력 방향도 유지하고 x86 장식 이름과 실제 인수 크기를 대조한다.
 

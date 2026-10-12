@@ -1,3 +1,5 @@
+현재 #16의 계약은 [동기 USB 스펙](specs/SYNC_USB_MVP.md)이다. 아래 분석은 포인터 보호와 자체 로더가 있던 이전 구현의 역사 기록이다. 제품은 원본 StringBuilder/DllImport로 전환했고 출력 버퍼 결함 방어와 실행 시 고정 SDK 해시는 MVP에서 제외했다. 아래 과거 보호를 현재 제품 기능이나 새 실기 성공으로 해석하지 않는다.
+
 # StartLabelPrint 정적 분석 결과
 
 ## 2026-10-12: 원본 StringBuilder 전환 재검토

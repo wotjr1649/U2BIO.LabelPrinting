@@ -27,7 +27,7 @@ string xmlText = converted.ToXml();
 
 codePage는 BTPL 읽기·저장에만 적용한다. UTF-8 BTPL에는65001을 지정한다. JSON/XML은 UTF-8이며 BOM을 읽을 수 있고 저장 시 BOM을 추가하지 않는다. 파일 인코딩과 다른 BOM은 InvalidEncoding이다. XML 선언은 생략하거나 UTF-8/utf8을 지정하며 다른 선언은 거절한다.
 
-Print(string)/PrintAsync(string)는 여전히 완성 BTPL 문자열을 받는다. JSON/XML 문자열은 위 Parse overload로 템플릿을 만든 뒤 Print(template) 또는 기존 요청 API에 전달한다. 이 문서 예시는 파일·관리 모델 사용법이며 실제 SDK 실행 승인을 뜻하지 않는다.
+현재 [동기 USB 스펙](specs/SYNC_USB_MVP.md)은 Print(string)에 완성 BTPL을 받는다. JSON/XML은 위 Parse/Load로 선택 템플릿을 만든 뒤 printer.Print(template.ToBtpl())로 전달한다. 바인딩 요청은 BtplProcessor.Validate/Render를 호출 프로그램에서 수행하고 유효한 BtplText를 한 장씩 Print에 전달한다. 기본 SDK 경로는 Templates 사전검사를 자동 수행하지 않는다. 이 문서 예시는 파일·관리 모델 사용법이며 실제 SDK 실행 승인을 뜻하지 않는다.
 
 ## TXT/BTPL 예
 
@@ -114,7 +114,7 @@ JSON 숫자는 표준 문법을 따른다. 숫자80은 허용하고 숫자0080/+
 
 서식 JSON(settings/texts)과 기존 바인딩 JSON(variables)은 별개다. 서식 문구의 ^V00~^V99는 기존 BtplBindings·FromRow/FromTable에서 치환한다. DB·SQL·연결 정보·가변 LineAdvances를 서식에 저장하거나 실행하지 않는다.
 
-세 파서가 만든 모델은 기존 ToBtpl/Parse의 검증을 통과해야 한다. 필수 설정·중복 설정·허용 명령·인수·변수·제어 문자 검사를 형식별로 우회할 수 없다. 문법 성공은 실제 인쇄 허가가 아니며 기존 지원 프로필과 장치 사전검사를 그대로 적용한다.
+세 파서가 만든 모델은 기존 ToBtpl/Parse의 검증을 통과해야 한다. 필수 설정·중복 설정·허용 명령·인수·변수·제어 문자 검사를 형식별로 우회할 수 없다. 선택 Templates의 문법 검사 성공은 실제 인쇄 허가가 아니다. 현재 기본 Print는 입력 경계 검사 뒤 서식 해석을 SDK에 맡기며 기존 전체 장치 사전검사 엔진을 사용하지 않는다.
 
 설정·요소·인수 순서와 AW 원문 인수, BTPL 좌표의 선행0·문구 공백을 보존한다. JSON/XML은 CRLF 고정 줄을 자동 확장하지 않는다. 저장 전 ExpandFixedLines를 사용하며 가변 줄 이동은 기존 호출 옵션이다. 기본 P1/C1/R0/E0는 기존 ToBtpl 정규화 경로에서 보완한다.
 
@@ -126,7 +126,7 @@ JSON/XML 문서와 생성 결과는 UTF-8 기준4MiB(4,194,304 bytes) 이하다.
 
 ## 검증 범위
 
-TemplateFormatTests는 세 형식의 정규 BTPL/바인딩 결과 일치, raw 좌표·AW 인수·한글·변수·공백 보존, schema/중복/금지 명령/Unicode/DTD/크기 오류, UTF-8/BOM, 명시 형식, 저장 충돌·연속 저장·잠금 오류·원본 보존을 검사한다. 기존 바인딩·연결·합성 인쇄 검사도 유지한다.
+TemplateFormatTests는 세 형식의 정규 BTPL/바인딩 결과 일치, raw 좌표·AW 인수·한글·변수·공백 보존, schema/중복/금지 명령/Unicode/DTD/크기 오류, UTF-8/BOM, 명시 형식, 저장 충돌·연속 저장·잠금 오류·원본 보존을 검사한다. 바인딩과 선택 Templates 검사는 유지하고 현재 동기 인쇄는 새 계약 검사와 Link harness로 확인한다. 아래 검증 기록은 #12 당시의 구현과 API에 대한 역사 증거다.
 
 실제 SDK·장치·출력·배출 검증은 [별도 실기 #11](HARDWARE_VALIDATION.ko.md)에 보류한다. 이전 적대적 검토의 첫 행 연결 조회 예외 상태 문제는 서식 확장으로 수정하지 않았으며 연결 수명 보완에서 해결해야 한다.
 

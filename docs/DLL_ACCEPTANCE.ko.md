@@ -61,7 +61,7 @@ SDK 사본은 `src/U2BIO.BT003PROLabelPrinting/Sdk/x86` 및 `Sdk/x64`다. Blackf
 
 ## DB·DevExpress 없는 독립 호출
 
-[OfflineSmoke 소스](../examples/OfflineSmoke/Program.cs)와 [프로젝트](../examples/OfflineSmoke/OfflineSmoke.csproj)는 관리 DLL의 공개 API만 참조한다. 솔루션에 UI 프로젝트를 추가하지 않았다. 합성 두 줄의 Parse/Validate/Render, 연결 없는 Print의 NotConnected, 사전 취소 PrintAsync의 Cancelled 및 native SDK 파일/모듈 부재를 확인한다. Connect를 호출하지 않아 장치·인쇄·이송·DB가 실행되지 않는다. 예시 용지값은 DLL 기본값이 아니다.
+[OfflineSmoke 소스](../examples/OfflineSmoke/Program.cs)와 [프로젝트](../examples/OfflineSmoke/OfflineSmoke.csproj)는 관리 DLL의 공개 API만 참조한다. 솔루션에 UI 프로젝트를 추가하지 않았다. 현재 예제는 합성 두 줄의 선택 Templates Parse/Validate/Render, 연결 없는 Print(string)의 NotConnected 및 native SDK 파일/모듈 부재를 확인한다. 취소·비동기 공개 API는 #16에서 제거됐다. 아래 기존 인수 증거는 이전 API의 역사 기록이다. Connect를 호출하지 않아 장치·인쇄·이송·DB가 실행되지 않는다. 예시 용지값은 DLL 기본값이 아니다.
 
 ```text
 MSBuild examples\OfflineSmoke\OfflineSmoke.csproj /t:Rebuild /m:1 /nr:false /p:Platform=x86 /p:Configuration=Release

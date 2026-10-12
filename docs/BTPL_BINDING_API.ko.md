@@ -1,6 +1,6 @@
 # JSON 바인딩·관리 렌더링 API
 
-TASK-04의 .NET Framework 4.6.1 관리 API다. DB·DevExpress·native SDK 없이 템플릿 하나와 DataTable/DataRow를 검사·렌더링한다. 실제 장치 지원이나 인쇄 가능 여부를 확인하는 API는 TASK-05다.
+TASK-04의 .NET Framework 4.6.1 관리 API다. DB·DevExpress·native SDK 없이 템플릿 하나와 DataTable/DataRow를 검사·렌더링한다. 실제 장치 지원이나 인쇄 가능 여부를 확인하는 API가 아니다. 현재 기본 인쇄는 [동기 USB 스펙](specs/SYNC_USB_MVP.md)을 따른다.
 
 이 문서는 선택적인 데이터 자동 바인딩 경로다. 완성 문구를 가진 BTPL/템플릿을 사용하면 DataTable·JSON 없이 Fixed 요청을 생성할 수 있다. 기본 wrapper 사용과 선택 기능의 관계는 [모듈 역할](MODULE_OVERVIEW.ko.md)을 따른다. 기존 바인딩·NULL·format 검사 계약은 유지한다.
 
@@ -74,7 +74,7 @@ format은 DateTime/숫자에 InvariantCulture로 적용한다. 문자열·Boolea
 | CanPreview/IsPartialPreview | 해석 가능한 요소가 있을 때 미리보기 모델 제공. 오류 요소는 추측하지 않고 제외하며 불완전 여부 표시 |
 | TextElements/BtplText | 실제 치환·줄 배치와 같은 요소 모델. 해당 행 관리 오류가 없을 때만 후보 BTPL 반환, 오류면 null |
 
-Render는 선택 행의 참고 미리보기·후보 생성용이다. 제품 Print는 TASK-05/06에서 전체 Validate와 장치 검사를 다시 적용하여 한 행 오류 시 전체 인쇄를 시작하지 않는다. AW/다른 글꼴의 장치 미확인은 관리 오류로 넣지 않으며 IsValid=true를 인쇄 허가로 해석하지 않는다. 금지/미지원 원문 명령은 기존 Parse 오류로 중단하고 호출자가 보관한 원문을 수정해 다시 읽는다.
+Render는 선택 행의 참고 미리보기·후보 생성용이다. 호출 프로그램이 전체 Validate와 각 Render 결과를 확인하고 유효한 BtplText만 Print(string)으로 전달한다. 현재 기본 Print는 바인딩 요청이나 전체 행 사전검사를 자동 수행하지 않는다. AW/다른 글꼴의 장치 미확인은 관리 오류로 넣지 않으며 IsValid=true를 인쇄 허가로 해석하지 않는다. 금지/미지원 원문 명령은 기존 Parse 오류로 중단하고 호출자가 보관한 원문을 수정해 다시 읽는다.
 
 ## 추적과 검사 범위
 
