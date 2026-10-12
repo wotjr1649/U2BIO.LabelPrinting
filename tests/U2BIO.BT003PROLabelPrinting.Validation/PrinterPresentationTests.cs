@@ -155,11 +155,37 @@ namespace U2BIO.BT003PROLabelPrinting.Validation
                 } finally { f.Release.Set(); p.Dispose(); }
             }
         }
+        private static void ReturnThenZeroFailure()
+        {
+            foreach (string mode in new[] { "known-failure", "unknown", "throw" }) {
+                string port = "presentation-return-zero-" + mode; var first = Fixture();
+                using (var p = first.Printer()) {
+                    Open(p, first, port, 15); Check(p.Print(PrinterTests.Request()).Succeeded == 1);
+                }
+                var second = Fixture();
+                second.Printed = (c, ptr) => {
+                    if (mode == "throw") throw new InvalidOperationException("synthetic");
+                    Response(ptr, mode == "known-failure" ? 9 : 101);
+                };
+                using (var p = second.Printer()) {
+                    Open(p, second, port, 0); var result = p.Print(PrinterTests.Request());
+                    Check(Movement(result, "PositionReturnStatus") == "CommandAccepted" && second.Calls.Contains("Return:15"));
+                    Check(result.Succeeded == 0 && result.PendingReturnDistanceMm == null && Pending(p) == null);
+                }
+                var third = Fixture();
+                using (var p = third.Printer()) {
+                    Open(p, third, port, 0); var blocked = p.Print(PrinterTests.Request());
+                    Check(blocked.Code == "MediaPositionUnknown" && blocked.NotAttemptedCount == 1 && !third.Calls.Contains("Print"));
+                    Confirm(p); third.Calls.Clear(); Check(p.Print(PrinterTests.Request()).Succeeded == 1);
+                    Check(!third.Calls.Any(x => x.StartsWith("Return:") || x.StartsWith("Advance:")));
+                }
+            }
+        }
         internal static void Run()
         {
             // Runtime lookup allows the baseline product to compile and fail for the missing feature.
             Options("presentation-api", 0);
-            Sequence(); NoMotion(); Failures(); PendingCalls();
+            Sequence(); NoMotion(); Failures(); PendingCalls(); ReturnThenZeroFailure();
             Console.WriteLine("PASS: opt-in presentation, return, batch-last, target lifetime and movement failure/timeout/cancellation contracts; synthetic SDK only");
         }
     }
