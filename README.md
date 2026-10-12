@@ -10,7 +10,7 @@ RFID 값이 이미 기록된 BT-003 Pro 라벨에 프로그램이 전달한 텍�
 
 2026-10-09 사용자 지시로 현재 진행할 수 없는 새 제품 실기는 [별도 실기 테스트 #11](https://github.com/wotjr1649/U2BIO.LabelPrinting/issues/11)에 보류합니다. TASK-05/07은 소프트웨어 인수 범위로 정리하여 Tester/연동 예제 개발을 진행할 수 있습니다. [원래 조건·미검증 상태·재개 조건](docs/HARDWARE_VALIDATION.ko.md)을 보존하며 실제 SDK/장치 지원을 검증 완료로 표시하지 않습니다.
 
-TASK-03의 공개 `BtplTemplate` 관리 API로 BTPL 해석·좌표/문구 편집·고정 줄바꿈·strict 인코딩·단일 파일 저장을 지원합니다. [사용 예와 저장 계약](docs/BTPL_TEMPLATE_API.ko.md)을 참고합니다. 이 API는 프린터 없이 동작하며 수치 편집·미리보기 화면은 후속 UI 작업입니다.
+TASK-03의 공개 `BtplTemplate` 관리 API로 BTPL 해석·좌표/문구 편집·고정 줄바꿈·strict 인코딩·단일 파일 저장을 지원합니다. 2026-10-12 사용자 확정에 따라 TXT/BTPL·JSON·XML 서식을 같은 모델로 읽고 저장하도록 확장했습니다. [세 형식 API와 서식 예](docs/TEMPLATE_FORMATS.ko.md), [사용 예와 저장 계약](docs/BTPL_TEMPLATE_API.ko.md)을 참고합니다. 이 API는 프린터 없이 동작하며 수치 편집·미리보기 화면은 후속 UI 작업입니다.
 
 TASK-04는 `BtplBindings`, `BtplPrintRequest`, `BtplProcessor`로 JSON 매핑·DataTable 스냅샷·전체 관리 검사·행별 참고 미리보기 모델을 제공합니다. [바인딩·렌더링 API](docs/BTPL_BINDING_API.ko.md)를 참고합니다. DB 연결과 실제 출력은 하지 않으며 TASK-02의 미검증 제품 경계·장치 지원은 [후속 #10](https://github.com/wotjr1649/U2BIO.LabelPrinting/issues/10)에서 관리합니다.
 
@@ -23,7 +23,7 @@ TASK-04는 `BtplBindings`, `BtplPrintRequest`, `BtplProcessor`로 JSON 매핑·D
 | 플랫폼 | .NET Framework 4.6.1, Windows |
 | 테스트 UI | WinForms, DevExpress 20.2.6 |
 | 배포 | 관리 DLL AnyCPU, 제조사 DLL x86/x64 세트 |
-| 기준 서식 | BTPL `.txt` / `.btpl` |
+| 서식 저장 | `.txt` / `.btpl`, `.json`, `.xml` → 같은 `BtplTemplate`; 최종 명령은 BTPL |
 | 부가 설정 | 선택 JSON: 변수와 컬럼의 매핑, 출력 형식, `nullText` |
 | 기본 입력 | 호출 프로그램이 준비한 텍스트 전용 BTPL 또는 템플릿 |
 | 선택 데이터 입력 | DB 결과 자동 바인딩이 필요할 때 `DataTable`/`DataRow` |

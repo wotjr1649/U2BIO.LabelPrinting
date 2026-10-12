@@ -8,6 +8,8 @@ U2BIO.BT003PROLabelPrinting은 제조사 BlackfishNfcLib.dll wrapper의 연결·
 
 기본 사용은 Connect → Print(BTPL) → Disconnect다. DataTable, JSON, DB 연결, DevExpress 또는 별도 NativeHost.exe를 기본 사용의 필수 구성으로 요구하지 않는다. 기존 템플릿 편집·바인딩 구현은 같은 DLL의 선택 기능으로 유지한다.
 
+2026-10-12 서식 확장: TXT/BTPL·JSON·XML을 모두 같은 BtplTemplate으로 변환하며 저장 형식만 다르다. JSON/XML의 레이아웃 정보는 별도 인쇄 엔진이 아니라 기존 설정·텍스트 요소의 표현이다. 선택 바인딩 JSON은 별도 API와 스키마를 유지한다. [서식 API와 예](TEMPLATE_FORMATS.ko.md)를 따른다.
+
 ```text
 Checkup / SmartCheckup / Tester
     → U2BIO.BT003PROLabelPrinting.dll

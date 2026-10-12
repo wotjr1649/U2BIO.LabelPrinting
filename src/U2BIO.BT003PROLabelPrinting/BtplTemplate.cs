@@ -4,7 +4,7 @@ using System.Linq;
 
 namespace U2BIO.BT003PROLabelPrinting
 {
-    public sealed class BtplTemplate
+    public sealed partial class BtplTemplate
     {
         public IReadOnlyList<BtplSetting> Settings { get; }
         public IReadOnlyList<BtplTextElement> TextElements { get; }
@@ -14,11 +14,15 @@ namespace U2BIO.BT003PROLabelPrinting
             Settings = Array.AsReadOnly(settings.ToArray()); TextElements = Array.AsReadOnly(texts.ToArray()); origin = source;
         }
         public static BtplTemplate Load(string filePath, int codePage = 949)
+            => Load(filePath, FileFormat(filePath), codePage);
+        public static BtplTemplate Load(string filePath, BtplTemplateFormat format, int codePage = 949)
         {
             if (filePath == null) throw new ArgumentNullException(nameof(filePath));
+            CheckFormat(format);
             BtplFileOrigin source;
-            string text = BtplFileStore.Read(filePath, codePage, out source);
-            var parsed = Parse(text);
+            string text = BtplFileStore.Read(filePath, format == BtplTemplateFormat.Btpl ? codePage : 65001, out source,
+                format == BtplTemplateFormat.Btpl ? (int?)null : MaxDocumentBytes, "TemplateTooLarge");
+            var parsed = Parse(text, format);
             return new BtplTemplate(parsed.Settings, parsed.TextElements, source);
         }
         public static BtplTemplate Parse(string btpl)
@@ -81,11 +85,14 @@ namespace U2BIO.BT003PROLabelPrinting
             Parse(btpl); return btpl;
         }
         public BtplTemplate Save(string filePath, int codePage = 949)
+            => Save(filePath, FileFormat(filePath), codePage);
+        public BtplTemplate Save(string filePath, BtplTemplateFormat format, int codePage = 949)
         {
             if (filePath == null) throw new ArgumentNullException(nameof(filePath));
-            string normalized = ToBtpl();
-            var source = BtplFileStore.Save(filePath, normalized, codePage, origin);
-            var parsed = Parse(normalized);
+            CheckFormat(format);
+            string normalized = format == BtplTemplateFormat.Btpl ? ToBtpl() : format == BtplTemplateFormat.Json ? ToJson() : ToXml();
+            var source = BtplFileStore.Save(filePath, normalized, format == BtplTemplateFormat.Btpl ? codePage : 65001, origin);
+            var parsed = Parse(normalized, format);
             return new BtplTemplate(parsed.Settings, parsed.TextElements, source);
         }
         public BtplTemplate WithText(int textIndex, BtplTextElement text)

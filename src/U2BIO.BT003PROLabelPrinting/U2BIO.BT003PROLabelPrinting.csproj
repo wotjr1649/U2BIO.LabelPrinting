@@ -39,6 +39,7 @@
     <Compile Include="BtplSyntax.cs" />
     <Compile Include="BtplFileStore.cs" />
     <Compile Include="BtplTemplate.cs" />
+    <Compile Include="BtplTemplate.Formats.cs" />
     <Compile Include="BtplBindings.cs" />
     <Compile Include="BtplPrintRequest.cs" />
     <Compile Include="BtplProcessor.cs" />

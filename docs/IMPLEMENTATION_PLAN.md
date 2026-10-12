@@ -22,7 +22,7 @@
 
 - DLL 우선: `U2BIO.BT003PROLabelPrinting`, .NET Framework 4.6.1. UI는 `U2BIO.BT003PROLabelPrinting.Tester`, WinForms와 DevExpress 20.2.6.
 - 기존 RFID 값 보존, 1차 텍스트만 지원. RFID API는 외부 공개 및 인쇄 흐름 호출 금지.
-- BTPL이 서식 기준. JSON은 매핑·출력 형식·nullText만 저장한다. DB 조회는 호출 프로그램의 책임이다.
+- 실제 명령 의미는 BTPL 기준이다. TXT/BTPL·JSON·XML 서식은 같은 BtplTemplate을 사용한다. 별도 바인딩 JSON은 매핑·출력 형식·nullText만 저장한다. DB 조회는 호출 프로그램의 책임이다.
 - 텍스트 넘침·DPI 설정·자동 줄바꿈·자동 재출력·대기열을 추가하지 않는다.
 - 각 이슈를 닫을 때 구현 커밋, 실행한 검사·결과, 미검증 항목을 기록한다. 실제 장치 증거가 필요한 조건은 fake SDK 성공으로 대체하지 않는다.
 - 인쇄 데이터·기존 RFID 실제 값·인증 정보는 GitHub 시험 기록에 넣지 않는다. 합성 데이터와 값 일치 여부로 증거를 남긴다.
@@ -159,7 +159,7 @@
 완료 조건:
 
 - [ ] .NET Framework 4.6.1, WinForms, DevExpress 20.2.6으로 구성하고 x86/x64 출력 폴더를 분리한다.
-- [ ] BTPL·JSON 불러오기/저장, 텍스트 추가·삭제·복사·수치 편집, 변수 매핑과 합성 DataTable 편집을 제공한다.
+- [ ] TXT/BTPL·JSON·XML 서식 및 별도 바인딩 JSON 불러오기/저장, 텍스트 추가·삭제·복사·수치 편집, 변수 매핑과 합성 DataTable 편집을 제공한다.
 - [ ] DLL의 Render 결과를 사용하여 참고 미리보기·부분 미리보기·오류를 표시한다. DPI/넘침 판정과 프린터 픽셀 일치 보장은 추가하지 않는다.
 - [ ] USB 및 TCP/IP·RS-232 연결 옵션, 포트 상태, 사전검사, 단건·일괄 출력, 취소와 건별 결과를 표시한다.
 - [ ] LineAdvance는 현재 세션에서 관리하고 재시작/다른 서식 뒤 필요한 값이 없으면 인쇄를 차단한다.

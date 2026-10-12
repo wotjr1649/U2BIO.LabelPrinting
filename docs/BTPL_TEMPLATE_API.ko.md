@@ -2,6 +2,8 @@
 
 TASK-03의 프린터 없는 관리 API다. .NET Framework 4.6.1 공통 DLL만 참조한다. Parse/Load/편집/ToBtpl/Save/ExpandFixedLines는 native SDK 로드·장치 연결·출력을 하지 않는다. JSON 바인딩과 DataTable 렌더링은 TASK-04, 참고 미리보기와 수치 편집 화면은 TASK-08에서 이 모델을 사용한다.
 
+2026-10-12 확장: Load/Save는 .json/.xml 확장자에서 서식 JSON/XML을 선택하고 TXT/BTPL은 기존 경로를 유지한다. Parse(string)는 계속 BTPL이며 Parse(content, BtplTemplateFormat), 명시 Load/Save overload 및 ToJson/ToXml을 제공한다. [스키마·인코딩·동일 서식 예](TEMPLATE_FORMATS.ko.md)를 따른다. 이 서식 JSON은 TASK-04의 바인딩 JSON과 별개다.
+
 ## 읽기와 편집
 
 ```csharp

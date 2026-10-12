@@ -48,7 +48,7 @@ namespace U2BIO.BT003PROLabelPrinting
         }
         private static bool VariableName(string value) => value != null && Regex.IsMatch(value, "\\A\\^V[0-9]{2}\\z", RegexOptions.CultureInvariant);
         private static string Name(XmlElement element) => element.NamespaceURI == "item" ? element.GetAttribute("item") : element.LocalName;
-        private static Dictionary<string, XmlElement> Object(XmlElement element)
+        internal static Dictionary<string, XmlElement> Object(XmlElement element)
         {
             if (element == null || element.GetAttribute("type") != "object" || element.HasAttribute("__type")) throw new BtplFormatException("InvalidBindings");
             var result = new Dictionary<string, XmlElement>(StringComparer.Ordinal);
@@ -59,13 +59,13 @@ namespace U2BIO.BT003PROLabelPrinting
             }
             return result;
         }
-        private static string String(XmlElement element, bool nullable)
+        internal static string String(XmlElement element, bool nullable)
         {
             if (nullable && element.GetAttribute("type") == "null") return null;
             if (element.GetAttribute("type") != "string") throw new BtplFormatException("InvalidBindings");
             return element.InnerText;
         }
-        private static void CheckEnvelope(string json)
+        internal static void CheckEnvelope(string json)
         {
             // The framework reader accepts trailing content; require exactly one root object.
             int depth = 0; bool quoted = false, escaped = false, started = false;

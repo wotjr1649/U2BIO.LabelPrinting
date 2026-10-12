@@ -16,14 +16,14 @@ namespace U2BIO.BT003PROLabelPrinting
     {
         internal static byte[] Hash(byte[] bytes) { using (var sha = SHA256.Create()) return sha.ComputeHash(bytes); }
         internal static Encoding StrictEncoding(int codePage) => Encoding.GetEncoding(codePage, EncoderFallback.ExceptionFallback, DecoderFallback.ExceptionFallback);
-        internal static string Read(string filePath, int codePage, out BtplFileOrigin origin, int? maximumBytes = null)
+        internal static string Read(string filePath, int codePage, out BtplFileOrigin origin, int? maximumBytes = null, string sizeError = "BindingsTooLarge")
         {
             string path = System.IO.Path.GetFullPath(filePath);
             byte[] bytes;
             if (maximumBytes == null) bytes = File.ReadAllBytes(path);
             else {
                 using (var file = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read)) {
-                    if (file.Length > maximumBytes.Value) throw new BtplFormatException("BindingsTooLarge");
+                    if (file.Length > maximumBytes.Value) throw new BtplFormatException(sizeError);
                     int length = (int)file.Length;
                     using (var reader = new BinaryReader(file)) {
                         bytes = reader.ReadBytes(length);

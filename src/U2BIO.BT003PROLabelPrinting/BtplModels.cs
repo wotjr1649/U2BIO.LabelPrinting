@@ -70,6 +70,8 @@ namespace U2BIO.BT003PROLabelPrinting
         public string Payload { get; }
         internal int? Line { get; }
         private readonly string xLiteral, yLiteral;
+        internal string XLiteral => xLiteral;
+        internal string YLiteral => yLiteral;
 
         public BtplTextElement(string command, int x, int y, IEnumerable<string> arguments, string payload)
             : this(command, x.ToString(CultureInfo.InvariantCulture), y.ToString(CultureInfo.InvariantCulture), arguments, payload, null)
