@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Runtime.Serialization.Json;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Xml;
 
 namespace U2BIO.BT003PROLabelPrinting
@@ -69,6 +70,7 @@ namespace U2BIO.BT003PROLabelPrinting
         private static BtplTemplate ReadJson(string json)
         {
             BtplBindings.CheckEnvelope(json);
+            CheckJsonTokens(json);
             var quotas = new XmlDictionaryReaderQuotas { MaxDepth = 6, MaxStringContentLength = MaxDocumentBytes };
             using (var reader = JsonReaderWriterFactory.CreateJsonReader(DocumentEncoding.GetBytes(json), quotas)) {
                 var document = new XmlDocument { XmlResolver = null }; document.Load(reader);
@@ -84,6 +86,48 @@ namespace U2BIO.BT003PROLabelPrinting
                         JsonArray(fields["arguments"]).Select(JsonString), JsonString(fields["payload"]), null));
                 }
                 return new BtplTemplate(settings, texts, null);
+            }
+        }
+        private static bool JsonSpace(char value) => value == ' ' || value == '\t' || value == '\r' || value == '\n';
+        private static void CheckJsonTokens(string json)
+        {
+            // The Framework reader accepts trailing commas and leading-zero numbers; reject them before decoding.
+            char previous = '\0';
+            for (int i = 0; i < json.Length; i++) {
+                char c = json[i];
+                if (JsonSpace(c)) continue;
+                if (c == '"') {
+                    bool closed = false;
+                    for (i++; i < json.Length; i++) {
+                        c = json[i];
+                        if (c == '"') { closed = true; break; }
+                        if (c < 32) throw DocumentError();
+                        if (c != '\\') continue;
+                        if (++i >= json.Length) throw DocumentError();
+                        c = json[i];
+                        if (c == 'u') {
+                            if (i + 4 >= json.Length) throw DocumentError();
+                            for (int k = 1; k <= 4; k++) {
+                                char digit = json[i + k];
+                                if (!((digit >= '0' && digit <= '9') || (digit >= 'a' && digit <= 'f') || (digit >= 'A' && digit <= 'F'))) throw DocumentError();
+                            }
+                            i += 4;
+                        } else if ("\"\\/bfnrt".IndexOf(c) < 0) throw DocumentError();
+                    }
+                    if (!closed) throw DocumentError();
+                    previous = 'v'; continue;
+                }
+                if ("{}[],:".IndexOf(c) >= 0) {
+                    if ((c == '}' || c == ']') && (previous == ',' || previous == ':')) throw DocumentError();
+                    if (c == ',' && "{[:,".IndexOf(previous) >= 0) throw DocumentError();
+                    previous = c; continue;
+                }
+                int start = i;
+                while (i < json.Length && !JsonSpace(json[i]) && "{}[],:\"".IndexOf(json[i]) < 0) i++;
+                string token = json.Substring(start, i - start); i--;
+                if (token != "true" && token != "false" && token != "null" &&
+                    !Regex.IsMatch(token, "\\A-?(?:0|[1-9][0-9]*)(?:\\.[0-9]+)?(?:[eE][+-]?[0-9]+)?\\z", RegexOptions.CultureInvariant)) throw DocumentError();
+                previous = 'v';
             }
         }
         private static XmlElement[] Children(XmlElement element, params string[] attributes)

@@ -131,11 +131,16 @@ BTPL과 바인딩 JSON은 독립 파일이다. 두 파일을 하나의 원자적
 ```text
 // .NET Framework 4.6.1. 메서드 표기이며 구현 소스가 아니다.
 BtplTemplate BtplTemplate.Load(string filePath, int codePage = 949);
+BtplTemplate BtplTemplate.Load(string filePath, BtplTemplateFormat format, int codePage = 949);
 BtplTemplate BtplTemplate.Parse(string btpl);
+BtplTemplate BtplTemplate.Parse(string content, BtplTemplateFormat format);
 BtplTemplate BtplTemplate.ExpandFixedLines(BtplRenderOptions renderOptions,
     out BtplRenderOptions remappedRenderOptions);
 string BtplTemplate.ToBtpl();
+string BtplTemplate.ToJson();
+string BtplTemplate.ToXml();
 BtplTemplate BtplTemplate.Save(string filePath, int codePage = 949);
+BtplTemplate BtplTemplate.Save(string filePath, BtplTemplateFormat format, int codePage = 949);
 BtplTemplate BtplTemplate.WithText(int textIndex, BtplTextElement text);
 BtplTemplate BtplTemplate.AddText(BtplTextElement text);
 BtplTemplate BtplTemplate.RemoveText(int textIndex);

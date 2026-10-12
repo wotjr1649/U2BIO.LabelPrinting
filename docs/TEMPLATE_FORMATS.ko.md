@@ -76,6 +76,8 @@ E
 최상위는 settings/texts 두 항목만 허용한다. settings는 command/parameters 문자열 객체 배열, texts는 command/x/y/arguments/payload 객체 배열이다.
 X/Y는 기존 BTPL의 비음수 정수 문법을 따르는 문자열 또는 JSON 정수로 입력한다. ToJson은 선행0을 보존하기 위해 문자열로 저장한다. arguments는 명령별 순서가 있는 문자열 배열이며 AW의 부호·선행0을 보존한다. payload의 쉼표·공백·변수도 유지한다.
 
+JSON 숫자는 표준 문법을 따른다. 숫자80은 허용하고 숫자0080/+80은 거절하며, 원문 선행0이 필요하면 문자열 "0080"을 사용한다. 객체·배열 끝의 불필요한 쉼표와 잘못된 escape도 거절한다. 문구 안의 쉼표·중괄호·숫자 문자열은 데이터로 보존한다.
+
 ## 같은 서식의 XML
 
 ```xml
