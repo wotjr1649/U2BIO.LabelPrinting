@@ -176,7 +176,7 @@ namespace U2BIO.BT003PROLabelPrinting
                 data.Rows[data.CurrentRow] = new RowPrintResult(data.CurrentRow, status, reason, resultCode,
                     data.PartialManaged[data.CurrentRow], data.Device?.Rows[data.CurrentRow], data.Stage, data.Invoked, function, value, evidence);
                 if (status != PrintRowStatus.Succeeded) { StopPrinting(work, resultCode, function, value); data.StopReason = reason; }
-                if (status != PrintRowStatus.Succeeded && data.Invoked && target.PresentationDistanceMm > 0) SetReturnDistance(null);
+                if (status != PrintRowStatus.Succeeded && data.Invoked && (target.PresentationDistanceMm > 0 || data.PositionReturnStatus != MediaMovementStatus.NotAttempted)) SetReturnDistance(null);
             }
         }
         private BatchPrintResult Batch(Work work)

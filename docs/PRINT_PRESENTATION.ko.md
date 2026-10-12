@@ -53,7 +53,7 @@ using (var printer = new Bt003Printer())
 
 인쇄 행의 Succeeded를 전진 오류 때문에 Failed로 바꾸지 않는다. 예를 들어 인쇄1건 정상·전진9이면 Succeeded=1, batch Code=MediaMovementFailed, PresentationStatus=Failed, 위치=null이다. 이 경우 같은 인쇄를 재출력하지 않는다. 전진/복귀의 예외는 MediaMovementUnknown이며 timeout은 NativeCallTimeout이다. 불명 위치의 preflight/Print는 MediaPositionUnknown으로 차단한다.
 
-위치는 물리 센서로 읽은 값이 아니라 SDK에 수락된 명령에 대한 가정이다. CommandAccepted/응답0은 물리 배출 완료를 뜻하지 않는다. 단일 worker와 소유권이 SDK 호출 순서를 보장하며, 프린터 내부 실행 순서·완료 시점은 #11 실기에서 확인해야 한다. 새로운 임의 SendData API나 RFID 호출은 제공하지 않는다.
+위치는 물리 센서로 읽은 값이 아니라 SDK에 수락된 명령에 대한 가정이다. 이전 전진을 복귀한 요청에서는 새 전진 설정이0이어도 인쇄 실패/불명 뒤 위치를null로 보존해 다음 인쇄를 차단한다. CommandAccepted/응답0은 물리 배출 완료를 뜻하지 않는다. 단일 worker와 소유권이 SDK 호출 순서를 보장하며, 프린터 내부 실행 순서·완료 시점은 #11 실기에서 확인해야 한다. 새로운 임의 SendData API나 RFID 호출은 제공하지 않는다.
 
 ## 수명과 수동 복구
 

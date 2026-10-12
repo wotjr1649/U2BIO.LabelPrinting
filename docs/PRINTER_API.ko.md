@@ -46,7 +46,7 @@ foreach (var row in result.Rows)
 
 같은 프로세스의 다른 `Bt003Printer`가 SDK 슬롯을 소유하면 Print/ValidateForPrint/Disconnect도 `Busy`다. 장치 preflight에서 확인된 포트 오류는 취소/Dispose보다 우선하며 완료된 장치 검사와 NativeCode를 보존한다.
 
-취소는 현재 native 호출을 강제로 중단하지 않는다. 인쇄 호출 중 취소/Dispose 뒤 정상 응답이 돌아오면 현재 행은 `Succeeded`, 다음 행부터 미시도다. 확인된 실패/불명/timeout이 취소보다 우선한다. 마지막 행까지 완료했다면 뒤늦은 취소로 `StopReason=None`을 바꾸지 않는다. 정상 취소 후 정리가 성공하면 연결을 유지한다.
+취소는 현재 native 호출을 강제로 중단하지 않는다. 인쇄 호출 중 취소/Dispose 뒤 정상 응답이 돌아오면 현재 행은 `Succeeded`, 다음 행부터 미시도다. 확인된 실패/불명/timeout이 취소보다 우선한다. 배출 전진이 비활성인 기존 호출은 마지막 행 완료 뒤 취소로 `StopReason=None`을 바꾸지 않는다. 전진이 활성화됐다면 마지막 인쇄 정상 응답 뒤 전진 전에 관찰한 취소/Dispose는 인쇄 성공을 보존하면서 batch `Cancelled`/`Disposed`와 전진 미시도를 반환한다. 이미 진입한 이송은 [배출·복귀 계약](PRINT_PRESENTATION.ko.md)에 따라 결과를 보존한다. 정상 취소 후 정리가 성공하면 연결을 유지한다.
 
 ## 연결
 

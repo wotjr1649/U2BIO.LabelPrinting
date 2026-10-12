@@ -195,9 +195,11 @@ Task<BatchPrintResult> Bt003Printer.PrintAsync(BtplPrintRequest request,
 | `DeviceValidationResult` | `IsValid`, `CommonIssues`, 입력 순서 `Rows`(RowValidationResult), `PortState`. 실제 인코딩·배포 SDK·검증된 명령/글꼴 조합·포트 검사. 용지/리본/헤드 준비를 보증하지 않음 |
 | `PrinterOperationResult` | `IsSuccess`, `Code`, `NativeFunction`, nullable `NativeCode`, nullable `SystemErrorCode`(로더 오류), `State`, `NativeCallPending`, `ResourcesReleased`, `CleanupCode`, 민감 값 없는 `Message` |
 | `NativeCallResult` | `Function`, nullable `NativeCode`, nullable `SystemErrorCode`. `Calls`의 메타데이터 항목이며 void/예외의 원래 int 없음은 null |
-| `PrinterConnectionStatus` | managed `State`, `PortState`(`Open/Closed/Unknown`), `Code`, nullable `NativeCode`, `NativeCallPending`, `ResourcesReleased`, `CleanupCode`. 용지·리본·헤드 준비 상태는 보증하지 않음 |
+| `Bt003ConnectionOptions` | 명시 `Transport`/`Port`/`IpAddress`, 기본0인 `PresentationDistanceMm`. WithPresentationDistance는0~1000mm의 새 immutable 옵션 반환 |
+| `PrinterConnectionStatus` | managed `State`, `PortState`(`Open/Closed/Unknown`), `Code`, nullable `NativeCode`, `NativeCallPending`, `ResourcesReleased`, `CleanupCode`, nullable `PendingReturnDistanceMm`(null=위치 불명). 용지·리본·헤드 준비 상태는 보증하지 않음 |
 | `RowPrintResult` | `RowIndex`, `Status`, nullable `Validation`/`DeviceValidation`, `StopReason`, `Code`, `ExecutionStage`, `PrintInvoked`, `NativeFunction`, nullable `NativeCode`, `CompletionEvidence`, 민감 값 없는 `Message` |
-| `BatchPrintResult` | `StopReason`, `Code`, nullable `Validation`/`DeviceValidation`, 입력 순서 `Rows`, `Succeeded/Failed/Unknown/NotAttemptedCount`, `NativeFunction`, nullable `NativeCode`, `NativeCallPending`, `CleanupCode`. 배치 공통 SDK 조회 실패의 raw 값도 보존 |
+| `BatchPrintResult` | `StopReason`, `Code`, nullable `Validation`/`DeviceValidation`, 입력 순서 `Rows`, `Succeeded/Failed/Unknown/NotAttemptedCount`, `NativeFunction`, nullable `NativeCode`, `NativeCallPending`, `CleanupCode`, `PositionReturnStatus`/`PresentationStatus`, `PresentationDistanceMm`, nullable `PendingReturnDistanceMm`. 배치 공통 SDK 조회 실패의 raw 값도 보존 |
+| `MediaMovementStatus` | NotAttempted/CommandAccepted/Failed/Unknown. 인쇄 행 결과와 분리한 이송 명령 상태이며 물리 완료 보증이 아님 |
 
 일반 사용자 입력 오류는 결과 객체의 오류 목록으로 반환한다. 로드·Parse의 구문 오류는 행 위치를 포함한 `BtplFormatException`으로 알리고, I/O 실패는 값을 노출하지 않는 경로 진단으로 전달한다. null 요청·범위 밖 rowIndex 같은 호출 계약 위반은 표준 Argument 예외다. 정상 작업의 취소는 `OperationCanceledException`으로 부분 결과를 잃게 하지 않고 `BatchPrintResult`로 반환한다. 비동기 API는 UI 스레드를 점유하지 않으며 UI 컨트롤에 직접 접근하지 않는다.
 
