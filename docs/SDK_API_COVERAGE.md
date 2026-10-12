@@ -1,3 +1,5 @@
+현재 #15 기능 명세는 NFC_BT003-M01-04_Programming_Manual_v1.3.md만 사용한다. 제조사 Wrapper API의 USB·서식 파일/문자열·SDK 변수·인쇄 옵션·인쇄·해제·제한된 SendData 제어11개를 Sdk/Interop/BT003CtrlWrapper.cs에 모은다. 아래41개 카탈로그와 헤더/export 대조는 기존 로드·진단 호환성 기록이며 새 기능 명세를 확장하는 기준이 아니다. 기존 보호는 재사용하고 제조사 파일은 수정하지 않는다.
+
 # SDK 장치 API 대조표
 
 검사일: 2026-10-07. 헤더·C# 샘플·PE export를 정적으로 대조했다. DLL을 로드하거나 장치 함수를 실행한 결과가 아니다. 후속 TASK-02에서 41개 내부 선언과 배포 검사·로더 코드를 추가했으며, 실행 가능 여부와 미확정 계약은 [NATIVE_SDK_IMPLEMENTATION.md](NATIVE_SDK_IMPLEMENTATION.md)에 기록한다.
@@ -16,11 +18,11 @@
 | `SetRfidProtocol` | `int SetRfidProtocol(USHORT iProtocol)` | O / O | RFID 내부 전용; 출력에서 호출 금지 | 헤더/선언의 int 원형 확인. Rev.1.3 상세 반환 규약 미정의; 임의 정상 판정 금지 |
 | `SetRfidPort` | `int SetRfidPort(USHORT ifType, LPCTSTR strPortName, LPCTSTR strIpAddr)` | O / O | RFID 내부 전용; 출력에서 호출 금지 | 0=정상, -1=미지원 인터페이스 |
 | `SetPrinterPort` | `int SetPrinterPort(USHORT ifType, LPCTSTR strPortName, LPCTSTR strIpAddr)` | O / O | 연결·인쇄 후보 | 0=정상 설정, 1=이미 연결. 1을 용지 없음 오류로 변환하지 않음 |
-| `SetPrintFormFile` | `int SetPrintFormFile(LPCTSTR strFormFile)` | O / O | 내부 선언만; 기본 출력에서 미사용 | 0=정상; 절대경로, 문자열보다 우선 |
+| `SetPrintFormFile` | `int SetPrintFormFile(LPCTSTR strFormFile)` | O / O | #15 PrintFile에서 호출 | 0=정상; 절대경로, 문자열보다 우선 |
 | `SetPrintFormString` | `int SetPrintFormString(LPCTSTR strFormData)` | O / O | 연결·인쇄 후보 | 0=정상; CRLF 필수 |
-| `SetPrintFormVariableData` | `int SetPrintFormVariableData(LPCTSTR strVariableData)` | O / O | 내부 선언만; 기본 출력에서 미사용 | 0=정상; !! 슬롯과 ^Vxx 번호 대응 |
+| `SetPrintFormVariableData` | `int SetPrintFormVariableData(LPCTSTR strVariableData)` | O / O | #15 기본 SDK 변수 입력에서 호출 | 0=정상; !! 슬롯과 ^Vxx 번호 대응 |
 | `ResetForm` | `void ResetForm()` | O / O | 연결·인쇄 후보 | void. 파일·문자열 서식 초기화; 변수 초기화 보장 없음 |
-| `SendData` | `int SendData(LPCTSTR strData)` | O / O | 기본 출력에서 미사용; 과거 고정 ASCII AC 비교 및 wrapper의 고정 M15/B15 위치 제어 진단 | 0=메소드 반환; 고정 x86/x64 SDK는 하위 전송 결과와 무관하게 0 반환. 실제 출력·이송 완료 증거 아님. 원문 템플릿 직접전송은 제품 방식으로 채택하지 않음 |
+| `SendData` | `int SendData(LPCTSTR strData)` | O / O | 선택 배출/복귀의 제한된 M/B 명령; 원문 서식과 임의 명령은 공개하지 않음 | 0=메소드 반환; 고정 x86/x64 SDK는 하위 전송 결과와 무관하게 0 반환. 실제 출력·이송 완료 증거 아님. 원문 템플릿 직접전송은 제품 방식으로 채택하지 않음 |
 | `SetWritingDataType` | `int SetWritingDataType(USHORT iType)` | O / O | RFID 내부 전용; 출력에서 호출 금지 | API 설명: 0=정상, 기타=오류표 참조. 함수별 raw 값 보존 |
 | `AddNfcUriRecord` | `int AddNfcUriRecord(LPCTSTR strUri)` | O / O | RFID 내부 전용; 출력에서 호출 금지 | API 설명: 0=정상, 기타=오류표 참조. 함수별 raw 값 보존 |
 | `AddNfcTextRecord` | `int AddNfcTextRecord(LPCTSTR strText, LPCTSTR strLocale)` | O / O | RFID 내부 전용; 출력에서 호출 금지 | API 설명: 0=정상, 기타=오류표 참조. 함수별 raw 값 보존 |
@@ -41,7 +43,7 @@
 | `SetULEV1_NTAG21x_Security` | `int SetULEV1_NTAG21x_Security(LPCTSTR _strOldPwd, LPCTSTR _strNewPwd, LPCTSTR _strPack, USHORT _blockRange, USHORT _protectionMode)` | O / O | RFID 내부 전용; 출력에서 호출 금지 | API 설명: 0=정상, 기타=오류표 참조. 함수별 raw 값 보존 |
 | `SetMFClassicSectorSecurity` | `int SetMFClassicSectorSecurity(USHORT iSectorNum, LPCTSTR authKey, USHORT authKeyType)` | O / — | RFID 내부 전용; 출력에서 호출 금지 | int 원형만 확인; 샘플·상세 규약 없음 |
 | `SetULCSecurity` | `int SetULCSecurity(LPCTSTR _strOldPWD, LPCTSTR _strNewPWD, USHORT blockRange, USHORT protectionMode)` | O / O | RFID 내부 전용; 출력에서 호출 금지 | API 설명: 0=정상, 기타=오류표 참조. 함수별 raw 값 보존 |
-| `SetPrintingOption` | `int SetPrintingOption(USHORT iSpeed, USHORT iDarkness)` | O / O | 내부 선언만; 기본 출력에서 미사용 | 0=정상, 기타=문서 오류 참조; 서식 ^S/^H 우선 |
+| `SetPrintingOption` | `int SetPrintingOption(USHORT iSpeed, USHORT iDarkness)` | O / O | #15 SetPrintingOptions와 인쇄에 호출 | 0=정상, 기타=문서 오류 참조; 서식 ^S/^H 우선 |
 | `SetAfiOption` | `int SetAfiOption(USHORT mode, BYTE afi, USHORT bProtect, USHORT bLock)` | O / O | RFID 내부 전용; 출력에서 호출 금지 | 헤더/선언의 int 원형 확인. Rev.1.3 상세 반환 규약 미정의; 임의 정상 판정 금지 |
 | `SetDsfidOption` | `int SetDsfidOption(USHORT mode, BYTE dsfid, USHORT bLock)` | O / O | RFID 내부 전용; 출력에서 호출 금지 | 헤더/선언의 int 원형 확인. Rev.1.3 상세 반환 규약 미정의; 임의 정상 판정 금지 |
 | `SetIcodePassword` | `int SetIcodePassword(USHORT pwdId, LPCTSTR strOperPassword, LPCTSTR strNewPassword)` | O / O | RFID 내부 전용; 출력에서 호출 금지 | 헤더/선언의 int 원형 확인. Rev.1.3 상세 반환 규약 미정의; 임의 정상 판정 금지 |
@@ -52,7 +54,7 @@
 | `CheckRFConnection` | `int CheckRFConnection()` | O / O | RFID 내부 전용; 출력에서 호출 금지 | 1=연결, 0=닫힘; 태그 감지 아님 |
 | `DeviceConnect` | `int DeviceConnect()` | O / O | 연결·인쇄 후보 | 문서의 정상값 0만으로 연결을 판정하지 않으며 CheckPrtConnection=1도 요구. SetRfidPort 미호출 USB 실기와 정적 근거는 구현·검증 문서 참조 |
 | `DeviceDisconnect` | `int DeviceDisconnect()` | O / O | 연결·인쇄 후보 | int 원형, 의미 있는 반환값 미정의. CheckPrtConnection으로 해제 확인 |
-| `StartLabelPrint` | 샘플: `void StartLabelPrint(ushort iCopies, StringBuilder strReturn)` / LPStr, SizeConst=100 | — / O | 인쇄 전용 wrapper 진단 확인; 제품 통합은 TASK-05 | 고정 SDK의 copies1·ANSI949·ASCII/NUL 응답 및 x86/x64 한글 실기 확인. 42-byte 정상 분석 상한·격리 경계는 구현 문서 참조. 응답0은 SDK 정상 응답이며 배출 완료 아님. RFID API/기록 명령 미사용 검토, 저장 데이터 전후 실측 제외 |
+| `StartLabelPrint` | 샘플: `void StartLabelPrint(ushort iCopies, StringBuilder strReturn)` / LPStr, SizeConst=100 | — / O | 기본·선택 인쇄 경로에서 copies=1 호출; 기존 출력 포인터 보호 재사용 | 과거 고정 SDK의 copies1·ANSI949·ASCII/NUL 응답 및 x86/x64 한글 실기 기록은 보존한다. 이번 #15는 제조사 SDK·장치를 실행하지 않았다. 응답0은 SDK 정상 응답이며 배출 완료 아님. RFID API/기록 명령 미사용 |
 
 ### 원형을 알 수 없거나 export가 없는 항목
 
@@ -65,7 +67,7 @@
 
 ## 2. ABI와 배포
 
-헤더의 `USHORT`→`ushort`, `BYTE`→`byte`, `int`→`int`를 유지한다. 호출 규약은 제공 선언의 StdCall이다. 샘플의 문자열은 ANSI/LPStr이며 헤더의 LPCTSTR/LPTSTR만 보고 Unicode로 변경하지 않는다. 새 DLL 구현은 설계 5절의 절대경로 로더가 반환한 module handle과 GetProcAddress로 내부 delegate를 바인딩한다. 샘플 DllImport의 이름 재검색 경로와 혼합하지 않는다. ANSI949의 문자 ABI는 x86/x64 한글 실기로 확인했다. 결과는 고정 SDK의 정상 경로에서 ASCII·NUL 포함42 bytes로 분석했고, 격리 진단·경계값 검사로 지원 범위를 정한다. 다른 버전이나 native 상태 손상까지 포함한 in-process 보장은 아니며 `SizeConst=100`을 안전성 증거로 보지 않는다. 제품 호출 경계는 TASK-05에서 검증하기 전 차단을 유지한다.
+헤더의 `USHORT`→`ushort`, `BYTE`→`byte`, `int`→`int`를 유지한다. 호출 규약은 제공 선언의 StdCall이다. 샘플의 문자열은 ANSI/LPStr이며 헤더의 LPCTSTR/LPTSTR만 보고 Unicode로 변경하지 않는다. Wrapper 연결부는 현재 설계 2·6절의 절대경로 로더가 반환한 module handle과 GetProcAddress로 내부 delegate를 바인딩한다. 샘플 DllImport의 이름 재검색 경로와 혼합하지 않는다. 과거 ANSI949 문자 ABI·한글 실기 및 ASCII/NUL 응답 분석 기록은 보존한다. 다른 버전이나 native 상태 손상까지 포함한 in-process 보장은 아니며 `SizeConst=100`을 안전성 증거로 보지 않는다. 현재 제품 호출 경계는 USB 인쇄에 필요한 typed accessor만 허용하며 일반 delegate 검색과 RFID 호출은 차단한다.
 
 문서의 두 보안 함수는 반환을 C/C++ `long`으로 표기하지만 헤더/샘플은 int다. Windows native long도 32-bit이므로 .NET `long`(Int64)으로 바꾸지 않는다. 모든 원형에서 문자열의 입력·출력 방향도 유지하고 x86 장식 이름과 실제 인수 크기를 대조한다.
 
@@ -78,7 +80,7 @@
 
 두 Blackfish 파일의 버전 표기는 2.1.0.0이다. SDK 내 같은 버전 번호의 다른 해시 파일과 혼합하지 않는다. Blackfish의 HFModule 의존성을 배포 세트로 고정한다. 관리 DLL AnyCPU와 native 아키텍처 일치는 별도로 확인한다. COM 등록·전역 설치는 하지 않는다.
 
-실행 프로그램 폴더에 프로세스와 같은 native 한 세트를 배치한다. 파일/아키텍처/해시/기존 모듈 충돌/로드/export 실패는 서로 구분한 연결 오류다. 제조사 DLL 로드는 Connect로 지연하며 오프라인 검사·미리보기는 이 파일들이 없어도 동작한다. 후속 TASK-02에서 현재 Windows 환경의 실제 x86/x64 로딩·41개 바인딩과 USB "0"의 SetRfidPort 미호출 상태 연결·해제를 확인했다. RFID 케이블을 물리적으로 분리한 조건은 검증하지 않았다. 근거와 제한은 [구현·검증 상태](NATIVE_SDK_IMPLEMENTATION.md)에 기록하며 모든 OS·함수 호출·인쇄 계약을 검증했다는 뜻은 아니다. 배포 폴더와 오류·모듈 수명은 [설계 5절](DESIGN.md)에 단일 기준으로 정리했다.
+실행 프로그램 폴더에 프로세스와 같은 native 한 세트를 배치한다. 파일/아키텍처/해시/기존 모듈 충돌/로드/export 실패는 서로 구분한 연결 오류다. 제조사 DLL 로드는 Connect로 지연하며 오프라인 검사·미리보기는 이 파일들이 없어도 동작한다. 후속 TASK-02에서 현재 Windows 환경의 실제 x86/x64 로딩·41개 바인딩과 USB "0"의 SetRfidPort 미호출 상태 연결·해제를 확인했다. RFID 케이블을 물리적으로 분리한 조건은 검증하지 않았다. 근거와 제한은 [구현·검증 상태](NATIVE_SDK_IMPLEMENTATION.md)에 기록하며 모든 OS·함수 호출·인쇄 계약을 검증했다는 뜻은 아니다. 배포 폴더와 오류·모듈 수명은 [현재 설계 2·6절](DESIGN.md)에 단일 기준으로 정리했다.
 
 ## 3. 반환값 해석과 인쇄 경로
 
@@ -86,7 +88,7 @@
 - `DeviceDisconnect`의 int를 근거 없이 0만 성공이라고 정의하지 않는다. 반환값과 후속 포트 상태를 각각 기록한다.
 - void 함수의 반환을 0 성공으로 만들지 않는다. 특히 `StartLabelPrint`에 RFID 함수의 UID,code 파서를 전용해서 성공 판정하지 않는다.
 - 원본 오류표의 Hex/Dec 불일치는 6행이다. 0x006A는 원문 Dec=107/계산=106, 0x271B~0x271F는 원문 Dec=10010~10014/계산=10011~10015다. 관측한 raw 정수를 임의 보정하지 않는다.
-- 연결·인쇄 후보의 순서와 중단 조건은 [설계](DESIGN.md)의 4절에 있다. RFID 함수와 SetLabelSetting의 Registry 변경을 기본 흐름에 섞지 않는다.
+- 연결·인쇄 후보의 순서와 중단 조건은 [설계](DESIGN.md)의 3~5절에 있다. RFID 함수와 SetLabelSetting의 Registry 변경을 기본 흐름에 섞지 않는다.
 
 ## 4. 확인 근거
 

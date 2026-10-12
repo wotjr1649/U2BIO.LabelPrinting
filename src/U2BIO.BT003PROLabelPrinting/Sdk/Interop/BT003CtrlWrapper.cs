@@ -2,6 +2,9 @@ using System;
 using System.Collections.Generic;
 using System.Reflection;
 using System.Runtime.InteropServices;
+using System.Globalization;
+using System.Net;
+using System.Text;
 
 namespace U2BIO.BT003PROLabelPrinting.Native
 {
@@ -153,6 +156,87 @@ namespace U2BIO.BT003PROLabelPrinting.Native
                 bytes += 4;
             }
             return "_" + name + "@" + bytes.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        }
+    }
+}
+
+namespace U2BIO.BT003PROLabelPrinting.Native
+{
+    internal sealed class PrinterSdkCalls
+    {
+        internal readonly Action Load;
+        internal readonly Func<ushort, string, string, int> SetPort;
+        internal readonly Func<int> Connect, Status, Disconnect;
+        internal readonly Action Reset;
+        internal readonly Func<string, int> Form;
+        internal readonly Action<ushort, IntPtr> Print;
+        internal readonly Func<int, bool, int> Move;
+        internal Func<string, int> FileForm = value => { throw new NativeSdkException("SdkFunctionNotAvailable"); };
+        internal Func<string, int> Variables = value => { throw new NativeSdkException("SdkFunctionNotAvailable"); };
+        internal Func<ushort, ushort, int> Options = (speed, darkness) => { throw new NativeSdkException("SdkFunctionNotAvailable"); };
+
+        internal PrinterSdkCalls(Action load, Func<ushort, string, string, int> setPort, Func<int> connect,
+            Func<int> status, Func<int> disconnect, Action reset, Func<string, int> form, Action<ushort, IntPtr> print, Func<int, bool, int> move)
+        { Load = load; SetPort = setPort; Connect = connect; Status = status; Disconnect = disconnect; Reset = reset; Form = form; Print = print; Move = move; }
+
+        internal static PrinterSdkCalls Create() => new PrinterSdkCalls(NativeSdk.LoadForConnection,
+            BT003CtrlWrapper.SetPrinterPort, BT003CtrlWrapper.DeviceConnect, BT003CtrlWrapper.CheckPrtConnection,
+            BT003CtrlWrapper.DeviceDisconnect, BT003CtrlWrapper.ResetForm, BT003CtrlWrapper.SetPrintFormString,
+            BT003CtrlWrapper.StartLabelPrint, BT003CtrlWrapper.SendData) {
+                FileForm = BT003CtrlWrapper.SetPrintFormFile,
+                Variables = BT003CtrlWrapper.SetPrintFormVariableData,
+                Options = BT003CtrlWrapper.SetPrintingOption
+            };
+    }
+
+    // Manufacturer Wrapper API names; retain the existing verified module and response-pointer boundary.
+    internal static class BT003CtrlWrapper
+    {
+        internal static int SetPrinterPort(ushort type, string port, string ip) => NativeSdk.GetConnectionFunction<NativeApi.SetPrinterPortDelegate>()(type, port, ip);
+        internal static int DeviceConnect() => NativeSdk.GetConnectionFunction<NativeApi.DeviceConnectDelegate>()();
+        internal static int CheckPrtConnection() => NativeSdk.GetConnectionFunction<NativeApi.CheckPrtConnectionDelegate>()();
+        internal static int DeviceDisconnect() => NativeSdk.GetConnectionFunction<NativeApi.DeviceDisconnectDelegate>()();
+        internal static void ResetForm() => NativeSdk.GetPrintingFunction<NativeApi.ResetFormDelegate>()();
+        internal static int SetPrintFormFile(string path) => NativeSdk.GetPrintingFunction<NativeApi.SetPrintFormFileDelegate>()(path);
+        internal static int SetPrintFormString(string form) => NativeSdk.GetPrintingFunction<NativeApi.SetPrintFormStringDelegate>()(form);
+        internal static int SetPrintFormVariableData(string values) => NativeSdk.GetPrintingFunction<NativeApi.SetPrintFormVariableDataDelegate>()(values);
+        internal static int SetPrintingOption(ushort speed, ushort darkness) => NativeSdk.GetPrintingFunction<NativeApi.SetPrintingOptionDelegate>()(speed, darkness);
+        internal static void StartLabelPrint(ushort copies, IntPtr response) => NativeSdk.GetPrintingFunction<NativeApi.StartLabelPrintDelegate>()(copies, response);
+        internal static int SendData(int millimeters, bool forward) => NativeSdk.MovePaper(millimeters, forward);
+    }
+}
+
+namespace U2BIO.BT003PROLabelPrinting.Native
+{
+    // Diagnostic settings; TASK-05 reuses these normalized SDK arguments and target identity.
+    internal sealed class NativeConnectionOptions
+    {
+        internal readonly ushort IfType;
+        internal readonly string Port, Ip, TargetKey;
+        private NativeConnectionOptions(ushort type, string port, string ip, string key)
+        { IfType = type; Port = port; Ip = ip; TargetKey = key; }
+        private static bool Clean(string value)
+        { return value != null && value == value.Trim() && Array.TrueForAll(value.ToCharArray(), c => !char.IsControl(c)); }
+        internal static NativeConnectionOptions Create(string transport, string port, string ip)
+        {
+            if (!Clean(port) || port.Length == 0 || !Clean(ip)) throw new NativeSdkException("InvalidConnectionOptions");
+            if (transport == "usb" && ip.Length == 0) {
+                try { Encoding.GetEncoding(0, EncoderFallback.ExceptionFallback, DecoderFallback.ExceptionFallback).GetBytes(port); }
+                catch (EncoderFallbackException) { throw new NativeSdkException("InvalidConnectionOptions"); }
+                return new NativeConnectionOptions(1, port, "", "USB:" + port);
+            }
+            int number;
+            string digits = transport == "serial" && port.StartsWith("COM", StringComparison.OrdinalIgnoreCase) ? port.Substring(3) : port;
+            if (!int.TryParse(digits, NumberStyles.None, CultureInfo.InvariantCulture, out number) || number < 1)
+                throw new NativeSdkException("InvalidConnectionOptions");
+            string normalized = number.ToString(CultureInfo.InvariantCulture);
+            if (transport == "serial" && ip.Length == 0) return new NativeConnectionOptions(0, normalized, "", "COM:" + normalized);
+            IPAddress address;
+            if (transport == "tcp" && number <= 65535 && IPAddress.TryParse(ip, out address)) {
+                string canonicalIp = address.ToString();
+                return new NativeConnectionOptions(2, normalized, canonicalIp, "TCP:" + canonicalIp + ":" + normalized);
+            }
+            throw new NativeSdkException("InvalidConnectionOptions");
         }
     }
 }

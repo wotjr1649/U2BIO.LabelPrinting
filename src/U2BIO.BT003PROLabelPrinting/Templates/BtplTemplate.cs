@@ -26,6 +26,10 @@ namespace U2BIO.BT003PROLabelPrinting
             return new BtplTemplate(parsed.Settings, parsed.TextElements, source);
         }
         public static BtplTemplate Parse(string btpl)
+            => Parse(btpl, true);
+        internal static BtplTemplate ParseSdk(string btpl)
+            => Parse(btpl, false);
+        private static BtplTemplate Parse(string btpl, bool requirePrintingSettings)
         {
             if (btpl == null) throw new ArgumentNullException(nameof(btpl));
             string[] lines = BtplSyntax.SplitLines(btpl);
@@ -57,12 +61,13 @@ namespace U2BIO.BT003PROLabelPrinting
                 }
             }
             if (!started || !ended) throw new BtplFormatException("InvalidFrame");
-            CheckRequired(settings);
+            CheckRequired(settings, requirePrintingSettings);
             return new BtplTemplate(settings, texts, null);
         }
-        private static void CheckRequired(IEnumerable<BtplSetting> settings)
+        private static void CheckRequired(IEnumerable<BtplSetting> settings, bool requirePrintingSettings = true)
         {
-            var missing = new[] { "^Q", "^W", "^S", "^H" }.Where(c => !settings.Any(x => x.Command == c)).Select(c => new ValidationIssue("MissingSetting", null)).ToArray();
+            var required = requirePrintingSettings ? new[] { "^Q", "^W", "^S", "^H" } : new[] { "^Q", "^W" };
+            var missing = required.Where(c => !settings.Any(x => x.Command == c)).Select(c => new ValidationIssue("MissingSetting", null)).ToArray();
             if (missing.Length != 0) throw new BtplFormatException(missing);
         }
         internal void CheckSettings()

@@ -40,3 +40,7 @@
 [배출 통합 #13](https://github.com/wotjr1649/U2BIO.LabelPrinting/issues/13)은 #10의 배출/복귀 후속 소프트웨어 작업이다. 공개 Print의 호출자 지정 거리·일괄 마지막 전진·다음 요청 복귀·불명 위치 차단과 샘플 사용 계약을 구현하며 실제 새 장치 검증은 #11에 남긴다. #10 전체 미검증 범위를 이 작업 하나로 완료하지 않는다.
 
 devflow-doctor, 추적 파일만 있는 별도 체크아웃, 잘못된 인수 ID 거부, 제외 규칙과 기준 해시 검사를 수행했다. SDK 원본·로컬 참고 자료는 보존했다. 후속 TASK-01에서 솔루션·AnyCPU DLL·x86/x64 검증 실행 파일을 구성하고 네 Debug/Release 빌드·실행을 확인했다. 명령과 완료 범위는 [DEVELOPMENT.md](DEVELOPMENT.md)에 기록한다. BTPL·SDK API·Tester와 실제 장치 시험은 후속 작업이다. 이슈의 실제 체크·종료 상태는 원격 이슈를 기준으로 한다.
+
+## USB Wrapper MVP 간소화
+
+사용자 지시에 따라 [#15](https://github.com/wotjr1649/U2BIO.LabelPrinting/issues/15)를 등록했다. 제조사 매뉴얼 단일 기능 명세·USB 연결·파일/문자열·SDK 변수·인쇄 옵션·공개 API 위치 정리와 선택 기능 보존을 담당한다. 브랜치는 feature/15-usb-wrapper-mvp이며 #14의 소프트웨어 수정이 포함된 현재 HEAD에서 분리했다. 기존 #14 사용자 작업과 #12/#13 및 기준 태그는 보존한다. #10/#11의 제조사·실기 미검증 기록을 해결 완료로 변경하지 않고 이번 MVP 완료 선행 조건에서 분리한다. 이번 작업은 실제 SDK/장치 실행·push/merge를 포함하지 않는다.

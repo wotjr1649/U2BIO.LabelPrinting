@@ -1,6 +1,6 @@
 # SDK 빌드·배포
 
-공통 DLL의 소스와 실행에 필요한 제조사 DLL을 같은 저장소에서 관리한다. 제조사 런타임의 정확한 사본은 `src/U2BIO.BT003PROLabelPrinting/Sdk/x86` 및 `Sdk/x64`에 있다. `Native/`는 C# 래퍼 구현이며 제조사 바이너리 폴더가 아니다.
+공통 DLL의 소스와 실행에 필요한 제조사 DLL을 같은 저장소에서 관리한다. 제조사 런타임의 정확한 사본은 `src/U2BIO.BT003PROLabelPrinting/Sdk/x86` 및 `Sdk/x64`에 있다. `Sdk/Interop/`는 C# Wrapper 연결과 기존 보호 코드이며 제조사 바이너리 폴더가 아니다.
 
 ## 빌드
 

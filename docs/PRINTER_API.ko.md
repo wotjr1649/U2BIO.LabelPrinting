@@ -1,105 +1,68 @@
-# 연결·사전검사·단건·일괄 인쇄 API
+# USB Wrapper MVP 공개 API
 
-2026-10-09 TASK-05에서 `Bt003Printer`의 연결·상태·사전검사·인쇄·해제를, TASK-06에서 `PrintAsync`·취소·일괄 결과를 구현했다. 아래 API는 컴파일 가능하며 합성 SDK로 검증했다. 새 제품 경로의 실제 장치 출력은 이번 작업에서 실행하지 않았고 TASK-02의 과거 실기와 구분한다.
+기능 명세는 NFC_BT003-M01-04_Programming_Manual_v1.3.md다. 공개 메서드는 Bt003Printer.cs 한 파일에 모여 있다. 제조사 SDK·실제 장치 동작은 이번 소프트웨어 검사에서 실행하지 않는다.
 
-## 기본 사용
+## 기본 파일 인쇄
 
 ```csharp
-var template = BtplTemplate.Load("label.btpl");
-template = template.WithText(0, template.TextElements[0].WithPayload(firstLine));
-template = template.WithText(1, template.TextElements[1].WithPayload(secondLine));
-
 using (var printer = new Bt003Printer())
 {
-    var connected = printer.Connect(Bt003ConnectionOptions.Usb(selectedUsbPort));
-    if (!connected.IsSuccess)
-        return; // 호출 UI에서 Code, NativeFunction, NativeCode를 표시한다.
+    var connected = printer.ConnectUsb(selectedUsbPort, presentationDistanceMm);
+    if (!connected.IsSuccess) return;
 
-    var check = printer.ValidateForPrint(template);
-    if (!check.IsReady)
-        return; // 관리/장치 검사 결과와 Code를 표시한다.
+    var configured = printer.SetPrintingOptions(4, 12);
+    if (!configured.IsSuccess) return;
 
-    var result = printer.Print(template);
-    // Print는 다시 검사한다. Rows[0]의 Status, PrintInvoked, NativeCode를 확인한다.
+    var result = printer.PrintFile(formPath, "FIRST LINE", "SECOND LINE");
+    // result.Rows[0].Status, NativeCode, PrintInvoked를 표시한다.
+    // PresentationStatus는 별도 배출 명령 결과다. 불명일 때 자동 재출력하지 않는다.
 }
 ```
 
-이 코드는 메서드 내부에서 사용하는 예다. 서식에는 텍스트 요소가 두 개 이상 있어야 한다. 문자열 BTPL을 이미 준비했다면 `Print(btpl)` 또는 `ValidateForPrint(btpl)`를 사용한다. DataTable·JSON은 필수가 아니다. 동기 API를 UI 이벤트에서 직접 오래 실행하지 않는다.
+예제는 호출 메서드 안에서 사용한다. selectedUsbPort·formPath·presentationDistanceMm은 호출자가 준비한다. 배출 기본값은0이다. SDK 변수 인쇄 서식 예:
 
-## 비동기·일괄·취소
-
-`PrintAsync(string|BtplTemplate|BtplPrintRequest, CancellationToken)`은 같은 worker에서 실행한다. 동기 `Print`도 같은 작업의 결과를 기다린다. 비동기 호출은 대기열에 넣지 않으며 사용 중이면 즉시 `Busy` 결과를 반환한다. token은 생략할 수 있다. 이미 Disposed인 객체와 null 요청은 표준 예외이며 정상 취소는 예외 대신 건별 결과를 반환한다.
-
-```csharp
-// 호출자가 준비한 DataTable과 JSON 매핑이 필요한 경우에만 사용한다.
-var request = BtplPrintRequest.FromTable(template, bindings, rows);
-BatchPrintResult result = await printer.PrintAsync(request, cancellationToken);
-foreach (var row in result.Rows)
-{
-    // RowIndex는 입력 순서다. Status, StopReason, PrintInvoked를 호출 UI에 반영한다.
-}
+```text
+^Q40,5,7.5+
+^W70
+^P1
+^C1
+^L
+AW,80,120,10,1,0,0,^V00
+AW,80,160,10,1,0,0,^V01
+E
 ```
 
-템플릿 하나의 전체 행을 먼저 검사한다. 한 행이라도 관리/장치 오류가 있으면 인쇄를 시작하지 않는다. 실행 중 첫 `Failed`/`Unknown` 뒤에는 새 인쇄를 호출하지 않으며 나머지는 `NotAttempted`다. 행 수와 네 상태의 집계 합계는 입력 건수와 같다.
+용지와 좌표는 예제이며 모든 장치에 적용하는 기본값이 아니다. ^S/^H가 없으므로 먼저 성공한 SetPrintingOptions가 필요하다. 서식에 ^S/^H가 있으면 각각 그 값이 우선하며 API 값을 강제 적용하려고 서식을 수정하지 않는다.
 
-진입 순서는 Disposed/null 계약 확인 → Busy → 사전 취소 → 연결 확인이다. 검사 전 종료하면 batch/row 검사는 null이다. 관리 검사 도중 취소하면 batch `Validation=null`이고 이미 완료한 행의 `Validation`만 보존한다. 관리 검사를 완료했다면 장치 검사 도중 중단돼도 관리 결과를 보존하며 미완료 `DeviceValidation`은 null이다.
+## API 지도
 
-같은 프로세스의 다른 `Bt003Printer`가 SDK 슬롯을 소유하면 Print/ValidateForPrint/Disconnect도 `Busy`다. 장치 preflight에서 확인된 포트 오류는 취소/Dispose보다 우선하며 완료된 장치 검사와 NativeCode를 보존한다.
-
-취소는 현재 native 호출을 강제로 중단하지 않는다. 인쇄 호출 중 취소/Dispose 뒤 정상 응답이 돌아오면 현재 행은 `Succeeded`, 다음 행부터 미시도다. 확인된 실패/불명/timeout이 취소보다 우선한다. 배출 전진이 비활성인 기존 호출은 마지막 행 완료 뒤 취소로 `StopReason=None`을 바꾸지 않는다. 전진이 활성화됐다면 마지막 인쇄 정상 응답 뒤 전진 전에 관찰한 취소/Dispose는 인쇄 성공을 보존하면서 batch `Cancelled`/`Disposed`와 전진 미시도를 반환한다. 이미 진입한 이송은 [배출·복귀 계약](PRINT_PRESENTATION.ko.md)에 따라 결과를 보존한다. 정상 취소 후 정리가 성공하면 연결을 유지한다.
-
-## 연결
-
-2026-10-12 선택 배출 통합: `Bt003ConnectionOptions.Usb(port).WithPresentationDistance(mm)`로 기본0 대신 호출자 거리를 지정한다. 전체 인쇄 정상 응답 뒤 한 번 전진하고 다음 정상 사전검사 뒤 이전 거리로 복귀한다. 인쇄 결과와 `PositionReturnStatus`/`PresentationStatus`를 분리한다. 위치 불명은 새 인쇄를 차단하며, 수동 기준 위치 확인 뒤 `ConfirmPrintPosition()`으로 명시 확인한다. [배출·복귀 계약과 샘플](PRINT_PRESENTATION.ko.md)을 따른다. 실제 장치 완료 판정은 아직 #11이다.
-
-| API | 처리 |
+| API | 용도 |
 | --- | --- |
-| `Bt003ConnectionOptions.Usb(port)` | 명시한 USB 식별 문자열. 자동 선택하지 않음 |
-| `Bt003ConnectionOptions.Serial(comPort)` | COM 번호 정규화 후 SDK ifType=0에 전달 |
-| `Bt003ConnectionOptions.Tcp(ip, port)` | 실제 IP·포트 검증 후 SDK ifType=2에 전달 |
-| `Connect(options)` | 프로세스/대상 예약, 지연 SDK 로드, SetPrinterPort·DeviceConnect·포트 확인 |
-| `GetConnectionStatus()` | 작업 중/Disconnected/Disposed는 cached 조회; 유휴 소유 연결은 worker에서 포트 확인 |
-| `Disconnect()` / `Dispose()` | 소유 연결 해제와 Closed 확인. pending이면 반환 뒤 같은 worker에서 정리 |
+| ConnectUsb(string port, int presentationDistanceMm=0) | USB 포트 지정·연결·확인 |
+| GetConnectionStatus() | 포트/작업/정리 상태 |
+| SetPrintingOptions(ushort speed, ushort darkness) | SDK 속도·농도; 성공한 값을 각 인쇄에서 재적용 |
+| PrintFile(string path, params string[] values) | CP949 TXT/BTPL 절대경로를 SDK SetPrintFormFile로 등록 |
+| Print(string btpl, params string[] values) | SDK SetPrintFormString 및 선택 SetPrintFormVariableData |
+| Print(string btpl) | 고정 문구 문자열의 기본 SDK 인쇄 |
+| PrintAsync(string btpl, string[] values, CancellationToken token) | 같은 변수 인쇄 경로의 비동기 사용 |
+| PrintFileAsync(string path, string[] values=null, CancellationToken token=default) | 파일 보호를 worker 실제 종료까지 유지하는 비동기 사용 |
+| Disconnect()/Dispose() | 소유 연결 해제·정리 |
+| ConfirmPrintPosition() | 수동 위치 확인 후 기록 초기화 |
 
-동일 객체의 다른 옵션으로 연결을 교체하면 `AlreadyConnected`다. 다른 소유자 또는 진행 중 작업은 `Busy`이며 대기열을 만들지 않는다. abandoned mutex 취득 후에는 설정·연결 전에 native 상태를 재확인한다. `SetPrinterPort=1` 또는 기존 Open 충돌에서는 다른 연결의 `DeviceDisconnect`를 호출하지 않는다.
+속도는 양의 ushort를 받으며 실제 모델 지원 범위는 SDK가 판정한다. 농도는1~19다. 옵션 설정 실패 뒤에는 설정 성공으로 표시하지 않는다. 입력이 잘못된 경우 ArgumentException/BtplFormatException 또는 파일 IO 예외를 호출자에게 전달한다. SDK 수행 결과는 기존 결과 객체의 함수명·코드·실패/불명/미시도로 전달한다.
 
-기본 managed 대기 제한은 각 native 호출당 30초이며 `Bt003Printer(TimeSpan)`으로 1ms~Int32.MaxValue ms 안에서 설정한다. SDK의 통신 timeout 설정이나 실제 장치 중단이 아니다. timeout 결과의 `NativeCallPending`은 불변이며 늦은 정리 상태는 `GetConnectionStatus`에서 확인한다. Dispose 후에는 상태 조회만 허용한다.
+## 변수 규칙
 
-실제 native가 아직 진행 중일 때 timeout을 확정하면 `NativeCallPending=true`다. native가 이미 반환한 뒤 제한 초과를 판정하면 false이며, 늦은 정상 응답으로 Unknown을 Succeeded로 바꾸지 않는다.
+values[0]=^V00이다. 서식 등장 순서와 무관하게 최고 번호+1개를 전달한다. ^V02만 있어도0·1·2의 세 슬롯이 필요하며 미사용 슬롯에도 비어 있지 않은 자리 값을 넣는다. 모든 슬롯은 매번 전체 전달하며 !!로 연결한 원문을 SDK가 치환한다. SDK에 보낼 서식은 ^Vxx를 유지하고 자체 렌더러가 치환하지 않는다.
 
-## 사전검사와 현재 지원 프로필
+빈 값/null·!!·구분자와 충돌하는 선행/후행 !·명령/제어문자·CP949로 표현 불가능한 값은 거부한다. SDK의 빈 슬롯 동작을 추측하지 않는다. 서식·값 배열을 검사·snapshot한 뒤 사용한다. 파일 입력은4 MiB까지 읽고 실제 native 반환까지 쓰기·교체와 부모 경로 변경을 방지한다. 파일 공유·인코딩에 대한 실물 검사는 미실행이다.
 
-사전검사는 전체 관리 검사 뒤 인코딩·지원 조합·포트를 검사한다. ResetForm·서식 등록·인쇄·전진/후진은 호출하지 않는다. 관리 오류면 `DeviceValidation=null`이며 검사하지 않은 값을 실패 검사처럼 꾸미지 않는다.
+## 선택 기능과 호환성
 
-현재 인쇄 프로필은 고정 SDK 쌍, USB, Windows ANSI949, `AW`의 size10/weight1/나머지 인수0·0이다. TASK-02의 확인 범위이며 다른 글꼴 인수나 TCP/IP·RS-232 인쇄는 `DeviceSupportUnverified`로 차단한다. TCP/IP·RS-232 연결 API는 구현했지만 물리 지원은 미검증이다. 인코딩 불가는 `EncodingNotSupported`로 반환하며 모든 글리프 설치를 자동 조회했다고 주장하지 않는다.
+기존 Print(BtplTemplate/BtplPrintRequest), PrintAsync, ValidateForPrint, Connect(options), 연결 factory와 결과 타입은 보존한다. 기존 편집/바인딩의 선택 입력은 이전 검사·렌더링 계약을 사용한다. ValidateForPrint의 기존 overload는 이 선택 모델 계약이며, 새 기본 인쇄는 내부에서 자체 사전검사를 수행하므로 호출자가 선행 호출할 필요가 없다. USB 외 연결 factory는 호환성 보존용이며 이번 MVP의 연결·인쇄·시험 대상으로 제공하지 않는다.
 
-좌표·문구·요소 개수와 파서가 지원하는 용지·설정은 호출자가 준비한다. 특정 라벨 규격, 7.5mm offset 또는 배출15mm를 DLL 기본값으로 넣지 않는다. 문구에 42바이트 제한을 적용하지 않으며 넘침·자르기·자동 축소·DPI 검사도 하지 않는다.
+기존 일괄 요청은 전체 사전검사와 실패/불명 뒤 중단을 유지한다. 사용 중에는 Busy이고 대기열을 만들지 않는다. native 호출을 강제로 취소하지 않으며 timeout/늦은 정리를 재사용한다. Succeeded는 SDK 정상 응답 근거이며 물리 장수·출력·배출 완료 보증이 아니다. [배출 계약](PRINT_PRESENTATION.ko.md)을 따른다.
 
-## 결과와 정리
+## 배포
 
-Print는 검사를 반복하고 각 행에서 `CheckPrtConnection → ResetForm → SetPrintFormString → StartLabelPrint(1)`을 수행한다. CRLF 완성 서식을 등록하며 `^P1/^C1`은 기존 렌더링 계약을 따른다. 공개 원문 SendData·RFID 기능을 추가하지 않는다.
-
-| 결과 | 판정 |
-| --- | --- |
-| `Succeeded` | 전용 파서로 확인한 응답 코드0. `CompletionEvidence=SdkResponse` |
-| `Failed` | 준비 함수 실패 또는 문서의 확인된 프린터 오류 코드. raw 값 보존 |
-| `Unknown` | 응답101, 잘못된 응답, 미확인 응답 코드, 인쇄 진입 뒤 예외/managed timeout |
-| `NotAttempted` | 검사 실패·Busy·연결 없음 또는 앞선 중단으로 시작하지 않은 건 |
-
-확인된 실패 코드는 문서 오류표의 1~11,20,21,22,50,60,102~105,205다. 나머지 숫자를 임의 성공/확정 실패로 바꾸지 않으며 `UnrecognizedPrintResponse`와 원래 NativeCode를 반환한다.
-
-`PrintInvoked`는 인쇄 진입 승인/시도이고 실제 출력 증거가 아니다. `Succeeded`도 물리 배출 완료를 뜻하지 않는다. 자동 재출력하지 않는다. 정상 응답42바이트 분석 범위는 문구 길이와 무관하다.
-
-등록이 늦게 끝나도 종결된 작업의 인쇄를 시작하지 않는다. 인쇄 중 Dispose 후 정상 응답이 돌아오면 현재 행 결과를 보존하고 소유 연결을 정리한다. 정리 실패는 `CleanupCode`와 `Calls`에 남기며 완료 행을 실패로 바꾸지 않는다. `NativeCallResult`는 함수명, nullable NativeCode/SystemErrorCode만 보관하며 BTPL·환자 값·UID를 기록하지 않는다. void/예외 호출에 임의 성공 숫자를 만들지 않는다.
-
-SDK 모듈은 프로세스 수명 동안 유지한다. mutex는 취득한 worker가 해제하며 pending/해제 미확인 시 점유를 유지한다. 별도 NativeHost는 없고 native 메모리 손상·프로세스 종료의 격리를 보장하지 않는다. 제조사 자체 로그는 공통 모듈의 메타데이터 진단과 별도 동작이다.
-
-## 실행 증거와 남은 작업
-
-Release/Debug × x86/x64에서 기존 관리 검사와 synthetic 연결/충돌/부분 실패/abandoned/Dispose 경합·late loader, 출력 없는 preflight·단건 호출 순서·긴 두 줄 문구·오류/불명 응답·late 등록/인쇄 및 C02~C13/C16 일괄 계약을 검증한다. 정상 검증은 `nativeSDK=not-loaded`이며 실제 장치 성공 증거로 사용하지 않는다. TASK-06에는 관리 검사 중 취소와 등록 중 취소의 추가 검사가 포함된다.
-
-TASK-05의 새로운 실제 USB 정상/오류 검증과 TASK-07의 제품 실기는 미실행이다. 자동 배출/복귀는 #13에서 별도 소프트웨어 통합했으며 TASK-02의 M15/B15 진단을 새 제품 실기 통과로 선언하지 않는다. 실제 배출/반복 정렬·다른 SDK·환경·글꼴/transport·native 장애 경계는 #10/#11에서 추적한다. 배포는 [SDK 배포 가이드](SDK_DEPLOYMENT.ko.md)를 따른다.
-
-TASK-06의 구현 커밋·실행 명령·조건별 결과·산출물 식별은 [일괄 API 검증 기록](BATCH_PRINTING_EVIDENCE.md)에 있다.
-
-2026-10-09 사용자 결정: 현재 실행할 수 없는 TASK-05/07의 새 제품 실기는 [실기 테스트 #11](HARDWARE_VALIDATION.ko.md)에 보류한다. 소프트웨어 인수 후 Tester/연동 예제 개발을 진행할 수 있다. 앞 문단의 미실행 상태와 실제 지원 제한은 유지하며 실기 통과나 runtime 게이트 해제를 뜻하지 않는다.
+호출 프로젝트는 U2BIO.BT003PROLabelPrinting.dll 하나를 참조한다. 실행 폴더에는 관리 DLL과 해당 프로세스 x86/x64에 맞는 BlackfishNfcLib.dll·HFModule.dll을 같이 배포한다. Wrapper 소스는 우리 DLL에 컴파일되고 제조사 DLL은 별도 파일이다. [빌드·배포](SDK_DEPLOYMENT.ko.md)를 따른다.

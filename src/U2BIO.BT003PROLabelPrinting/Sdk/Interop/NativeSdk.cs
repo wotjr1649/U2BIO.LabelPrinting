@@ -76,7 +76,8 @@ namespace U2BIO.BT003PROLabelPrinting.Native
         internal static T GetPrintingFunction<T>() where T : class
         {
             Type type = typeof(T);
-            if (type != typeof(NativeApi.ResetFormDelegate) && type != typeof(NativeApi.SetPrintFormStringDelegate) && type != typeof(NativeApi.StartLabelPrintDelegate))
+            if (type != typeof(NativeApi.ResetFormDelegate) && type != typeof(NativeApi.SetPrintFormStringDelegate) && type != typeof(NativeApi.StartLabelPrintDelegate) &&
+                type != typeof(NativeApi.SetPrintFormFileDelegate) && type != typeof(NativeApi.SetPrintFormVariableDataDelegate) && type != typeof(NativeApi.SetPrintingOptionDelegate))
                 throw new NativeSdkException("PrintContractUnverified");
             lock (Sync) {
                 if (functions == null) throw new NativeSdkException("NativeLibraryMissing");
