@@ -220,7 +220,16 @@ namespace U2BIO.BT003PROLabelPrinting
         }
         private int Status(Work work, bool cleaning = false, bool receiveResult = false)
         {
-            int value = Call(work, "CheckPrtConnection", sdk.Status, cleaning, receiveResult: receiveResult);
+            int value;
+            try { value = Call(work, "CheckPrtConnection", sdk.Status, cleaning, receiveResult: receiveResult); }
+            catch (Exception error) when (Recoverable(error)) {
+                lock (sync) if (!work.TimedOut) {
+                    state = disposed ? PrinterState.Disposed : PrinterState.Faulted;
+                    port = PrinterPortState.Unknown; nativeCode = null;
+                    code = ErrorCode(error); cleanup = "NativeCallFailed";
+                }
+                throw;
+            }
             lock (sync) { nativeCode = value; port = value == 0 ? PrinterPortState.Closed : value == 1 ? PrinterPortState.Open : PrinterPortState.Unknown; }
             return value;
         }
