@@ -77,3 +77,17 @@ TXT/JSON/XML의 settings/texts 스키마·문구·좌표·AW 인수·용지 설�
 ## 검증 경계
 
 PrinterPresentationTests는 거리 경계, 사전검사 무이송, 기본0, 단건/일괄 마지막 전진, 이전/새 거리 구분, 연결 해제/새 객체, 이송 실패/예외, 명시 확인, 취소/Dispose, timeout과 늦은 반환을 합성 SDK로 검사한다. 실제 vendor SDK/장치/출력은 실행하지 않는다. in-process native 손상/프로세스 종료와 다른 장치/용지/거리의 보장은 기존 미검증 범위로 유지한다.
+
+## 검증 기록 — 2026-10-12
+
+제품 검증 기준은 `c248c27cabc92351ee68fe01314daedf042df082`다. 이후 이 기록만 추가한 문서 커밋은 제품 재빌드 기준이 아니다.
+
+- `0f32bd7`에서 새 배출 API 부재의 관리 검사 실패를 확인한 뒤 구현했다. 첫 검사는 샘플 CRLF의 저장소 검사에서 중단돼 LF로 정리했고, 같은 테스트를 변경하지 않고 다시 실행해 기능 실패를 확인했다.
+- 독립 리뷰가 이전 거리 복귀 후 새 설정0에서 인쇄 실패/불명의 위치 기록이0으로 남는 분기를 지적했다. `78de50f`의 신규 실패 회귀를 확인했고 `c248c27`로 해결했다. 기존 테스트 assertion은 유지했다.
+- 수정 후 새 독립 verifier가 설치된 `DEVFLOW_ROOT`와 `node tools/verify-build.js --configuration Release`로 x86/x64 Rebuild·전체 관리/합성 검사·저장소 검사를 실행해 모두 exit0을 확인했다. `.NET Framework4.6.1`, 관리 DLL AnyCPU다. 실패9/불명101/예외·새 객체 차단·명시 확인·기본0 호환을 포함한다.
+- 최초 제품 `5fd1a8f`의 독립 보완 검사에서 세 샘플의 strict CP949/UTF-8·LF/no-BOM·동일 ToBtpl과 immutable API를 확인했다. 동일 native 명령 생성 코드에 합성 SendData delegate를 주입해 M7/B7의 invariant 숫자·CRLF와0/1001 거부를 실행했다. 실제 SDK는 호출하지 않았다. 이 코드/샘플은 이후 좁은 수정에서 바뀌지 않았다.
+- 수정 후 독립 재리뷰는 이전 코드·취소 문구·타입 요약 지적의 해소를 확인했으며 추가 구체적 지적이 없었다.
+
+최종 로컬 증거는 `.work/foundation/Release-1791767845026/evidence.json`이다. x86/x64 관리 DLL SHA-256은 `dc7d2ab6e389f3b8347e45cdb98903657cdcd81de2795cf5bead942243ab41b5`다. 증거의 dirty 상태는 보존한 사용자 `U2BIO.LabelPrinting.sln` 메타데이터8줄이며 작업 커밋에서 제외했다.
+
+제조사 SDK·실제 장치·인쇄·FEED·DB·외부 로그/캐시·push/merge는 실행하지 않았다. NativeLibraryMissing은 의도한 오프라인 음성 검사다. 새 공개 경로의 물리 배출/복귀/반복 정렬은 #11에 남아 있으며 #10 전체를 이 소프트웨어 작업으로 완료하지 않는다.
