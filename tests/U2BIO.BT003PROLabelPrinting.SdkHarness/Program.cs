@@ -151,10 +151,50 @@ internal static class Program
         using (var other = new Bt003Printer()) Check(!other.ConnectUsb("SYNTH-OTHER").IsSuccess, "Unconfirmed owner was released.");
         Fake.KeepOpen = false; Check(blocked.Disconnect().IsSuccess, "Disconnect recovery failed."); blocked.Dispose();
     }
+    private static void ReviewRegressions()
+    {
+        // 해제 실패 뒤 소유권을 보존하는 동안 인쇄와 옵션을 모두 차단해야 한다.
+        foreach (string failure in new[] { "open", "return", "throw" }) {
+            Fake.Clear(); var printer = Connected("SYNTH-DISCONNECT-" + failure);
+            try {
+                Fake.KeepOpen = failure == "open";
+                Fake.FailAt = failure == "return" ? "DeviceDisconnect" : null; Fake.FailCode = 7;
+                Fake.ThrowAt = failure == "throw" ? "DeviceDisconnect" : null;
+                Check(!printer.Disconnect().IsSuccess, "Unconfirmed disconnect accepted.");
+                Fake.Calls.Clear();
+                Check(printer.Print(Literal).Code == "ConnectionFaulted" && printer.SetPrintingOptions(4, 12).Code == "ConnectionFaulted" && Fake.Calls.Count == 0,
+                    "Unconfirmed disconnect allowed SDK reuse.");
+                Fake.KeepOpen = false; Fake.FailAt = null; Fake.ThrowAt = null;
+                Check(printer.Disconnect().IsSuccess && printer.ConnectUsb("SYNTH-DISCONNECT-" + failure).IsSuccess && printer.Print(Literal).IsSuccess, "Reconnect did not recover.");
+            } finally { Fake.KeepOpen = false; Fake.FailAt = null; Fake.ThrowAt = null; printer.Dispose(); }
+        }
+        // 같은 요청의 앞선 복귀 응답이 마지막 배출 예외의 코드로 남으면 안 된다.
+        Fake.Clear();
+        using (var printer = Connected("SYNTH-LAST-MOVEMENT", 15)) {
+            Check(printer.Print(Literal).IsSuccess, "First presentation failed.");
+            Fake.BeforePrint = () => Fake.ThrowAt = "SendData";
+            var result = printer.Print(Literal);
+            Check(result.Status == PrinterResultStatus.Unknown && result.PrintCode == 0 && result.MovementCode == null && result.NativeCode == null,
+                "Last movement inherited previous response.");
+            Check(printer.Print(Literal).Code == "MediaPositionUnknown", "Uncertain presentation was repeated.");
+        }
+        Fake.Clear(); Fake.ThrowAt = "CheckPrtConnection";
+        var connecting = new Bt003Printer();
+        try {
+            var result = connecting.ConnectUsb("SYNTH-CONNECTION-EXCEPTION");
+            Check(result.Function == "CheckPrtConnection" && result.NativeCode == null && !result.IsSuccess, "Status exception inherited connect response.");
+        } finally { Fake.ThrowAt = null; connecting.Dispose(); }
+        Fake.Clear();
+        using (var printer = Connected("SYNTH-VARIABLE-TOTAL")) {
+            Fake.Calls.Clear(); string part = new string('A', 1024 * 1024);
+            Invalid(() => printer.Print(Literal, part, part, part, part));
+            Check(Fake.Calls.Count == 0, "Oversized variable total reached SDK.");
+        }
+    }
     private static int Main()
     {
         try {
-            FormsAndFailures(); UnknownAndCleanup(); Movement(); FileLifetime(); Ownership();
+            FormsAndFailures(); UnknownAndCleanup(); Movement(); FileLifetime(); Ownership(); ReviewRegressions();
             Console.WriteLine("PASS: linked product SDK sequencing, input snapshots, Unknown/cleanup, movement, file lifetime and ownership; managed SDK substitute only");
             return 0;
         } catch (Exception error) { Console.Error.WriteLine("FAIL: managed SDK harness (" + error.GetType().Name + "): " + error.Message); return 1; }
