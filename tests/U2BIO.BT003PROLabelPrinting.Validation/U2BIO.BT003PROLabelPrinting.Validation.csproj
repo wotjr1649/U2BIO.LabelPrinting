@@ -36,6 +36,7 @@
     <Compile Include="TemplateFormatTests.cs" />
     <Compile Include="BindingTests.cs" />
     <Compile Include="PrinterTests.cs" />
+    <Compile Include="PrinterPresentationTests.cs" />
     <Compile Include="PrinterConnectionTests.cs" />
     <Compile Include="PrinterPrintingTests.cs" />
     <Compile Include="PrinterBatchTests.cs" />

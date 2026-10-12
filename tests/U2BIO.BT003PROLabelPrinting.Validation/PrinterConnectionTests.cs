@@ -23,6 +23,7 @@ namespace U2BIO.BT003PROLabelPrinting.Validation
             internal ushort Type;
             internal string Name, Ip;
             internal Action<ushort, IntPtr> Printed;
+            internal Func<int, bool, int> Moved;
             internal string RegisteredForm;
             internal int FormNumber, PrintNumber, StatusNumber, ResetNumber;
             private void Add(string value)
@@ -77,12 +78,16 @@ namespace U2BIO.BT003PROLabelPrinting.Validation
                 if (Printed == null) throw new InvalidOperationException("Connection tests must not print.");
                 Printed(copies, pointer);
             }
+            internal int Move(int distance, bool forward) {
+                Add((forward ? "Advance:" : "Return:") + distance);
+                return Moved == null ? 0 : Moved(distance, forward);
+            }
             internal Bt003Printer Printer(int milliseconds = 1000)
             {
                 var assembly = typeof(Bt003ConnectionOptions).Assembly;
                 var type = assembly.GetType("U2BIO.BT003PROLabelPrinting.Native.PrinterSdkCalls", true);
                 var constructor = type.GetConstructors(BindingFlags.NonPublic | BindingFlags.Instance).Single();
-                var methods = new[] { "Load", "Set", "Connect", "Status", "Disconnect", "Reset", "Form", "Print" };
+                var methods = new[] { "Load", "Set", "Connect", "Status", "Disconnect", "Reset", "Form", "Print", "Move" };
                 object calls = constructor.Invoke(constructor.GetParameters().Select((p, i) => (object)Delegate.CreateDelegate(
                     p.ParameterType, this, GetType().GetMethod(methods[i], BindingFlags.NonPublic | BindingFlags.Instance))).ToArray());
                 return (Bt003Printer)Activator.CreateInstance(typeof(Bt003Printer), BindingFlags.NonPublic | BindingFlags.Instance, null,
