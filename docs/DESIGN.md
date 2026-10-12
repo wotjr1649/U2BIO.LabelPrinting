@@ -167,6 +167,7 @@ BtplRenderResult BtplProcessor.Render(BtplPrintRequest request, int rowIndex);
 
 PrinterOperationResult Bt003Printer.Connect(Bt003ConnectionOptions options);
 PrinterConnectionStatus Bt003Printer.GetConnectionStatus();
+PrinterOperationResult Bt003Printer.ConfirmPrintPosition();
 PrintPreflightResult Bt003Printer.ValidateForPrint(BtplPrintRequest request);
 PrintPreflightResult Bt003Printer.ValidateForPrint(string btpl);
 PrintPreflightResult Bt003Printer.ValidateForPrint(BtplTemplate template);
@@ -280,6 +281,8 @@ operation/preflight/batch의 NativeCallPending은 **그 요청이 반환할 때 
 USB·TCP/IP·RS-232 연결은 `SetPrinterPort()`의 인터페이스 종류와 포트 인수로 연결한다. SDK가 공개하지 않은 통신 설정을 지원하는 것처럼 추가하지 않는다. USB 포트 식별 문자열은 샘플의 `"0"`과 매뉴얼의 `"USB1"` 예시가 달라 실제 배포 DLL 기준으로 확인한다.
 
 ## 4. 검사와 출력 처리
+
+2026-10-12 공개 Print 배출/복귀 추가 계약: immutable 연결 옵션의 `PresentationDistanceMm` 기본0과 `WithPresentationDistance(int millimeters)`의0~1000mm 정수를 사용한다. 전체 사전검사 통과 뒤 이전 전진 거리로 복귀하고, 모든 행의 정상 응답과 취소/Dispose 부재를 확인한 뒤 한 번 전진한다. 같은 프로세스/정규화 대상별 거리를 연결 해제/새 객체에도 보존하되 실제 장치 identity/수동 이동/재시작은 자동 감지하지 않는다. `PositionReturnStatus`·`PresentationStatus`와 nullable `PendingReturnDistanceMm`로 인쇄 결과와 명령 수락/위치 불명을 분리한다. 불명은 추가 인쇄를 막고 수동 기준 위치 확인 뒤 유휴 Connected의 `ConfirmPrintPosition()`으로 명시 확인한다. 이 확인은 센서 검사나 native 이송이 아니다. 해제/폐기에 자동 후진을 넣지 않고 late timeout 결과를 성공/확정 위치로 바꾸지 않는다. [세부 계약](PRINT_PRESENTATION.ko.md)이 추가 계약의 기준이며 새 실제 장치는 #11에 보류한다. 기존 E 설정·수량·원문 명령 제한과 기본0 호출은 유지한다.
 
 ### 사전검사
 

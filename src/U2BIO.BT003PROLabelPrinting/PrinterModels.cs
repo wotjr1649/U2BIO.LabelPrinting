@@ -10,14 +10,16 @@ namespace U2BIO.BT003PROLabelPrinting
     public enum PrinterPortState { Unknown, Closed, Open }
     public enum PrintRowStatus { Succeeded, Failed, Unknown, NotAttempted }
     public enum PrintStopReason { None, ValidationFailed, Busy, NotConnected, ConnectionFailed, SdkFailure, ResponseUnknown, Timeout, Cancelled, NoData, Disposed }
-    public enum PrintExecutionStage { None, ManagedValidation, DeviceValidation, ConnectionCheck, FormReset, FormRegistration, PrintInvocation, ResponseValidation, Cleanup }
+    public enum PrintExecutionStage { None, ManagedValidation, DeviceValidation, ConnectionCheck, FormReset, FormRegistration, PrintInvocation, ResponseValidation, Cleanup, PositionReturn, Presentation }
     public enum PrintCompletionEvidence { None, SdkResponse }
+    public enum MediaMovementStatus { NotAttempted, CommandAccepted, Failed, Unknown }
 
     public sealed class Bt003ConnectionOptions
     {
         public string Transport { get; }
         public string Port => Native.Port;
         public string IpAddress => Native.Ip;
+        public int PresentationDistanceMm { get; }
         internal NativeConnectionOptions Native { get; }
         private Bt003ConnectionOptions(string transport, string port, string ip)
         {
@@ -25,10 +27,17 @@ namespace U2BIO.BT003PROLabelPrinting
             try { Native = NativeConnectionOptions.Create(transport, port, ip); }
             catch (NativeSdkException) { throw new ArgumentException("Invalid connection options; supply an explicit printer target."); }
         }
+        private Bt003ConnectionOptions(Bt003ConnectionOptions source, int presentationDistance)
+        { Transport = source.Transport; Native = source.Native; PresentationDistanceMm = presentationDistance; }
         public static Bt003ConnectionOptions Usb(string port) => new Bt003ConnectionOptions("usb", port, "");
         public static Bt003ConnectionOptions Serial(string comPort) => new Bt003ConnectionOptions("serial", comPort, "");
         public static Bt003ConnectionOptions Tcp(string ipAddress, int port)
             => new Bt003ConnectionOptions("tcp", port.ToString(CultureInfo.InvariantCulture), ipAddress);
+        public Bt003ConnectionOptions WithPresentationDistance(int millimeters)
+        {
+            if (millimeters < 0 || millimeters > 1000) throw new ArgumentOutOfRangeException(nameof(millimeters));
+            return new Bt003ConnectionOptions(this, millimeters);
+        }
     }
 
     public sealed class NativeCallResult
@@ -48,8 +57,9 @@ namespace U2BIO.BT003PROLabelPrinting
         public bool NativeCallPending { get; }
         public bool ResourcesReleased { get; }
         public string CleanupCode { get; }
-        internal PrinterConnectionStatus(PrinterState state, PrinterPortState port, string code, int? native, bool pending, bool released, string cleanup)
-        { State = state; PortState = port; Code = code; NativeCode = native; NativeCallPending = pending; ResourcesReleased = released; CleanupCode = cleanup; }
+        public int? PendingReturnDistanceMm { get; }
+        internal PrinterConnectionStatus(PrinterState state, PrinterPortState port, string code, int? native, bool pending, bool released, string cleanup, int? returnDistance = 0)
+        { State = state; PortState = port; Code = code; NativeCode = native; NativeCallPending = pending; ResourcesReleased = released; CleanupCode = cleanup; PendingReturnDistanceMm = returnDistance; }
     }
 
     public sealed class PrinterOperationResult
@@ -137,13 +147,19 @@ namespace U2BIO.BT003PROLabelPrinting
         public bool NativeCallPending { get; }
         public string CleanupCode { get; }
         public IReadOnlyList<NativeCallResult> Calls { get; }
+        public MediaMovementStatus PositionReturnStatus { get; }
+        public MediaMovementStatus PresentationStatus { get; }
+        public int PresentationDistanceMm { get; }
+        public int? PendingReturnDistanceMm { get; }
         internal BatchPrintResult(PrintStopReason reason, string code, IEnumerable<RowPrintResult> rows, BatchValidationResult managed = null,
             DeviceValidationResult device = null, string function = null, int? native = null, bool pending = false,
-            string cleanup = "None", IEnumerable<NativeCallResult> calls = null)
+            string cleanup = "None", IEnumerable<NativeCallResult> calls = null, MediaMovementStatus returnStatus = MediaMovementStatus.NotAttempted,
+            MediaMovementStatus presentationStatus = MediaMovementStatus.NotAttempted, int presentationDistance = 0, int? returnDistance = 0)
         {
             StopReason = reason; Code = code; Rows = Array.AsReadOnly(rows.ToArray()); Validation = managed; DeviceValidation = device;
             NativeFunction = function; NativeCode = native; NativeCallPending = pending; CleanupCode = cleanup;
             Calls = Array.AsReadOnly((calls ?? Enumerable.Empty<NativeCallResult>()).ToArray());
+            PositionReturnStatus = returnStatus; PresentationStatus = presentationStatus; PresentationDistanceMm = presentationDistance; PendingReturnDistanceMm = returnDistance;
         }
     }
 }

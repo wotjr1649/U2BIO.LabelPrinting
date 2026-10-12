@@ -10,10 +10,11 @@ namespace U2BIO.BT003PROLabelPrinting.Native
         internal readonly Action Reset;
         internal readonly Func<string, int> Form;
         internal readonly Action<ushort, IntPtr> Print;
+        internal readonly Func<int, bool, int> Move;
 
         internal PrinterSdkCalls(Action load, Func<ushort, string, string, int> setPort, Func<int> connect,
-            Func<int> status, Func<int> disconnect, Action reset, Func<string, int> form, Action<ushort, IntPtr> print)
-        { Load = load; SetPort = setPort; Connect = connect; Status = status; Disconnect = disconnect; Reset = reset; Form = form; Print = print; }
+            Func<int> status, Func<int> disconnect, Action reset, Func<string, int> form, Action<ushort, IntPtr> print, Func<int, bool, int> move)
+        { Load = load; SetPort = setPort; Connect = connect; Status = status; Disconnect = disconnect; Reset = reset; Form = form; Print = print; Move = move; }
 
         internal static PrinterSdkCalls Create() => new PrinterSdkCalls(NativeSdk.LoadForConnection,
             (type, port, ip) => NativeSdk.GetConnectionFunction<NativeApi.SetPrinterPortDelegate>()(type, port, ip),
@@ -22,6 +23,6 @@ namespace U2BIO.BT003PROLabelPrinting.Native
             () => NativeSdk.GetConnectionFunction<NativeApi.DeviceDisconnectDelegate>()(),
             () => NativeSdk.GetPrintingFunction<NativeApi.ResetFormDelegate>()(),
             form => NativeSdk.GetPrintingFunction<NativeApi.SetPrintFormStringDelegate>()(form),
-            (copies, response) => NativeSdk.GetPrintingFunction<NativeApi.StartLabelPrintDelegate>()(copies, response));
+            (copies, response) => NativeSdk.GetPrintingFunction<NativeApi.StartLabelPrintDelegate>()(copies, response), NativeSdk.MovePaper);
     }
 }

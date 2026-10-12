@@ -50,6 +50,8 @@ foreach (var row in result.Rows)
 
 ## 연결
 
+2026-10-12 선택 배출 통합: `Bt003ConnectionOptions.Usb(port).WithPresentationDistance(mm)`로 기본0 대신 호출자 거리를 지정한다. 전체 인쇄 정상 응답 뒤 한 번 전진하고 다음 정상 사전검사 뒤 이전 거리로 복귀한다. 인쇄 결과와 `PositionReturnStatus`/`PresentationStatus`를 분리한다. 위치 불명은 새 인쇄를 차단하며, 수동 기준 위치 확인 뒤 `ConfirmPrintPosition()`으로 명시 확인한다. [배출·복귀 계약과 샘플](PRINT_PRESENTATION.ko.md)을 따른다. 실제 장치 완료 판정은 아직 #11이다.
+
 | API | 처리 |
 | --- | --- |
 | `Bt003ConnectionOptions.Usb(port)` | 명시한 USB 식별 문자열. 자동 선택하지 않음 |
@@ -96,7 +98,7 @@ SDK 모듈은 프로세스 수명 동안 유지한다. mutex는 취득한 worker
 
 Release/Debug × x86/x64에서 기존 관리 검사와 synthetic 연결/충돌/부분 실패/abandoned/Dispose 경합·late loader, 출력 없는 preflight·단건 호출 순서·긴 두 줄 문구·오류/불명 응답·late 등록/인쇄 및 C02~C13/C16 일괄 계약을 검증한다. 정상 검증은 `nativeSDK=not-loaded`이며 실제 장치 성공 증거로 사용하지 않는다. TASK-06에는 관리 검사 중 취소와 등록 중 취소의 추가 검사가 포함된다.
 
-TASK-05의 새로운 실제 USB 정상/오류 검증과 TASK-07의 제품 실기는 미실행이다. 자동 배출/원점 복귀, 다른 SDK·환경·글꼴/transport·native 장애 경계는 TASK-07 및 후속 #10에서 추적한다. TASK-02의 M15/B15 진단을 자동 제품 기능으로 선언하지 않는다. 배포는 [SDK 배포 가이드](SDK_DEPLOYMENT.ko.md)를 따른다.
+TASK-05의 새로운 실제 USB 정상/오류 검증과 TASK-07의 제품 실기는 미실행이다. 자동 배출/복귀는 #13에서 별도 소프트웨어 통합했으며 TASK-02의 M15/B15 진단을 새 제품 실기 통과로 선언하지 않는다. 실제 배출/반복 정렬·다른 SDK·환경·글꼴/transport·native 장애 경계는 #10/#11에서 추적한다. 배포는 [SDK 배포 가이드](SDK_DEPLOYMENT.ko.md)를 따른다.
 
 TASK-06의 구현 커밋·실행 명령·조건별 결과·산출물 식별은 [일괄 API 검증 기록](BATCH_PRINTING_EVIDENCE.md)에 있다.
 

@@ -21,6 +21,8 @@ HFModule.dll은 원본 x86/x64 Blackfish의 PE import에서 확인한 제조사 
 
 ## 기본 API와 제조사 wrapper의 관계
 
+선택 배출은 연결 옵션 `WithPresentationDistance(mm)`로 사용하며 기본0이다. 같은 Print 경로에서 이전 전진 거리로 복귀하고 전체 정상 인쇄 뒤 한 번 전진한다. 새 프린터 엔진이나 임의 원문 전송 API를 추가하지 않는다. 위치 불명과 수동 확인을 포함한 [배출·복귀 API](PRINT_PRESENTATION.ko.md)를 따른다. 이 소프트웨어 통합을 실제 장치 배출 검증 완료로 표시하지 않는다.
+
 | 공개 API | 내부 wrapper 기능 | 책임 |
 | --- | --- | --- |
 | Connect(Bt003ConnectionOptions) | SetPrinterPort → DeviceConnect → CheckPrtConnection | USB 식별자, IP/port, COM 번호를 명시하고 연결 결과 확인 |

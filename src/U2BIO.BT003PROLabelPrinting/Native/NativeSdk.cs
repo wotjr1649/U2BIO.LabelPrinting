@@ -84,6 +84,17 @@ namespace U2BIO.BT003PROLabelPrinting.Native
             }
         }
 
+        internal static int MovePaper(int millimeters, bool forward)
+        {
+            if (millimeters < 1 || millimeters > 1000) throw new ArgumentOutOfRangeException(nameof(millimeters));
+            NativeApi.SendDataDelegate send;
+            lock (Sync) {
+                if (functions == null) throw new NativeSdkException("NativeLibraryMissing");
+                send = (NativeApi.SendDataDelegate)functions[typeof(NativeApi.SendDataDelegate)];
+            }
+            return send((forward ? "^M" : "^B") + millimeters.ToString(System.Globalization.CultureInfo.InvariantCulture) + "\r\n");
+        }
+
         internal sealed class UsbProbeResult
         {
             internal int? Pre, SetPort, Connect, Open, Disconnect, Closed;

@@ -25,6 +25,7 @@ namespace U2BIO.BT003PROLabelPrinting
             internal int CurrentRow = -1;
             internal PrintExecutionStage Stage;
             internal bool Invoked, FormTouched;
+            internal MediaMovementStatus PositionReturnStatus, PresentationStatus;
             internal PrintStopReason StopReason;
             internal string Code = "Ok", Function;
             internal int? NativeCode;
@@ -82,6 +83,7 @@ namespace U2BIO.BT003PROLabelPrinting
                 CheckStop(work); data.Stage = PrintExecutionStage.DeviceValidation;
                 var common = new List<ValidationIssue>();
                 if (target.Transport != "usb") common.Add(new ValidationIssue("DeviceSupportUnverified", null));
+                if (!PendingReturnDistance.HasValue) common.Add(new ValidationIssue("MediaPositionUnknown", null));
                 if (Encoding.Default.CodePage != 949) common.Add(new ValidationIssue("EncodingNotSupported", null));
                 var encoding = Encoding.GetEncoding(949, EncoderFallback.ExceptionFallback, DecoderFallback.ExceptionFallback);
                 var rows = new List<RowValidationResult>();
@@ -104,7 +106,7 @@ namespace U2BIO.BT003PROLabelPrinting
                     lock (sync) state = PrinterState.Faulted;
                 }
                 lock (sync) data.Device = new DeviceValidationResult(common, rows, port);
-                return PreflightResult(work, status == 0 ? "NotConnected" : status != 1 ? "StatusUnavailable" : data.Device.IsValid ? "Ok" : "ValidationFailed",
+                return PreflightResult(work, status == 0 ? "NotConnected" : status != 1 ? "StatusUnavailable" : !PendingReturnDistance.HasValue ? "MediaPositionUnknown" : data.Device.IsValid ? "Ok" : "ValidationFailed",
                     "CheckPrtConnection", status);
             } catch (Stopped) { return PreflightResult(work, StopCode(work), work.Function); }
             catch (Exception error) when (Recoverable(error)) {
@@ -142,8 +144,9 @@ namespace U2BIO.BT003PROLabelPrinting
             return work.PrintCompletion.Task;
         }
         private string StopCode(Work work) => work.TimedOut ? "NativeCallTimeout" : disposed ? "Disposed" : "Cancelled";
-        private static BatchPrintResult Immediate(BtplPrintRequest request, PrintStopReason reason, string resultCode)
-            => new BatchPrintResult(reason, resultCode, Enumerable.Range(0, request.RowCount).Select(i => new RowPrintResult(i, PrintRowStatus.NotAttempted, reason, resultCode)));
+        private BatchPrintResult Immediate(BtplPrintRequest request, PrintStopReason reason, string resultCode)
+            => new BatchPrintResult(reason, resultCode, Enumerable.Range(0, request.RowCount).Select(i => new RowPrintResult(i, PrintRowStatus.NotAttempted, reason, resultCode)),
+                presentationDistance: target?.PresentationDistanceMm ?? 0, returnDistance: PendingReturnDistance);
         private static PrintStopReason Reason(string resultCode)
         {
             switch (resultCode) {
@@ -153,7 +156,8 @@ namespace U2BIO.BT003PROLabelPrinting
                 case "Disposed": return PrintStopReason.Disposed;
                 case "Cancelled": return PrintStopReason.Cancelled;
                 case "NativeCallTimeout": case "SdkTimeout": return PrintStopReason.Timeout;
-                case "StatusUnavailable": case "FormRegistrationFailed": case "PrintFailed": case "NativeCallFailed": return PrintStopReason.SdkFailure;
+                case "StatusUnavailable": case "FormRegistrationFailed": case "PrintFailed": case "NativeCallFailed": case "MediaMovementFailed": return PrintStopReason.SdkFailure;
+                case "MediaMovementUnknown": case "MediaPositionUnknown": return PrintStopReason.ResponseUnknown;
                 case "InvalidPrintResponse": case "UnrecognizedPrintResponse": return PrintStopReason.ResponseUnknown;
                 default: return PrintStopReason.ValidationFailed;
             }
@@ -172,6 +176,7 @@ namespace U2BIO.BT003PROLabelPrinting
                 data.Rows[data.CurrentRow] = new RowPrintResult(data.CurrentRow, status, reason, resultCode,
                     data.PartialManaged[data.CurrentRow], data.Device?.Rows[data.CurrentRow], data.Stage, data.Invoked, function, value, evidence);
                 if (status != PrintRowStatus.Succeeded) { StopPrinting(work, resultCode, function, value); data.StopReason = reason; }
+                if (status != PrintRowStatus.Succeeded && data.Invoked && target.PresentationDistanceMm > 0) SetReturnDistance(null);
             }
         }
         private BatchPrintResult Batch(Work work)
@@ -180,14 +185,15 @@ namespace U2BIO.BT003PROLabelPrinting
                 var data = work.Printing;
                 return new BatchPrintResult(data.StopReason, data.Code, Enumerable.Range(0, data.Rows.Length).Select(i => data.Rows[i] ??
                     new RowPrintResult(i, PrintRowStatus.NotAttempted, data.StopReason, data.Code, data.PartialManaged[i], data.Device?.Rows[i])),
-                    data.Managed, data.Device, data.Function, data.NativeCode, pending, cleanup, work.Calls);
+                    data.Managed, data.Device, data.Function, data.NativeCode, pending, cleanup, work.Calls,
+                    data.PositionReturnStatus, data.PresentationStatus, target.PresentationDistanceMm, PendingReturnDistance);
             }
         }
         private object TimeoutPrinting(Work work)
         {
             var data = work.Printing;
             if (data.PreflightOnly) return PreflightResult(work, "NativeCallTimeout", work.Function);
-            if (data.CurrentRow < 0) StopPrinting(work, "NativeCallTimeout", work.Function);
+            if (data.CurrentRow < 0 || data.Stage == PrintExecutionStage.PositionReturn || data.Stage == PrintExecutionStage.Presentation) StopPrinting(work, "NativeCallTimeout", work.Function);
             else if (data.Rows[data.CurrentRow] == null) Row(work, data.Invoked ? PrintRowStatus.Unknown : PrintRowStatus.Failed, "NativeCallTimeout", work.Function);
             return Batch(work);
         }
@@ -199,34 +205,41 @@ namespace U2BIO.BT003PROLabelPrinting
                 if (!preflight.IsReady) StopPrinting(work, preflight.Code, preflight.NativeFunction, preflight.NativeCode);
                 else {
                     lock (sync) state = PrinterState.Printing;
-                    for (int i = 0; i < data.Rows.Length; i++) {
-                        CheckStop(work);
-                        lock (sync) { data.CurrentRow = i; data.Invoked = false; data.Stage = PrintExecutionStage.ConnectionCheck; }
-                        int status = Status(work, receiveResult: true);
-                        if (status != 1) {
-                            lock (sync) state = PrinterState.Faulted;
-                            Row(work, PrintRowStatus.Failed, status == 0 ? "NotConnected" : "StatusUnavailable", "CheckPrtConnection", status); break;
+                    int previous = PendingReturnDistance.Value;
+                    if (previous == 0 || MovePaper(work, previous, false)) {
+                        for (int i = 0; i < data.Rows.Length; i++) {
+                            CheckStop(work);
+                            lock (sync) { data.CurrentRow = i; data.Invoked = false; data.Stage = PrintExecutionStage.ConnectionCheck; }
+                            int status = Status(work, receiveResult: true);
+                            if (status != 1) {
+                                lock (sync) state = PrinterState.Faulted;
+                                Row(work, PrintRowStatus.Failed, status == 0 ? "NotConnected" : "StatusUnavailable", "CheckPrtConnection", status); break;
+                            }
+                            data.Stage = PrintExecutionStage.FormReset;
+                            VoidCall(work, "ResetForm", sdk.Reset, entered: () => data.FormTouched = true);
+                            data.Stage = PrintExecutionStage.FormRegistration;
+                            int form = Call(work, "SetPrintFormString", () => sdk.Form(data.Rendered[i].BtplText), receiveResult: true);
+                            if (form != 0) { Row(work, PrintRowStatus.Failed, "FormRegistrationFailed", "SetPrintFormString", form); break; }
+                            data.Stage = PrintExecutionStage.PrintInvocation;
+                            var response = Call(work, "StartLabelPrint", () => NativeLabelResponse.Capture(pointer => {
+                                lock (sync) { CheckStop(work); data.Invoked = true; }
+                                try { sdk.Print(1, pointer); }
+                                finally { NativeReturned(work); }
+                                lock (sync) data.Stage = PrintExecutionStage.ResponseValidation;
+                            }), receiveResult: true);
+                            data.Stage = PrintExecutionStage.ResponseValidation;
+                            if (response.NativeCode == 101) { Row(work, PrintRowStatus.Unknown, "SdkTimeout", "StartLabelPrint", response.NativeCode); break; }
+                            if (response.NativeCode != 0 && !KnownPrintFailures.Contains(response.NativeCode)) {
+                                Row(work, PrintRowStatus.Unknown, "UnrecognizedPrintResponse", "StartLabelPrint", response.NativeCode); break;
+                            }
+                            Row(work, response.NativeCode == 0 ? PrintRowStatus.Succeeded : PrintRowStatus.Failed,
+                                response.NativeCode == 0 ? "Ok" : "PrintFailed", "StartLabelPrint", response.NativeCode, PrintCompletionEvidence.SdkResponse);
+                            if (response.NativeCode != 0) break;
                         }
-                        data.Stage = PrintExecutionStage.FormReset;
-                        VoidCall(work, "ResetForm", sdk.Reset, entered: () => data.FormTouched = true);
-                        data.Stage = PrintExecutionStage.FormRegistration;
-                        int form = Call(work, "SetPrintFormString", () => sdk.Form(data.Rendered[i].BtplText), receiveResult: true);
-                        if (form != 0) { Row(work, PrintRowStatus.Failed, "FormRegistrationFailed", "SetPrintFormString", form); break; }
-                        data.Stage = PrintExecutionStage.PrintInvocation;
-                        var response = Call(work, "StartLabelPrint", () => NativeLabelResponse.Capture(pointer => {
-                            lock (sync) { CheckStop(work); data.Invoked = true; }
-                            try { sdk.Print(1, pointer); }
-                            finally { NativeReturned(work); }
-                            lock (sync) data.Stage = PrintExecutionStage.ResponseValidation;
-                        }), receiveResult: true);
-                        data.Stage = PrintExecutionStage.ResponseValidation;
-                        if (response.NativeCode == 101) { Row(work, PrintRowStatus.Unknown, "SdkTimeout", "StartLabelPrint", response.NativeCode); break; }
-                        if (response.NativeCode != 0 && !KnownPrintFailures.Contains(response.NativeCode)) {
-                            Row(work, PrintRowStatus.Unknown, "UnrecognizedPrintResponse", "StartLabelPrint", response.NativeCode); break;
+                        if (target.PresentationDistanceMm > 0 && data.Rows.All(x => x != null && x.Status == PrintRowStatus.Succeeded)) {
+                            CheckStop(work);
+                            MovePaper(work, target.PresentationDistanceMm, true);
                         }
-                        Row(work, response.NativeCode == 0 ? PrintRowStatus.Succeeded : PrintRowStatus.Failed,
-                            response.NativeCode == 0 ? "Ok" : "PrintFailed", "StartLabelPrint", response.NativeCode, PrintCompletionEvidence.SdkResponse);
-                        if (response.NativeCode != 0) break;
                     }
                 }
             } catch (Stopped) {
@@ -250,7 +263,8 @@ namespace U2BIO.BT003PROLabelPrinting
                     resetFailed = true;
                 }
             }
-            if (work.TimedOut || disposed || data.Rows.Any(x => x != null && x.Status == PrintRowStatus.Unknown)) Close(work, work.TimedOut || !disposed);
+            bool positionLost = !PendingReturnDistance.HasValue && (data.Invoked || data.PositionReturnStatus != MediaMovementStatus.NotAttempted || data.PresentationStatus != MediaMovementStatus.NotAttempted);
+            if (work.TimedOut || disposed || positionLost || data.Rows.Any(x => x != null && x.Status == PrintRowStatus.Unknown)) Close(work, work.TimedOut || !disposed);
             else if (!resetFailed && data.FormTouched) {
                 try {
                     int status = Status(work, true);

@@ -46,6 +46,7 @@
     <Compile Include="PrinterModels.cs" />
     <Compile Include="Bt003Printer.cs" />
     <Compile Include="Bt003Printer.Printing.cs" />
+    <Compile Include="Bt003Printer.Presentation.cs" />
     <Compile Include="Native\PrinterSdkCalls.cs" />
     <Compile Include="Native\NativeApi.cs" />
     <Compile Include="Native\NativeImage.cs" />

@@ -59,7 +59,7 @@ namespace U2BIO.BT003PROLabelPrinting
         private bool Released => !processClaim && processMutex == null && targetMutex == null && !connectionAttempted && !pending;
         private PrinterConnectionStatus Snapshot(bool busy = false, bool ownPending = true)
             => new PrinterConnectionStatus(disposed ? PrinterState.Disposed : state, busy ? PrinterPortState.Unknown : port,
-                disposed ? "Disposed" : busy && state != PrinterState.Faulted ? "Busy" : code, nativeCode, ownPending && pending, Released, cleanup);
+                disposed ? "Disposed" : busy && state != PrinterState.Faulted ? "Busy" : code, nativeCode, ownPending && pending, Released, cleanup, PendingReturnDistance);
         private PrinterOperationResult Result(Work work, string resultCode, string function = null, int? value = null, int? system = null)
         {
             lock (sync) return new PrinterOperationResult(resultCode, Snapshot(), function, value, system, work?.Calls);
@@ -256,7 +256,7 @@ namespace U2BIO.BT003PROLabelPrinting
                 RequireAlive(); if (options == null) throw new ArgumentNullException(nameof(options));
                 if (working) return Busy();
                 if (state == PrinterState.Connected) {
-                    if (target.Native.TargetKey != options.Native.TargetKey) return Result(null, "AlreadyConnected");
+                    if (target.Native.TargetKey != options.Native.TargetKey || target.PresentationDistanceMm != options.PresentationDistanceMm) return Result(null, "AlreadyConnected");
                     work = Start(Query, PrinterState.Connected);
                 } else {
                     if (state == PrinterState.Faulted) return Result(null, "PrinterFaulted");

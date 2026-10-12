@@ -2,6 +2,8 @@
 
 RFID 값이 이미 기록된 BT-003 Pro 라벨에 프로그램이 전달한 텍스트를 BTPL로 인쇄하기 위한 공통 모듈과 테스트 프로그램입니다.
 
+선택 [자동 배출·다음 인쇄 복귀](docs/PRINT_PRESENTATION.ko.md)는 `WithPresentationDistance(mm)`로 지정합니다. 기본0이며 특정 시험용15mm를 DLL 기본값으로 고정하지 않습니다. [두 줄 샘플 사용법](samples/templates/README.md)을 참고합니다. 새 공개 API의 실제 배출·반복 정렬은 별도 실기 검증 대상입니다.
+
 `U2BIO.BT003PROLabelPrinting`은 제조사 wrapper의 연결·텍스트 인쇄 기능을 여러 호출 프로그램에서 재사용하는 공통 DLL입니다. 기본 사용은 `Connect → Print(BTPL) → Disconnect`이며, DataTable·JSON 바인딩·미리보기는 선택 기능입니다. TASK-05에서 동기 연결·사전검사·단건 API를 구현하고 합성 SDK로 검증했습니다. [사용법·현재 지원 조건·실기 미검증](docs/PRINTER_API.ko.md)과 [모듈의 역할·확장 범위](docs/MODULE_OVERVIEW.ko.md)를 구분합니다.
 
 공통 DLL과 UI 없는 검증 프로젝트의 빌드 기반, 41개 내부 SDK 선언과 배포 검사·로더 및 공개 장치 API를 구성했습니다. TASK-06에서 PrintAsync·취소·일괄 결과 계약도 구현했습니다. [Native SDK 구현 이력과 미검증 항목](docs/NATIVE_SDK_IMPLEMENTATION.md)을 구분합니다. 제품 실기 인수 검증과 DevExpress Tester는 후속 작업입니다.

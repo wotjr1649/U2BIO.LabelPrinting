@@ -1,0 +1,66 @@
+{
+  "settings": [
+    {
+      "command": "^Q",
+      "parameters": "40,5,7.5+"
+    },
+    {
+      "command": "^W",
+      "parameters": "70"
+    },
+    {
+      "command": "^G",
+      "parameters": "0"
+    },
+    {
+      "command": "^S",
+      "parameters": "5"
+    },
+    {
+      "command": "^H",
+      "parameters": "19"
+    },
+    {
+      "command": "^P",
+      "parameters": "1"
+    },
+    {
+      "command": "^C",
+      "parameters": "1"
+    },
+    {
+      "command": "^R",
+      "parameters": "0"
+    },
+    {
+      "command": "^E",
+      "parameters": "15"
+    }
+  ],
+  "texts": [
+    {
+      "command": "AW",
+      "x": "80",
+      "y": "120",
+      "arguments": [
+        "10",
+        "1",
+        "0",
+        "0"
+      ],
+      "payload": "CK000001 홍길동 98-03-21"
+    },
+    {
+      "command": "AW",
+      "x": "80",
+      "y": "160",
+      "arguments": [
+        "10",
+        "1",
+        "0",
+        "0"
+      ],
+      "payload": "Not Used"
+    }
+  ]
+}
