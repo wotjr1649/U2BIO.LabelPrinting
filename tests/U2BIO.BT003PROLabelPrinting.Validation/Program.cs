@@ -87,6 +87,7 @@ namespace U2BIO.BT003PROLabelPrinting.Validation
                     BindingTests.Run();
                 } else Console.WriteLine("SCOPE: TXT and common printer contracts; JSON/XML template validation DEFERRED");
                 PrinterTests.Run();
+                WrapperMvpTests.Run();
                 PrinterPresentationTests.Run();
                 NativeTests.Run(library);
 
