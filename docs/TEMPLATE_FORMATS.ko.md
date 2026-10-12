@@ -129,3 +129,17 @@ JSON/XML 문서와 생성 결과는 UTF-8 기준4MiB(4,194,304 bytes) 이하다.
 TemplateFormatTests는 세 형식의 정규 BTPL/바인딩 결과 일치, raw 좌표·AW 인수·한글·변수·공백 보존, schema/중복/금지 명령/Unicode/DTD/크기 오류, UTF-8/BOM, 명시 형식, 저장 충돌·연속 저장·잠금 오류·원본 보존을 검사한다. 기존 바인딩·연결·합성 인쇄 검사도 유지한다.
 
 실제 SDK·장치·출력·배출 검증은 [별도 실기 #11](HARDWARE_VALIDATION.ko.md)에 보류한다. 이전 적대적 검토의 첫 행 연결 조회 예외 상태 문제는 서식 확장으로 수정하지 않았으며 연결 수명 보완에서 해결해야 한다.
+
+## 검증 기록 — 2026-10-12
+
+[서식 확장 #12](https://github.com/wotjr1649/U2BIO.LabelPrinting/issues/12)의 제품 검증 기준은 `0342878a401a91a0e53a5a564041091c65a97947`이다. 이후 이 기록만 추가한 문서 커밋은 제품 재빌드 기준이 아니다.
+
+- `8c31d31`에서 새 공개 형식 API의 부재로 검사 실패를 확인한 뒤 구현했다.
+- 독립 리뷰가 Framework JSON reader의 끝 쉼표·비표준 숫자 허용을 재현했다. `1bdd097`에서 신규 회귀 검사의 실패를 확인했고 `0342878`의 템플릿 전용 토큰 검사로 해결했다. 기존 바인딩 JSON의 동작은 변경하지 않았다.
+- 독립 verifier가 `DEVFLOW_ROOT`를 설치된 devflow 경로로 지정하고 `node tools/verify-build.js`를 실행했다. Release x86/x64 Rebuild·전체 관리/합성 검사·저장소 검사가 모두 exit 0이었다. 대상은 .NET Framework 4.6.1이며 관리 DLL은 AnyCPU다.
+- 공개 API 보완 검사로 이 문서의 세 예시가 같은 ToBtpl을 생성함을 확인했다. Unicode·XML 선언/깊이/DTD/namespace·이스케이프 출력 상한·BOM 포함 정확한 4 MiB와 4 MiB + 1 경계를 확인했다.
+- 독립 reviewer가 수정 후 비정상 JSON의 거절과 정상 문자열/Unicode 보존을 재검토했다. 이전 지적은 해소됐고 추가 지적은 없었다.
+
+로컬 증거는 `.work/foundation/Release-1791764842292/evidence.json`에 보관한다. x86/x64 관리 DLL의 SHA-256은 `498217c24e78ce6e224c0c1c15a70583635cf1f401fb173c35f979153ea51cc2`다. 검증 당시 dirty 상태는 보존한 사용자 `U2BIO.LabelPrinting.sln` 메타데이터 변경이며 이 작업 커밋에 포함하지 않았다.
+
+제조사 SDK는 로드하지 않았고 NativeLibraryMissing은 의도한 오프라인 음성 검사였다. 실제 연결·인쇄·배출·DB·push/merge는 실행하지 않았다. 기존 연결 상태 결함과 바인딩 JSON의 고립 surrogate 문제는 이번 서식 확장의 해결 범위에 포함하지 않는다.
