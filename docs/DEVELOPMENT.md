@@ -51,6 +51,7 @@ TASK-02의 추가 검사와 native 실행 경계는 [NATIVE_SDK_IMPLEMENTATION.m
 ```text
 node tools/verify-build.js
 node tools/verify-build.js --configuration Debug
+node tools/verify-build.js --scope txt
 ```
 
 첫 명령은 Release의 x86/x64 두 구성을 재빌드하고 각각의 검증 실행 파일을 실행한다. 두 번째 명령은 Debug에 같은 검사를 적용한다. MSBuild를 vswhere로 설치된 Visual Studio에서 찾고 .NET Framework 4.6.1 targeting pack 존재 여부를 검사한다. 이번 구성에서 사용한 MSBuild는 16.11.6.22506, C# compiler는 3.11.0-4.26426.1이다. C# 언어 기준은 7.3이며 외부 NuGet 패키지·restore·DevExpress·DB 접속 설정을 추가하지 않았다.
@@ -71,3 +72,5 @@ MSBuild가 평가한 TargetFrameworkVersion·PlatformTarget·Prefer32Bit를 확�
 로그·선택한 도구·명령·종료 코드·Git 커밋·작업 트리 변경 여부·targeting pack 식별 해시·산출물 경로와 SHA-256은 `.work/foundation/` 아래 실행별 폴더에 저장한다. DLL과 검증 exe 사본도 실행별 x86/x64 폴더에 새 파일로 보존하여 다음 Rebuild가 이전 실행의 사본을 덮어쓰지 않는다. workingTreeDirty=true인 결과는 현재 작업 파일의 검증이며 해당 Git 커밋 자체를 검증한 증거로 사용하지 않는다. 로그는 UTF-8과 이 환경의 CP949 출력을 판별하여 읽으며 호스트의 코드 페이지 설정은 바꾸지 않는다.
 
 DLL을 만들기 전 같은 Program.cs를 .NET Framework 4.6.1 참조로 standalone x86 exe로 컴파일·실행하여 `MANAGED_LIBRARY_MISSING` 및 종료 코드 3을 확인했다. 시험 소스를 커밋하고 devflow 시험 잠금을 적용한 뒤 DLL을 추가했다. Release/Debug × x86/x64의 네 실제 빌드·실행이 통과했다. DLL은 현재 공개 인쇄 API가 없는 기반 어셈블리이며 실제 출력·RFID 보존·ABI 검증은 TASK-02 이후에 수행한다. 문서 기준 태그는 그대로 보존한다.
+
+`--scope txt`는 TXT 파싱/저장과 공통 연결·인쇄·배출/복귀 계약을 x86/x64로 검사한다. JSON/XML 템플릿 및 전용 JSON 바인딩 검사 실행은 DEFERRED로 증거에 기록한다. 구현 파일은 함께 컴파일하며 기본 전체 검사 명령은 유지한다. 범위 인수는 마지막에 지정하고 Debug와 함께 사용하려면 `node tools/verify-build.js --configuration Debug --scope txt`를 사용한다. 검증 exe에는 `--expect-x86 --txt-only` 또는 `--expect-x64 --txt-only`를 전달한다. 관리 검사는 실제 SDK/장치 인쇄를 실행하지 않는다.
