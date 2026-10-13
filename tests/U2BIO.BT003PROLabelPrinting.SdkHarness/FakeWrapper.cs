@@ -10,6 +10,8 @@ namespace HFSample
     {
         internal static readonly List<string> Calls = new List<string>();
         internal static string FailAt, ThrowAt, Response, LastForm, Variables;
+        internal static string ExceptionText;
+        internal static int? ConnectCode, DisconnectCode;
         internal static int FailCode, PortState, ResetCount;
         internal static bool CleanupThrows, KeepOpen;
         internal static Action BeforePrint, BeforeCleanup;
@@ -19,11 +21,12 @@ namespace HFSample
             Calls.Clear(); FailAt = ThrowAt = null; Response = ",0";
             LastForm = Variables = null; FailCode = PortState = ResetCount = 0;
             CleanupThrows = KeepOpen = false; BeforePrint = BeforeCleanup = null;
+            ExceptionText = "SyntheticSdkFailure"; ConnectCode = DisconnectCode = null;
         }
         private static int Call(string function)
         {
             Calls.Add(function);
-            if (ThrowAt == function) throw new InvalidOperationException("SyntheticSdkFailure");
+            if (ThrowAt == function) throw new InvalidOperationException(ExceptionText);
             return FailAt == function ? FailCode : 0;
         }
         public static int SetPrinterPort(ushort type, string port, string ip)
@@ -33,12 +36,13 @@ namespace HFSample
         }
         public static int DeviceConnect()
         {
-            int code = Call("DeviceConnect"); PortState = 1; return code;
+            int code = Call("DeviceConnect"); PortState = 1; return ConnectCode ?? code;
         }
         public static int CheckPrtConnection() { Call("CheckPrtConnection"); return PortState; }
         public static int DeviceDisconnect()
         {
             int code = Call("DeviceDisconnect");
+            code = DisconnectCode ?? code;
             if (code == 0 && !KeepOpen) PortState = 0;
             return code;
         }
