@@ -9,6 +9,6 @@
 
 2026-10-14 후속 작업은 다섯 속성의 정상 판단 기준을 bool IsSuccess로 통일하는 공개 계약 이행이다. 사용자가 승인한 모델은 right pane 설계 검토에서 READY다. IsSuccess/Message/NativeCode/PrintInvoked/PrintCode의 정확한 집합·자료형, Status와 PrinterResultStatus enum 제거, internal 생성자/setter, bool 기본값 false와 DebuggerDisplay를 검사한다. 새 계약 검사를 기존 제품에서 먼저 실패시키고 제품 두 파일을 수정한다. 기존 harness와 OfflineSmoke는 bool 분기로 이행한다. 정리 예외가 없는 불명 응답도 false인지 확인하고, 정상/실패/불명 인쇄 뒤 정리 오류, 배출 실패/예외, 연결 실패+해제 실패에서 숫자·설명·인쇄 증거·후속 호출 차단을 보존한다. README·현재 API/배출 문서와 tools/verify-repository.js의 필수 계약 문자열도 이행하며 과거 기록은 보존한다.
 
-전체 저장소 문서 검사에는 수정 전부터 Wrapper와 별도 참고 자료의 오류 18건이 있다. Wrapper 바이트를 유지하면서 새 실패가 없는지 대조하고 직접 실행한 x86/x64 관리·배포 파일 검증과 전체 검사 실패를 구분해 기록한다. 전체 문서 검사 통과 조건을 완료로 표시하지 않으며 장치 실행은 수행하지 않는다.
+기존 전체 저장소 오류 18건은 참고 패키지의 작업 보관 위치 이동, Validation 작업 파일의 LF 정리와 제조사 Wrapper 예제 경로의 파일별 허용 설정으로 해소했다. 예제 경로는 현재 머신에 존재할 필요가 없는 참고 자료이며 제품 실행 입력과 구분한다. Wrapper 바이트와 제품 코드는 유지했고 전체 verify-build의 Release x86/x64 관리·배포 파일 검사와 저장소 검사가 통과했다. 판정 범위는 현재 제품이 사용하는 SDK 함수 10개와 bool 결과 계약이며 전체 SDK 기능의 실기 완료를 요구하지 않는다. SDK·장치 실행은 추가 수행하지 않는다.
 
 수용 기준은 이슈 #16의 일곱 항목이다. SDK 실기·물리 출력·배출 정확성, 외부 앱의 고급 API 이행, 여러 프로세스 제어는 이번 완료 근거에 포함하지 않는다. push·merge·배포는 수행하지 않는다.
