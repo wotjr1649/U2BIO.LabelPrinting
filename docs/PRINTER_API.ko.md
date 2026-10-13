@@ -1,41 +1,176 @@
 # 동기 USB SDK 공개 API
 
-[이슈 #16 스펙](specs/SYNC_USB_MVP.md)에 맞춘 새 API다. 기존 비동기·취소·일괄·BtplTemplate 인쇄 오버로드와 큰 결과 타입은 제거됐다. 선택 Templates 기능으로 렌더링한 문자열은 Print에 넘길 수 있다.
+[이슈 #16 스펙](specs/SYNC_USB_MVP.md)에 맞춘 동기 USB API다. 제조사 `BT003CtrlWrapper.cs`를 직접 사용하며, 공개 함수와 SDK 호출 순서는 [Bt003Printer.cs](../src/U2BIO.BT003PROLabelPrinting/Bt003Printer.cs), 반환값은 [PrinterModels.cs](../src/U2BIO.BT003PROLabelPrinting/PrinterModels.cs)에 있다.
+
+서식 명령, 좌표, AW 글꼴 처리와 변수 치환은 SDK가 담당한다. DLL은 입력을 검사하고 연결·등록·인쇄·배출·정리의 순서를 관리한다. 기존 비동기·취소·일괄 API는 제공하지 않으며, 선택 Templates 기능으로 렌더링한 문자열은 `Print`에 넘길 수 있다.
+
+바이트 그대로 보존한 제조사 Wrapper 안의 과거 DLL 호출 예제는 이전 결과 속성을 사용한다. 현재 DLL 호출에는 이 문서의 Status·Message 예제를 사용한다.
+
+## 공개 함수
 
 | API | 용도 |
 | --- | --- |
 | ConnectUsb(string port, int presentationDistanceMm = 0) | USB 포트 지정·연결·Open 확인, 배출 0..1000 mm |
 | GetConnectionStatus() | 소유 연결 확인; NativeCode 1=Open, 0=Closed |
 | SetPrintingOptions(ushort speed, ushort darkness) | 양의 속도·농도 1..19; 정상 설정을 각 인쇄에 재적용 |
-| Print(string btpl, params string[] values) | CRLF 서식과 선택 변수를 SDK에 등록하여 한 장 인쇄 |
-| PrintFile(string path, params string[] values) | CP949 파일을 읽기 잠금 상태로 SDK에 등록하여 한 장 인쇄 |
+| Print(string btpl, params string[] values) | 문자열 서식을 CRLF로 정규화하고 선택 변수와 함께 등록하여 한 장 인쇄 |
+| PrintFile(string path, params string[] values) | CP949 파일 내용을 CRLF로 정규화해 SetPrintFormString으로 등록하여 한 장 인쇄; 잠금은 정리까지 유지 |
 | ConfirmPrintPosition() | 호출자가 실제 용지를 정렬한 뒤 위치 기록을 0으로 확인 |
-| Disconnect() / Dispose() | SDK 해제·Closed 확인; 미확인 해제는 소유권 보존 |
+| Disconnect() | SDK 해제·Closed 확인; 실패 결과를 반환하고 명시적 재시도 허용 |
+| Dispose() | 진행 중인 작업·정리를 기다린 뒤 연결 해제; 해제 실패는 예외로 전달 |
 
-Dispose 외의 메서드는 PrinterResult를 반환한다. API는 동기이며 UI 백그라운드 실행은 호출자가 맡는다. 한 프로그램에서만 프린터를 사용한다. 같은 프로세스의 다른 객체는 소유자 SDK 상태를 조회·해제하지 않는다.
+`Dispose` 외의 메서드는 `PrinterResult`를 반환한다. 입력 오류는 SDK 호출 전에 예외로 전달한다. API는 SDK가 반환할 때까지 기다리는 동기 방식이므로 UI의 백그라운드 실행은 호출 프로그램이 맡는다. 같은 물리 프린터는 한 프로그램에서만 사용한다.
+
+## 기본 사용 순서
+
+1. 사용 중인 USB 포트 식별 문자열과 용지에 맞는 추가 배출 거리를 준비한다.
+2. `ConnectUsb`로 연결하고 결과를 확인한다.
+3. 필요한 경우 `SetPrintingOptions`로 속도와 농도를 설정한다.
+4. 서식에 맞게 `Print` 또는 `PrintFile`을 호출하고 결과를 확인한다.
+5. 사용을 마치면 `Disconnect` 또는 `using` 종료의 `Dispose`로 연결을 해제한다.
+
+다음은 변수 두 개를 사용하는 파일 서식의 예다. `selectedUsbPort`, `presentationDistanceMm`, `formPath`는 호출 프로그램이 준비한다. 이 예제를 실행하면 실제 SDK 연결과 인쇄를 시도한다.
 
 ```csharp
 using (var printer = new Bt003Printer())
 {
     var connected = printer.ConnectUsb(selectedUsbPort, presentationDistanceMm);
-    if (!connected.IsSuccess) return;
-    if (!printer.SetPrintingOptions(4, 12).IsSuccess) return;
+    if (connected.Status != PrinterResultStatus.Succeeded)
+    {
+        Console.WriteLine(connected.Message);
+        return;
+    }
+
+    var options = printer.SetPrintingOptions(4, 12);
+    if (options.Status != PrinterResultStatus.Succeeded)
+    {
+        Console.WriteLine(options.Message);
+        return;
+    }
 
     // 서식이 V00/V01을 참조하면 모든 값을 요청마다 제공한다.
     var result = printer.PrintFile(formPath, "FIRST LINE", "SECOND LINE");
-    // Status, Code, Function, NativeCode, PrintCode, MovementCode, CleanupCode를 표시한다.
-    // 실패·불명 결과라도 PrintCode=0이면 자동 재인쇄하지 않는다.
+    Console.WriteLine(result.Status + ": " + result.Message);
+    Console.WriteLine("주 작업 SDK 응답: " + result.NativeCode);
+    Console.WriteLine("인쇄 호출 시도: " + result.PrintInvoked + ", 인쇄 응답: " + result.PrintCode);
+
+    // 실패·불명이어도 일부 출력되었을 수 있으므로 결과를 확인한 뒤 사람이 판단한다.
 }
 ```
 
-selectedUsbPort, formPath와 배출 거리는 호출자가 준비한다. 용지 좌표와 거리 기본값을 임의 적용하지 않는다. 서식의 ^S/^H가 SDK 옵션보다 우선하며 DLL은 서식을 해석·수정하지 않는다. 위 예제는 SDK를 실행하는 사용법이며 자동 소프트웨어 검사는 [오프라인 예제](../examples/OfflineSmoke/Program.cs)만 실행한다.
+추가 배출 거리는 기본값이 0이며, 0이면 DLL이 인쇄 뒤 별도 `^M`을 보내지 않는다. 양수이면 정상 인쇄 응답 뒤 그 거리만큼 배출하고 다음 요청 전에 `^B`로 복귀한다. 거리는 사용하는 용지에 맞춰 정하며 DLL이 임의의 거리나 좌표를 적용하지 않는다.
 
-변수 서식은 V00부터 최고 참조 번호까지 누락 없이 매 요청 값을 제공해야 한다. ResetForm이 이전 변수를 지운다고 보장하지 않는다. 변수 등록 생략은 변수 없는 서식에서만 허용된다. DLL은 슬롯 번호를 해석하지 않으므로 불완전한 입력의 안전성을 보장하지 않는다. 빈 값·제어문자·!!·양 끝 !는 거부한다.
+`SetPrintingOptions`는 정상 설정만 보관하여 인쇄할 때마다 다시 적용한다. 서식에 `^S`와 `^H`가 있으면 SDK의 서식 옵션 우선순위를 따른다. `GetConnectionStatus`의 `NativeCode=1`은 포트가 열렸다는 의미이며 용지·리본·헤드 준비나 인쇄 완료를 확인한 결과가 아니다.
 
-ANSI 코드 페이지 949 환경만 지원한다. 포트·경로·문자열·변수는 엄격한 CP949 왕복과 NUL 검사를 거친다. 서식/합친 변수/파일은 각각 4 MiB 이내다. 입력 오류는 고정 식별 코드의 인수 예외로 전달하며 원문·경로·InnerException을 포함하지 않는다. 지원하지 않는 코드 페이지는 UnsupportedAnsiCodePage 예외다.
+## 파일·문자열·변수 입력
 
-PrinterResult.Status는 Succeeded/Failed/Unknown이다. PrintInvoked와 PrintCode는 인쇄 단계 증거, MovementCode는 마지막으로 시도한 배출/복귀의 응답(응답 전 예외는 null), CleanupCode는 별도 정리 오류다. SDK 코드 0과 SendData 0은 물리 완료 증거가 아니다. 인쇄 불명 또는 이동 실패 뒤 다음 자동 인쇄는 MediaPositionUnknown으로 차단한다. 재연결·새 객체도 이를 지우지 않는다. 수동 정렬 후 ConfirmPrintPosition이 필요하다.
+입력에 맞춰 다음 호출 중 하나를 선택한다. `btpl`은 호출자가 준비한 문자열이며, `formPath`는 CP949 파일 경로다.
 
-cleanup 실패는 원래 인쇄 코드와 Unknown 상태를 보존한다. 원래 정상 응답에 cleanup 실패가 더해지면 전체 Failed이며 PrintCode=0은 유지된다. 연결 정리 실패는 Disconnect로 Closed 확인 후 재연결해야 해제된다. Dispose가 해제를 확인하지 못하면 DisconnectFailed 예외를 던지고 명시적 Disconnect 재시도를 허용한다.
+```csharp
+// 변수 없는 문자열 서식
+var result = printer.Print(btpl);
+```
 
-제조사 원본 Wrapper의 StartLabelPrint(1, new StringBuilder(100))를 사용한다. 이전 포인터 보호와 SDK 자체 버퍼 결함 방어는 제외했다. 실제 SDK 로딩·출력은 이번 관리 검사에서 확인하지 않았다.
+```csharp
+// 변수 없는 파일 서식
+var result = printer.PrintFile(formPath);
+```
+
+```csharp
+// V00, V01을 사용하는 파일 서식
+var result = printer.PrintFile(formPath, "FIRST LINE", "SECOND LINE");
+```
+
+각 예는 사용할 서식에 맞춰 선택하는 별도 호출이다. 변수 값은 배열의 첫 항목부터 V00, V01 순서로 대응한다. 최고 참조 번호까지 누락 없이 매 요청 제공해야 하며, 빈 값·제어문자·`!!`·양 끝의 `!`는 허용하지 않는다. `ResetForm`이 이전 변수를 지운다고 가정하지 않으므로 값이 있는 요청마다 다시 등록한다. 변수 등록 생략은 변수 없는 서식에서만 사용한다. DLL이 슬롯 번호를 해석하지 않으므로 참조 번호에 맞는 값을 준비하는 것은 호출자 책임이다.
+
+ANSI 코드 페이지 949 환경만 지원한다. 포트·경로·문자열·변수는 엄격한 CP949 왕복과 NUL 검사를 거친다. 서식, 합친 변수와 파일은 각각 4 MiB 이내여야 한다. `Print`와 `PrintFile`은 줄끝을 CRLF로 정규화하고 마지막 CRLF를 붙인 뒤 크기를 다시 검사한다.
+
+`PrintFile`은 상대경로를 현재 작업 디렉터리 기준으로 절대경로화한다. 같은 `FileStream`으로 크기를 확인하고 내용을 읽으며, `FileShare.Read`로 열어 쓰기·삭제 공유를 허용하지 않는다. 파일 핸들은 SDK 인쇄와 마지막 서식 정리가 끝날 때까지 보유한다. 파일 오류, SDK 실패 또는 서식 정리 실패로 반환해도 핸들을 닫는다.
+
+SDK에는 파일 경로 대신 검사한 내용을 `SetPrintFormString`으로 등록한다. SDK가 파일을 다시 여는 경로를 사용하지 않으며 AW 처리는 계속 SDK가 담당한다. 실패 뒤 다른 등록 방식으로 자동 재인쇄하지 않는다.
+
+## SDK 호출 흐름
+
+연결은 `SetPrinterPort(1, port, "") → DeviceConnect → CheckPrtConnection` 순서다. 인쇄는 다음 순서이며 실패한 준비 단계 이후에는 인쇄를 호출하지 않는다.
+
+1. 연결 상태를 확인하고 이전 정상 배출 거리가 있으면 `^B`로 복귀한다.
+2. `ResetForm`으로 이전 서식을 정리한다.
+3. 성공한 설정이 있으면 `SetPrintingOption`으로 다시 적용한다.
+4. `SetPrintFormString`으로 이번 서식을 등록한다.
+5. 변수 값이 있으면 `SetPrintFormVariableData`로 등록한다.
+6. 제조사 `StartLabelPrint(1, new StringBuilder(100))`로 한 장을 요청한다.
+7. 인쇄 응답이 0이고 추가 배출 거리가 양수이면 `SendData`로 `^M`을 보낸다.
+8. `finally`에서 `ResetForm`으로 서식을 정리하고, 파일 인쇄이면 그 뒤 파일을 닫는다.
+
+이 순서는 `PrintCore`에 직접 보인다. 실패한 SDK 함수는 한글 `Message`에서 확인한다. `NativeCode`는 다음 주 작업 호출 전에 비우므로 응답 전 예외에 이전 숫자가 남지 않는다. 마지막 정리 오류는 원래 숫자와 설명을 덮지 않고 `Message`에 추가한다.
+
+## 반환 결과 읽기
+
+| 필드 | 의미 |
+| --- | --- |
+| Status | 요청 전체의 SDK 처리 결과: Succeeded, Failed 또는 Unknown |
+| Message | 상태·SDK 함수·이동/정리 오류를 사람이 읽는 한글 설명 |
+| NativeCode | 주 작업의 마지막 SDK 응답. 미호출·응답 전 예외이면 null; 연결 확인은 1=Open, 0=Closed. 후속 서식 정리는 이 값을 덮지 않음 |
+| PrintInvoked | StartLabelPrint 호출 진입 직전에 기록한 값. 실제 출력 완료 여부가 아님 |
+| PrintCode | 해석한 인쇄 응답. 미호출·잘못된 응답·응답 전 예외이면 null |
+
+공개 속성은 이 다섯 개뿐이다. 정상 여부는 `Status` 하나로 판단하고 `Message`로 이유를 읽는다. 호출자가 결과를 직접 만들지 않도록 생성자는 internal이다. 디버거에서는 속성을 펼치기 전에 Status와 Message를 먼저 표시한다.
+
+```csharp
+var result = printer.PrintFile(formPath);
+if (result.Status != PrinterResultStatus.Succeeded)
+{
+    Console.WriteLine(result.Message);
+}
+```
+
+`Message`는 사람의 확인용이며 프로그램이 문장을 파싱해 자동 복구하지 않는다. 인쇄와 관련한 상세 판단에는 `PrintInvoked`와 `PrintCode`를 함께 확인한다. 이전 Code, Function, MovementCode, CleanupCode, IsSuccess 사용처는 이 계약으로 이행한다.
+
+| 상황 | 결과의 의미 |
+| --- | --- |
+| 서식 등록 실패 | PrintInvoked=false이며 StartLabelPrint를 호출하지 않음 |
+| 정상 인쇄 응답 뒤 배출 실패 | PrintInvoked=true, PrintCode=0을 보존하며 전체 결과는 실패 또는 불명 |
+| 인쇄 응답 101·미확인 코드·잘못된 응답 | Unknown. 실제 일부 출력 가능성이 있으므로 자동 재인쇄하지 않음 |
+| 정상 인쇄 응답 뒤 서식 정리 실패 | Status=Failed, PrintCode=0과 원래 NativeCode·설명은 보존; Message에 ResetForm 오류 추가 |
+| Unknown 상태에서 서식 정리도 실패 | Unknown과 원래 응답·설명을 유지하고 Message에 정리 오류 추가 |
+
+예를 들어 인쇄 0 뒤 배출 응답 7은 Failed, NativeCode=7, PrintCode=0이며 Message가 인쇄 응답 정상과 SendData 배출 실패를 함께 설명한다. 같은 배출이 응답 전 예외를 내면 Unknown, NativeCode=null, PrintCode=0이다. 성공한 사전 복귀의 0을 마지막 배출 예외의 숫자로 남기지 않는다.
+
+SDK 코드 0과 `SendData` 코드 0은 물리 출력·이동 완료 증거가 아니다. Status가 Failed 또는 Unknown이라는 이유만으로 같은 요청을 다시 인쇄하지 않는다.
+
+## 내부 상태와 복구
+
+기존 상태 이름을 그대로 사용하며 역할은 다음과 같다.
+
+| 상태 | 역할 |
+| --- | --- |
+| Gate | 프로세스의 SDK 호출, 서식 정리와 연결 해제를 직렬화하는 잠금 |
+| owner | SDK 연결을 사용하는 객체. 닫힘을 확인하지 못하면 소유권 유지 |
+| faulted | 연결·해제·서식 정리 실패 후 인쇄와 옵션 재사용을 차단하는 상태 |
+| Positions[port] | null=위치 불명, 0=복귀 불필요, 양수=다음 인쇄 전 복귀 거리(mm) |
+| hasOptions | 정상 설정한 속도·농도를 이후 인쇄에서 다시 적용할지 표시 |
+| disposed | 연결 해제를 마치고 객체 사용을 종료했는지 표시 |
+
+`Positions`는 명령 이력이며 센서로 확인한 위치가 아니다. 인쇄·이동 전에 불명으로 기록하고 정상 응답에서만 갱신한다. 같은 프로세스의 재연결이나 새 객체도 기록을 유지한다. 프로세스를 다시 시작하거나 용지를 수동으로 이동했을 때 실제 위치를 자동 복원하는 기능은 없다.
+
+Message가 용지 위치 불명을 안내하면 실제 위치를 확인하고 수동으로 정렬한 뒤 `ConfirmPrintPosition`을 호출한다. 이 함수는 기록을 0으로 바꿀 뿐 센서를 조회하거나 용지를 이동하지 않는다.
+
+Message가 SDK 연결 복구를 안내하면 `Disconnect`로 닫힘을 확인한 뒤 재연결한다. `GetConnectionStatus`가 Open을 반환하거나 `ConfirmPrintPosition`을 호출해도 faulted는 해제되지 않는다. 연결 상태와 용지 위치에 모두 문제가 있으면 각각 복구해야 한다.
+
+`Disconnect`는 `DeviceDisconnect`의 정상 응답과 `CheckPrtConnection`의 Closed를 확인한다. 확인되지 않은 해제는 소유권을 유지하므로 다른 객체로 우회하지 않는다. 소유자가 아닌 객체의 조회·옵션·인쇄는 실패하고, 해제와 `Dispose`는 SDK를 호출하지 않는다.
+
+## 예외와 사용 종료
+
+입력 오류는 `ArgumentException`으로 전달하며 메시지는 InvalidFile, InvalidForm, InvalidVariables 등 고정 식별 코드다. 원문 서식·변수·파일 경로와 파일 처리의 원래 예외·InnerException을 포함하지 않는다. 코드 페이지가 949가 아니면 `NotSupportedException`의 UnsupportedAnsiCodePage로 거부한다.
+
+SDK 호출 중 DLL 누락·형식/비트수 불일치·함수 누락은 해당 SDK 함수 이름과 고정 한글 설명으로 전달한다. 원래 예외 메시지를 결과에 복사하지 않는다. 주 인쇄 경로에서 인쇄 호출 이후 예외가 나면 Unknown으로 처리하며, 마지막 서식 정리 오류는 앞서 설명한 별도 규칙으로 보존한다. 실패한 연결 뒤 추가 해제도 실패하면 원래 연결 NativeCode와 설명을 유지하고 Message에 해제 오류를 추가한다.
+
+`Dispose`는 진행 중인 SDK 호출과 `finally`가 끝날 때까지 기다린다. 해제를 확인하지 못하면 `InvalidOperationException("DisconnectFailed")`을 던지고 객체를 종료 상태로 바꾸지 않는다. `using` 종료에서도 이 예외가 발생할 수 있으므로 호출 프로그램에서 처리하고 명시적 해제를 재시도할 수 있다. 정상 종료된 객체의 `Dispose`는 반복 호출해도 작업하지 않으며, 다른 공개 함수는 `ObjectDisposedException`을 던진다.
+
+## 검증과 배포 범위
+
+관리 DLL은 .NET Framework 4.6.1/AnyCPU다. 호출 프로그램의 비트수와 맞는 `BlackfishNfcLib.dll`, `HFModule.dll`을 실행 폴더에 배포한다. 배포 파일의 PE와 고정 해시는 Validation에서 검사하고 제품 DLL은 실행 시 해시를 검사하지 않는다.
+
+관리 harness는 제품 두 소스를 연결하여 SDK 대체 호출로 순서·실패·잠금 수명을 검사한다. 실제 제품 DLL의 계약 검사는 공개 API와 선언을 확인하며 SDK를 로드하지 않는다. [오프라인 예제](../examples/OfflineSmoke/Program.cs)도 실제 프린터 연결과 인쇄를 실행하지 않는다. 문서의 사용 예제는 SDK를 실행하는 코드이므로 자동 검사 대상으로 실행하지 않는다.
+
+제조사 StringBuilder 출력 계약을 사용하며 SDK 자체 출력 버퍼 결함 방어는 MVP 범위에서 제외한다. 관리 검사 통과는 실제 인쇄 성공을 의미하지 않는다. 2026-10-13 별도 사용자 승인 실기 기록에는 공개 DLL의 x86 파일 인쇄 1회, x64 파일·문자열 교차 인쇄 5회의 ASCII·한글 변수와 위치·배출 정상 관측이 있다. 다른 용지·펌웨어·서식 전체의 성공을 보장하는 결과는 아니다. 이번 가독성·한글 설명 정리는 SDK 로딩과 장치 실행 없이 검증한다.

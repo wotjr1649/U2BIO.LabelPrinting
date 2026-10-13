@@ -21,10 +21,11 @@ internal static class Program
             var preview = BtplProcessor.Render(request, 0);
             Check(preview.IsValid && preview.TextElements.Count == 2 && preview.BtplText.Contains("SECOND LINE"));
             using (var printer = new Bt003Printer()) {
-                Check(printer.GetConnectionStatus().Code == "NotConnected");
+                var connection = printer.GetConnectionStatus();
+                Check(connection.Status == PrinterResultStatus.Failed && connection.NativeCode == null && !string.IsNullOrWhiteSpace(connection.Message));
                 var result = printer.Print(preview.BtplText);
-                Check(result.Status == PrinterResultStatus.Failed && result.Code == "NotConnected" && !result.PrintInvoked);
-                Check(printer.Disconnect().IsSuccess);
+                Check(result.Status == PrinterResultStatus.Failed && result.NativeCode == null && !result.PrintInvoked && !string.IsNullOrWhiteSpace(result.Message));
+                Check(printer.Disconnect().Status == PrinterResultStatus.Succeeded);
             }
             foreach (string file in new[] { "BlackfishNfcLib.dll", "HFModule.dll" })
                 Check(!File.Exists(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, file)));
