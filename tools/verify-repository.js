@@ -36,7 +36,7 @@ try {
 
     // 과거 C01-C24/TASK-01..09 대신 현재 #16 문서와 실제 제품 구조의 일치를 확인한다.
     const spec = fs.readFileSync(path.join(root, 'docs', 'specs', 'SYNC_USB_MVP.md'), 'utf8');
-    for (const term of ['StringBuilder', 'Encoding.Default.CodePage', 'FileShare.Read', 'Status', 'Message', 'NativeCode', 'PrintInvoked', 'PrintCode', 'ConfirmPrintPosition', 'Bt003NativePlatform'])
+    for (const term of ['StringBuilder', 'Encoding.Default.CodePage', 'FileShare.Read', 'IsSuccess', 'Message', 'NativeCode', 'PrintInvoked', 'PrintCode', 'ConfirmPrintPosition', 'Bt003NativePlatform'])
         if (!spec.includes(term)) throw new Error(`Current MVP contract is missing ${term}.`);
     for (const file of ['README.md', 'AGENTS.md', 'docs/DESIGN.md', 'docs/IMPLEMENTATION_PLAN.md', 'docs/PRINTER_API.ko.md'])
         if (!fs.readFileSync(path.join(root, file), 'utf8').includes('SYNC_USB_MVP.md')) throw new Error(`Current contract link missing: ${file}`);

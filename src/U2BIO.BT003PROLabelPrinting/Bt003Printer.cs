@@ -125,7 +125,7 @@ namespace U2BIO.BT003PROLabelPrinting
                 else
                 {
                     var cleanup = DisconnectCore();
-                    if (cleanup.Status != PrinterResultStatus.Succeeded)
+                    if (!cleanup.IsSuccess)
                     {
                         // 연결 실패의 숫자와 설명은 유지하고, 추가 해제 실패의 설명만 덧붙인다.
                         result.Message += " 연결 정리도 실패했습니다. " + cleanup.Message;
@@ -136,7 +136,7 @@ namespace U2BIO.BT003PROLabelPrinting
         }
 
         /// <summary>이 객체가 소유한 SDK 연결의 열림 상태를 조회합니다.</summary>
-        /// <returns>NativeCode가 1이면 열린 연결입니다. 소유자가 아니면 Failed와 한글 설명을 반환하며 SDK를 조회하지 않습니다.</returns>
+        /// <returns>NativeCode가 1이면 열린 연결입니다. 소유자가 아니면 IsSuccess=false와 한글 설명을 반환하며 SDK를 조회하지 않습니다.</returns>
         /// <remarks>포트 연결만 확인합니다. 용지·리본·헤드 준비, 실제 인쇄 완료 또는 faulted 해소를 확인하는 함수가 아닙니다.</remarks>
         /// <exception cref="ObjectDisposedException">이미 Dispose를 완료한 객체입니다.</exception>
         public PrinterResult GetConnectionStatus()
@@ -294,7 +294,7 @@ namespace U2BIO.BT003PROLabelPrinting
         }
 
         /// <summary>호출자가 용지를 수동으로 정렬했음을 확인하고 해당 포트의 위치 기록을 0으로 바꿉니다.</summary>
-        /// <returns>위치 기록을 바꿨으면 Succeeded, 연결 소유자가 아니면 Failed와 한글 설명을 반환합니다.</returns>
+        /// <returns>위치 기록을 바꿨으면 IsSuccess=true, 연결 소유자가 아니면 false와 한글 설명을 반환합니다.</returns>
         /// <remarks>SDK 센서를 조회하거나 용지를 이동하지 않습니다. faulted를 해제하지 않으므로 연결 오류는 별도로 복구해야 합니다.</remarks>
         /// <exception cref="ObjectDisposedException">이미 Dispose를 완료한 객체입니다.</exception>
         public PrinterResult ConfirmPrintPosition()
@@ -340,7 +340,7 @@ namespace U2BIO.BT003PROLabelPrinting
                     return;
                 }
                 // 다른 스레드의 Dispose도 인쇄 및 finally 종료 후에만 SDK 연결을 닫는다.
-                if (DisconnectCore().Status != PrinterResultStatus.Succeeded)
+                if (!DisconnectCore().IsSuccess)
                 {
                     throw new InvalidOperationException("DisconnectFailed");
                 }
@@ -481,7 +481,8 @@ namespace U2BIO.BT003PROLabelPrinting
                 }
                 else
                 {
-                    result.Status = PrinterResultStatus.Unknown;
+                    // 불명 응답도 정상 종료를 확인하지 못한 결과다. 원래 숫자와 불명 이유는 그대로 남긴다.
+                    result.IsSuccess = false;
                     result.Message = result.PrintCode.HasValue
                         ? "인쇄 결과를 확정할 수 없습니다. StartLabelPrint 응답 코드: " + result.PrintCode + "."
                         : "StartLabelPrint 응답 형식을 해석할 수 없어 인쇄 결과를 확정할 수 없습니다.";
@@ -491,10 +492,6 @@ namespace U2BIO.BT003PROLabelPrinting
             catch (Exception error) when (Recoverable(error))
             {
                 Fail(result, function + " 호출 중 " + ErrorMessage(error));
-                if (result.PrintInvoked)
-                {
-                    result.Status = PrinterResultStatus.Unknown;
-                }
                 return result;
             }
             finally
@@ -510,11 +507,8 @@ namespace U2BIO.BT003PROLabelPrinting
                     {
                         faulted = true;
                         result.Message += " 서식 정리도 실패했습니다. ResetForm 호출 중 " + ErrorMessage(error);
-                        // 정리 오류로 인쇄 증거와 불명 상태를 덮으면 자동 재인쇄를 유발할 수 있다.
-                        if (result.Status == PrinterResultStatus.Succeeded)
-                        {
-                            result.Status = PrinterResultStatus.Failed;
-                        }
+                        // 정리까지 요청의 일부다. 정상 여부만 false로 바꾸고 인쇄 응답과 원래 이유는 보존한다.
+                        result.IsSuccess = false;
                     }
                 }
             }
@@ -546,10 +540,6 @@ namespace U2BIO.BT003PROLabelPrinting
             {
                 // 이동 오류는 이 함수에서 설명하므로 상위 함수가 직전 인쇄 단계로 잘못 기록하지 않는다.
                 Fail(result, printMessage + movement + "의 SendData 호출 중 " + ErrorMessage(error));
-                if (result.PrintInvoked)
-                {
-                    result.Status = PrinterResultStatus.Unknown;
-                }
                 return false;
             }
         }
@@ -581,7 +571,7 @@ namespace U2BIO.BT003PROLabelPrinting
 
         private static bool KnownFailure(int code)
         {
-            // 기존에 분류한 실패 코드만 Failed로 처리한다. 101과 미확인 코드는 Unknown으로 처리한다.
+            // 알려진 실패와 결과 불명의 설명을 구분한다. 어느 경우든 IsSuccess는 false이며 자동 재인쇄하지 않는다.
             return (code >= 1 && code <= 11) || code == 20 || code == 21 || code == 22 || code == 50 || code == 60 ||
                 code == 102 || code == 103 || code == 104 || code == 105 || code == 205;
         }
@@ -676,18 +666,18 @@ namespace U2BIO.BT003PROLabelPrinting
 
         private static PrinterResult Success(string message = "SDK 주 작업이 정상적으로 끝났습니다.")
         {
-            return new PrinterResult { Status = PrinterResultStatus.Succeeded, Message = message };
+            return new PrinterResult { IsSuccess = true, Message = message };
         }
 
         private static PrinterResult Failure(string message)
         {
-            return new PrinterResult { Status = PrinterResultStatus.Failed, Message = message };
+            return new PrinterResult { IsSuccess = false, Message = message };
         }
 
         private static PrinterResult Fail(PrinterResult result, string message)
         {
             // 결과를 실패로 바꿀 때도 이미 기록한 인쇄·이동·정리 응답은 남겨 둔다.
-            result.Status = PrinterResultStatus.Failed;
+            result.IsSuccess = false;
             result.Message = message;
             return result;
         }

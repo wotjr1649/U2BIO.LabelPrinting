@@ -4,7 +4,7 @@
 
 Bt003Printer.cs는 공개 메서드, 입력 검사, SDK 호출 순서와 자원 수명을 한 파일에서 보여 준다. PrinterModels.cs는 SDK 수준 결과만 담는다. 제조사 Wrapper 선언을 수정하거나 자체 로더·delegate 카탈로그로 감싸지 않는다. Templates의 선택 해석은 기본 인쇄 경로와 독립이다.
 
-PrinterResult는 Status, Message, NativeCode, PrintInvoked, PrintCode 다섯 속성만 제공한다. 정상 판단 기준은 Status 하나이며, Message로 SDK 단계와 이동·정리 오류를 한글로 설명한다. 주 작업의 숫자와 인쇄 응답은 별도로 보존한다. 결과 생성자는 internal이고 디버거에서는 Status와 Message를 먼저 표시한다. 성공한 인쇄 뒤 정리 실패는 Failed, 원래 Unknown 뒤 정리 실패는 Unknown이며 Message에 정리 오류를 추가한다. 기계적인 단계별 진단 속성 대신 사람이 읽는 설명을 사용하되 내부 연결·위치 차단은 유지한다.
+PrinterResult는 IsSuccess(bool), Message, NativeCode, PrintInvoked, PrintCode 다섯 속성만 제공한다. 정상 판단 기준은 IsSuccess 하나이며, Message로 SDK 단계와 이동·정리 오류를 한글로 설명한다. Status와 PrinterResultStatus enum은 제거한다. true는 요청한 SDK 처리와 필요한 배출·정리가 정상적으로 끝났다는 뜻이다. 실패와 결과 불명은 모두 false이며 실제 무출력이나 안전한 재인쇄를 뜻하지 않는다. 주 작업의 숫자와 인쇄 응답은 별도로 보존한다. 결과 생성자는 internal이고 디버거에서는 IsSuccess와 Message를 먼저 표시한다. 정리 실패는 IsSuccess=false로 기록하고 원래 숫자·인쇄 증거·설명을 보존하며 Message에 정리 오류를 추가한다. 내부 연결·위치 차단은 그대로 유지한다.
 
 정적 gate 안에서 연결 소유자 한 명만 SDK 전역 상태를 사용한다. 인쇄·이동·finally·해제까지 직렬화한다. 부분 연결 실패는 해제·Closed 확인 후 소유권을 반환한다. 확인되지 않은 해제는 소유권을 유지하고 명시적 재시도를 허용한다.
 

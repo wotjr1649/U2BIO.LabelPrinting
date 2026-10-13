@@ -2,7 +2,7 @@
 
 이슈 #16. 기준 구현은 87e26a0이다. 기능 명세는 제조사 Programming Manual v1.3, 실행 선언은 제공된 HFSample.BT003CtrlWrapper다. 이 스펙은 #15의 호환 API·출력 bridge 유지 계약을 이번 작업에 한해 대체한다.
 
-2026-10-14 사용자 결정으로 공개 결과를 다섯 속성으로 단순화한다. 정상 판단 기준은 Status 하나이며 사람이 읽는 Message로 단계와 오류를 설명한다. 기존 연결·위치·파일 수명과 SDK 동작은 유지한다.
+2026-10-14 사용자 결정으로 공개 결과를 다섯 속성으로 단순화하고 정상 판단 기준을 bool IsSuccess 하나로 통일한다. Status와 PrinterResultStatus enum은 제거한다. 실패와 결과 불명은 false로 전달하고 사람이 읽는 Message로 단계와 이유를 설명한다. 기존 연결·위치·파일 수명과 SDK 동작은 유지한다.
 
 ## 사용자 결정과 책임
 
@@ -33,9 +33,9 @@ GetConnectionStatus의 1은 포트 Open, 0은 Closed다. 포트 상태와 물리
 2. 연결 상태를 확인한다. 이전 정상 배출이 있으면 ^B로 그 거리만 복귀한다.
 3. ResetForm → 선택 SetPrintingOption → SetPrintFormString → 선택 SetPrintFormVariableData를 호출한다. PrintFile도 검증한 파일 내용을 문자열로 등록한다. 등록 실패 뒤 인쇄하지 않는다. 발행 실패 뒤 다른 등록 방식으로 자동 재인쇄하지 않는다.
 4. new StringBuilder(100)으로 StartLabelPrint(1, response)를 호출한다. 내부 문법 검사로 숫자 코드만 추출하고 UID 원문은 결과·로그에 남기지 않는다.
-5. 0은 SDK 정상 응답, 알려진 제조사 실패 코드는 실패, 101/잘못된 응답/미확인 코드는 불명이다. 인쇄 호출 이후 예외도 불명이며 자동 재인쇄하지 않는다.
+5. 0은 SDK 정상 인쇄 응답이다. 알려진 제조사 실패와 101/잘못된 응답/미확인 코드, 인쇄 호출 이후 예외는 모두 IsSuccess=false다. 알려진 실패와 불명 응답의 이유는 Message에 구분해 남기고 숫자·인쇄 호출/응답을 보존한다. 어느 경우에도 자동 재인쇄하지 않는다.
 6. 정상 인쇄 응답에서만 선택 ^M 배출을 수행한다. SendData 0은 명령 수락이며 물리 이동 완료 증거가 아니다. 배출 실패는 정상 인쇄 코드와 구분한다.
-7. finally에서 서식을 정리하고 중첩 finally로 파일 잠금을 해제한다. 정리 오류는 원래 NativeCode/PrintCode/Message를 보존하며 Message에 추가한다. 원결과 Unknown이면 cleanup 실패 후에도 Unknown을 유지한다. 원결과 Succeeded에 cleanup 실패가 더해지면 Status를 Failed로 집계하되 PrintInvoked/PrintCode=0을 보존하며 재인쇄 근거로 삼지 않는다. 실패했던 원결과는 그대로 보존한다. cleanup 실패 후 미정리 연결에서 다음 인쇄를 차단한다. Disconnect로 닫힘이 확인된 뒤 재연결해야 이 연결 오류를 해소할 수 있으며 위치 불명은 별도로 수동 확인한다.
+7. finally에서 서식을 정리하고 중첩 finally로 파일 잠금을 해제한다. 정리 오류는 IsSuccess=false로 기록하고 원래 NativeCode/PrintCode/Message를 보존하며 Message에 설명을 추가한다. 인쇄 정상 응답 뒤 정리가 실패해도 PrintInvoked/PrintCode=0을 보존하며 재인쇄 근거로 삼지 않는다. 원래 실패·불명 응답도 false와 원래 이유를 보존한다. cleanup 실패 후 미정리 연결에서 다음 인쇄를 차단한다. Disconnect로 닫힘이 확인된 뒤 재연결해야 이 연결 오류를 해소할 수 있으며 위치 불명은 별도로 수동 확인한다.
 
 인쇄·이동 결과가 불명이면 배출 거리 0에서도 위치를 불명으로 유지하고 다음 자동 인쇄를 거부한다. 위치 기록은 객체가 아니라 프로세스 안의 포트별 상태로 보존한다. ConfirmPrintPosition은 실제 위치를 수동으로 맞춘 호출자의 확인이며 SDK 센서 확인이나 자동 이동이 아니다. 연결 해제·재연결·새 객체 생성만으로 위치 불명을 지우지 않는다. 정상 SendData 반환도 물리 위치 확인이 아니라 명령 이력에 따른 복귀 거리 추적이다.
 
@@ -43,9 +43,9 @@ GetConnectionStatus의 1은 포트 Open, 0은 Closed다. 포트 상태와 물리
 
 ## 작은 결과
 
-PrinterResult의 공개 속성은 Status(Succeeded/Failed/Unknown), Message, NativeCode, PrintInvoked, PrintCode 다섯 개다. Status가 성공 판단의 유일한 기준이며 IsSuccess 등 중복 속성은 제공하지 않는다. Message는 주 작업 단계와 SDK 함수·이동/정리 오류를 고정 한글로 설명하며 호출자는 문장을 파싱해 자동 복구하지 않는다. NativeCode는 주 작업의 마지막 SDK 응답으로 미호출·응답 전 예외는 null이며, 후속 서식 정리는 이 값을 덮지 않는다. GetConnectionStatus의 1은 열린 연결, 0은 닫힌 연결이다. 인쇄 뒤 배출 실패/예외에도 PrintCode는 정상 인쇄 응답 0을 보존한다. 연결 실패 후 해제 실패도 원래 연결 응답을 유지하고 Message에 추가한다.
+PrinterResult의 공개 속성은 IsSuccess(bool), Message(string), NativeCode(int?), PrintInvoked(bool), PrintCode(int?) 다섯 개다. 정상 여부는 IsSuccess로만 판단하며 호출자는 `if (!result.IsSuccess)`로 바로 분기한다. true는 요청한 SDK 처리와 필요한 배출·정리의 정상 종료다. 실패와 결과 불명은 모두 false이며 무출력을 뜻하지 않는다. Status와 PrinterResultStatus enum, bool 반환 overload·암시적 변환·LastResult는 제공하지 않는다. Message는 주 작업 단계와 SDK 함수·이동/정리 오류를 고정 한글로 설명하며 호출자는 문장을 파싱해 자동 복구하지 않는다. NativeCode는 주 작업의 마지막 SDK 응답으로 미호출·응답 전 예외는 null이며, 후속 서식 정리는 이 값을 덮지 않는다. GetConnectionStatus의 1은 열린 연결, 0은 닫힌 연결이다. 인쇄 뒤 배출 실패/예외에도 PrintCode는 정상 인쇄 응답 0을 보존한다. 연결 실패 후 해제 실패도 원래 연결 응답을 유지하고 Message에 추가한다.
 
-외부 호출자가 기본값의 정상 결과를 만들지 못하도록 생성자는 internal이고, 속성 getter는 public/setter는 internal이다. DebuggerDisplay는 Status와 Message를 먼저 표시한다. 성공 이름은 SDK 수준의 처리 결과이며 물리 완료를 보장하지 않는다. 입력 오류는 인쇄 전의 인수 예외로 거부한다. DLL 누락·아키텍처·entrypoint 오류는 SDK 함수와 고정 한글 설명으로 전달한다. 원문 서식·변수·UID·경로 또는 원래 SDK 예외 메시지를 결과에 복사하지 않는다.
+결과 생성자는 internal이고, 속성 getter는 public/setter는 internal이다. 새 객체의 IsSuccess 기본값은 false이며 정상 경로에서 true를 명시한다. DebuggerDisplay는 IsSuccess와 Message를 먼저 표시한다. SDK 수준의 정상 종료는 물리 완료를 보장하지 않는다. 입력 오류는 인쇄 전의 인수 예외로 거부하고 미지원 코드 페이지·해제된 객체와 Dispose 해제 실패 등의 기존 예외 계약도 유지한다. 모든 오류를 false로 반환하는 계약으로 확대하지 않는다. DLL 누락·아키텍처·entrypoint 오류는 SDK 함수와 고정 한글 설명으로 전달한다. 원문 서식·변수·UID·경로 또는 원래 SDK 예외 메시지를 결과에 복사하지 않는다.
 
 파일 크기·CP949 내용은 열어 둔 동일 FileStream으로 읽고 확인한다. SDK에는 검사한 내용의 CRLF 문자열을 SetPrintFormString으로 넘겨 파일을 다시 열지 않게 한다. 파일 읽기 잠금은 SDK 발행·서식 정리까지 유지한다. Path/FileStream/디코딩의 원래 예외 메시지와 InnerException을 넘기지 않고 고정 식별 코드로 바꾼다. finally 정리 실패에도 파일은 해제된다. SDK의 SetPrintFormFile에서 관측한 103의 내부 원인을 확정하거나 모든 파일 접근 경쟁을 해결했다고 주장하지 않는다.
 

@@ -6,7 +6,7 @@ Bt003Printer.cs는 동기 공개 API와 입력 검사·직접 SDK 호출·실패
 
 기본 사용은 ConnectUsb → 선택 SetPrintingOptions → PrintFile/Print → Disconnect/Dispose다. SDK가 BTPL과 변수를 해석한다. 한 프로그램에서만 같은 물리 프린터를 사용하며 DLL은 프로세스 안의 단일 소유자와 전체 호출 직렬화를 관리한다. UI 실행과 DB 조회는 호출자 책임이다.
 
-결과는 Status, Message, NativeCode, PrintInvoked, PrintCode 다섯 속성이다. 정상 여부는 Status로 판단하고 Message의 한글 설명으로 SDK 단계·배출·정리 오류를 읽는다. PrintCode는 후속 오류가 있어도 인쇄 응답을 보존한다. 결과 객체는 DLL 내부에서만 생성한다.
+결과는 IsSuccess(bool), Message, NativeCode, PrintInvoked, PrintCode 다섯 속성이다. 호출자는 `if (!result.IsSuccess)`로 분기하고 Message의 한글 설명으로 SDK 단계·배출·정리 오류를 읽는다. 실패와 결과 불명은 모두 false이며 자동 재인쇄하지 않는다. Status와 결과 enum은 제공하지 않는다. PrintCode는 후속 오류가 있어도 인쇄 응답을 보존한다. 결과 객체는 DLL 내부에서만 생성한다.
 
 Templates는 TXT/JSON/XML 편집·검사·선택 바인딩 기능이다. 완성 문자열은 ToBtpl 또는 BtplProcessor.Render의 BtplText로 얻어 Print(string)에 전달한다. 기본 DLL은 Templates 해석이나 전체 요청 사전검사를 자동 수행하지 않는다. 여러 행을 처리한다면 호출 프로그램이 렌더링·오류 확인·호출 순서를 결정하며 불명 결과를 자동 재인쇄하지 않는다.
 

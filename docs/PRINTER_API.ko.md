@@ -4,7 +4,7 @@
 
 서식 명령, 좌표, AW 글꼴 처리와 변수 치환은 SDK가 담당한다. DLL은 입력을 검사하고 연결·등록·인쇄·배출·정리의 순서를 관리한다. 기존 비동기·취소·일괄 API는 제공하지 않으며, 선택 Templates 기능으로 렌더링한 문자열은 `Print`에 넘길 수 있다.
 
-바이트 그대로 보존한 제조사 Wrapper 안의 과거 DLL 호출 예제는 이전 결과 속성을 사용한다. 현재 DLL 호출에는 이 문서의 Status·Message 예제를 사용한다.
+바이트 그대로 보존한 제조사 Wrapper 안의 과거 DLL 호출 예제는 이전 결과 속성을 사용한다. 현재 DLL 호출에는 이 문서의 IsSuccess·Message 예제를 사용한다.
 
 ## 공개 함수
 
@@ -35,14 +35,14 @@
 using (var printer = new Bt003Printer())
 {
     var connected = printer.ConnectUsb(selectedUsbPort, presentationDistanceMm);
-    if (connected.Status != PrinterResultStatus.Succeeded)
+    if (!connected.IsSuccess)
     {
         Console.WriteLine(connected.Message);
         return;
     }
 
     var options = printer.SetPrintingOptions(4, 12);
-    if (options.Status != PrinterResultStatus.Succeeded)
+    if (!options.IsSuccess)
     {
         Console.WriteLine(options.Message);
         return;
@@ -50,7 +50,12 @@ using (var printer = new Bt003Printer())
 
     // 서식이 V00/V01을 참조하면 모든 값을 요청마다 제공한다.
     var result = printer.PrintFile(formPath, "FIRST LINE", "SECOND LINE");
-    Console.WriteLine(result.Status + ": " + result.Message);
+    if (!result.IsSuccess)
+    {
+        Console.WriteLine(result.Message);
+        return;
+    }
+    Console.WriteLine("SDK 처리가 정상적으로 끝났습니다.");
     Console.WriteLine("주 작업 SDK 응답: " + result.NativeCode);
     Console.WriteLine("인쇄 호출 시도: " + result.PrintInvoked + ", 인쇄 응답: " + result.PrintCode);
 
@@ -108,35 +113,36 @@ SDK에는 파일 경로 대신 검사한 내용을 `SetPrintFormString`으로 �
 
 | 필드 | 의미 |
 | --- | --- |
-| Status | 요청 전체의 SDK 처리 결과: Succeeded, Failed 또는 Unknown |
+| IsSuccess (bool) | 요청한 SDK 처리와 필요한 배출·정리가 정상적으로 끝나면 true. 실패와 결과 불명은 false |
 | Message | 상태·SDK 함수·이동/정리 오류를 사람이 읽는 한글 설명 |
 | NativeCode | 주 작업의 마지막 SDK 응답. 미호출·응답 전 예외이면 null; 연결 확인은 1=Open, 0=Closed. 후속 서식 정리는 이 값을 덮지 않음 |
 | PrintInvoked | StartLabelPrint 호출 진입 직전에 기록한 값. 실제 출력 완료 여부가 아님 |
 | PrintCode | 해석한 인쇄 응답. 미호출·잘못된 응답·응답 전 예외이면 null |
 
-공개 속성은 이 다섯 개뿐이다. 정상 여부는 `Status` 하나로 판단하고 `Message`로 이유를 읽는다. 호출자가 결과를 직접 만들지 않도록 생성자는 internal이다. 디버거에서는 속성을 펼치기 전에 Status와 Message를 먼저 표시한다.
+공개 속성은 이 다섯 개뿐이다. 정상 여부는 `IsSuccess` 하나로 판단하고 `Message`로 이유를 읽는다. 성공 여부의 판단은 DLL에서 끝내므로 호출자가 SDK 숫자를 bool로 변환할 필요가 없다. Status와 PrinterResultStatus enum은 제공하지 않는다. 호출자가 결과를 직접 만들지 않도록 생성자는 internal이다. 디버거에서는 속성을 펼치기 전에 IsSuccess와 Message를 먼저 표시한다.
 
 ```csharp
 var result = printer.PrintFile(formPath);
-if (result.Status != PrinterResultStatus.Succeeded)
+if (!result.IsSuccess)
 {
     Console.WriteLine(result.Message);
 }
 ```
 
-`Message`는 사람의 확인용이며 프로그램이 문장을 파싱해 자동 복구하지 않는다. 인쇄와 관련한 상세 판단에는 `PrintInvoked`와 `PrintCode`를 함께 확인한다. 이전 Code, Function, MovementCode, CleanupCode, IsSuccess 사용처는 이 계약으로 이행한다.
+일반 호출부는 IsSuccess와 Message만 확인하면 된다. `Message`는 사람의 확인용이며 프로그램이 문장을 파싱해 자동 복구하지 않는다. 오류 조사에는 `PrintInvoked`와 `PrintCode`를 함께 확인하되 별도의 성공 기준으로 사용하지 않는다. 이전 Status 비교는 `if (!result.IsSuccess)`로 바꾸고 호출 프로그램을 재빌드한다. Code, Function, MovementCode, CleanupCode 사용처도 현재 계약으로 이행한다. bool 반환 overload나 결과 객체의 암시적 bool 변환은 제공하지 않는다.
 
 | 상황 | 결과의 의미 |
 | --- | --- |
-| 서식 등록 실패 | PrintInvoked=false이며 StartLabelPrint를 호출하지 않음 |
-| 정상 인쇄 응답 뒤 배출 실패 | PrintInvoked=true, PrintCode=0을 보존하며 전체 결과는 실패 또는 불명 |
-| 인쇄 응답 101·미확인 코드·잘못된 응답 | Unknown. 실제 일부 출력 가능성이 있으므로 자동 재인쇄하지 않음 |
-| 정상 인쇄 응답 뒤 서식 정리 실패 | Status=Failed, PrintCode=0과 원래 NativeCode·설명은 보존; Message에 ResetForm 오류 추가 |
-| Unknown 상태에서 서식 정리도 실패 | Unknown과 원래 응답·설명을 유지하고 Message에 정리 오류 추가 |
+| 정상 인쇄·필요한 배출·서식 정리 완료 | IsSuccess=true. SDK 정상 종료이며 물리 출력 완료 확인은 아님 |
+| 서식 등록 실패 | IsSuccess=false, PrintInvoked=false이며 StartLabelPrint를 호출하지 않음 |
+| 정상 인쇄 응답 뒤 배출 실패 | IsSuccess=false, PrintInvoked=true, PrintCode=0을 보존 |
+| 인쇄 응답 101·미확인 코드·잘못된 응답 | IsSuccess=false. 결과 불명을 Message에 설명하고 실제 일부 출력 가능성 때문에 자동 재인쇄하지 않음 |
+| 정상 인쇄 응답 뒤 서식 정리 실패 | IsSuccess=false, PrintCode=0과 원래 NativeCode·설명은 보존; Message에 ResetForm 오류 추가 |
+| 불명 응답 뒤 서식 정리도 실패 | IsSuccess=false와 원래 응답·불명 설명을 유지하고 Message에 정리 오류 추가 |
 
-예를 들어 인쇄 0 뒤 배출 응답 7은 Failed, NativeCode=7, PrintCode=0이며 Message가 인쇄 응답 정상과 SendData 배출 실패를 함께 설명한다. 같은 배출이 응답 전 예외를 내면 Unknown, NativeCode=null, PrintCode=0이다. 성공한 사전 복귀의 0을 마지막 배출 예외의 숫자로 남기지 않는다.
+예를 들어 인쇄 0 뒤 배출 응답 7은 IsSuccess=false, NativeCode=7, PrintCode=0이며 Message가 인쇄 응답 정상과 SendData 배출 실패를 함께 설명한다. 같은 배출이 응답 전 예외를 내면 IsSuccess=false, NativeCode=null, PrintCode=0이다. 성공한 사전 복귀의 0을 마지막 배출 예외의 숫자로 남기지 않는다.
 
-SDK 코드 0과 `SendData` 코드 0은 물리 출력·이동 완료 증거가 아니다. Status가 Failed 또는 Unknown이라는 이유만으로 같은 요청을 다시 인쇄하지 않는다.
+SDK 코드 0과 `SendData` 코드 0은 물리 출력·이동 완료 증거가 아니다. IsSuccess=false는 무출력을 뜻하지 않으므로 같은 요청을 자동 재인쇄하지 않는다.
 
 ## 내부 상태와 복구
 
@@ -163,7 +169,7 @@ Message가 SDK 연결 복구를 안내하면 `Disconnect`로 닫힘을 확인한
 
 입력 오류는 `ArgumentException`으로 전달하며 메시지는 InvalidFile, InvalidForm, InvalidVariables 등 고정 식별 코드다. 원문 서식·변수·파일 경로와 파일 처리의 원래 예외·InnerException을 포함하지 않는다. 코드 페이지가 949가 아니면 `NotSupportedException`의 UnsupportedAnsiCodePage로 거부한다.
 
-SDK 호출 중 DLL 누락·형식/비트수 불일치·함수 누락은 해당 SDK 함수 이름과 고정 한글 설명으로 전달한다. 원래 예외 메시지를 결과에 복사하지 않는다. 주 인쇄 경로에서 인쇄 호출 이후 예외가 나면 Unknown으로 처리하며, 마지막 서식 정리 오류는 앞서 설명한 별도 규칙으로 보존한다. 실패한 연결 뒤 추가 해제도 실패하면 원래 연결 NativeCode와 설명을 유지하고 Message에 해제 오류를 추가한다.
+SDK 호출 중 DLL 누락·형식/비트수 불일치·함수 누락은 IsSuccess=false와 해당 SDK 함수 이름·고정 한글 설명으로 전달한다. 원래 예외 메시지를 결과에 복사하지 않는다. 인쇄 호출 이후 예외도 false이며 PrintInvoked/PrintCode에 호출·응답 정보를 보존한다. 마지막 서식 정리 오류는 앞서 설명한 규칙으로 보존한다. 실패한 연결 뒤 추가 해제도 실패하면 원래 연결 NativeCode와 설명을 유지하고 Message에 해제 오류를 추가한다. 입력 오류·미지원 코드 페이지·해제된 객체 사용과 Dispose 실패 등의 예외까지 false로 반환하는 계약은 아니다.
 
 `Dispose`는 진행 중인 SDK 호출과 `finally`가 끝날 때까지 기다린다. 해제를 확인하지 못하면 `InvalidOperationException("DisconnectFailed")`을 던지고 객체를 종료 상태로 바꾸지 않는다. `using` 종료에서도 이 예외가 발생할 수 있으므로 호출 프로그램에서 처리하고 명시적 해제를 재시도할 수 있다. 정상 종료된 객체의 `Dispose`는 반복 호출해도 작업하지 않으며, 다른 공개 함수는 `ObjectDisposedException`을 던진다.
 
