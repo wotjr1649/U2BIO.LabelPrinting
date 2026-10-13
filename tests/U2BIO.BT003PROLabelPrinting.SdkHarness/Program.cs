@@ -266,7 +266,7 @@ internal static class Program
             var result = printer.Print(Literal, "VALUE-PRIVATE-MARKER");
             Check(result.Status == PrinterResultStatus.Succeeded && result.PrintCode == 0
                 && !result.Message.Contains("AB:CD:EF:12") && !result.Message.Contains("PRIVATE-MARKER"), "Success message leaked input or UID.");
-            Fake.ExceptionText = "PRIVATE-MARKER: D:\\synthetic\\form.txt"; Fake.ThrowAt = "StartLabelPrint";
+            Fake.ExceptionText = "PRIVATE-MARKER: synthetic/form.txt"; Fake.ThrowAt = "StartLabelPrint";
             result = printer.Print(Literal);
             Check(result.Status == PrinterResultStatus.Unknown && result.PrintInvoked && result.NativeCode == null && result.PrintCode == null
                 && result.Message.Contains("StartLabelPrint") && !result.Message.Contains("PRIVATE-MARKER") && !result.Message.Contains("form.txt"), "Exception message lost uncertainty or leaked raw data.");
