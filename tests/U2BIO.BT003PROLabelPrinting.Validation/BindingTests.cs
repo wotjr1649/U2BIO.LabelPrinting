@@ -61,6 +61,9 @@ namespace U2BIO.BT003PROLabelPrinting.Validation
         }
         internal static void Run()
         {
+            // 서식 JSON과 바인딩 JSON 모두 끝 쉼표를 거부해야 한다. Framework 리더의 관대한 구문을 그대로 허용하지 않는다.
+            InvalidJson("{\"variables\":{},}");
+            InvalidJson("{\"variables\":{\"^V00\":{\"column\":\"Value\",}}}");
             var bindings = BtplBindings.Parse("{\"variables\":{\"^V03\":{\"column\":\"Value\"},\"^V01\":{\"column\":\"Date\",\"format\":\"yy-MM-dd\"}}}");
             Check(bindings.Variables.Count == 2 && bindings.Variables["^V03"].Column == "Value");
             Check(BtplBindings.Parse(bindings.ToJson()).Variables["^V01"].Format == "yy-MM-dd");
