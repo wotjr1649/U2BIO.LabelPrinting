@@ -22,8 +22,8 @@ namespace U2BIO.BT003PROLabelPrinting.Validation
             foreach (var method in actual.Where(method => method.Name != "Dispose"))
                 if (method.ReturnType != result) throw new InvalidOperationException("PrinterResult contract missing.");
             // 결과를 해석하는 공개 항목은 정확히 다섯 개여야 하며 제거한 속성이 남아도 실패한다.
-            string[] names = { "Status", "Message", "NativeCode", "PrintInvoked", "PrintCode" };
-            Type[] types = { library.GetType("U2BIO.BT003PROLabelPrinting.PrinterResultStatus", true), typeof(string), typeof(int?), typeof(bool), typeof(int?) };
+            string[] names = { "IsSuccess", "Message", "NativeCode", "PrintInvoked", "PrintCode" };
+            Type[] types = { typeof(bool), typeof(string), typeof(int?), typeof(bool), typeof(int?) };
             var properties = result.GetProperties(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly);
             if (properties.Length != names.Length || properties.Any(property => !names.Contains(property.Name)))
                 throw new InvalidOperationException("PrinterResult must expose exactly five properties.");
@@ -39,10 +39,13 @@ namespace U2BIO.BT003PROLabelPrinting.Validation
             var constructor = result.GetConstructor(BindingFlags.NonPublic | BindingFlags.Instance, null, Type.EmptyTypes, null);
             if (constructor == null || !constructor.IsAssembly)
                 throw new InvalidOperationException("PrinterResult requires an internal constructor.");
+            // 아직 실행하지 않은 결과를 성공으로 오해하지 않도록 bool 기본값은 false로 둔다.
+            if ((bool)result.GetProperty("IsSuccess").GetValue(constructor.Invoke(null)))
+                throw new InvalidOperationException("A new PrinterResult cannot start successful.");
             var display = result.GetCustomAttribute<DebuggerDisplayAttribute>();
-            if (display == null || display.Value != "{Status}: {Message}")
-                throw new InvalidOperationException("PrinterResult debugger display must show status and message.");
-            foreach (string removed in new[] { "BatchPrintResult", "Bt003ConnectionOptions", "PrintInput", "Native.SdkRuntime", "Native.NativeLabelResponse", "Native.PrinterSdkCalls" })
+            if (display == null || display.Value != "{IsSuccess}: {Message}")
+                throw new InvalidOperationException("PrinterResult debugger display must show success and message.");
+            foreach (string removed in new[] { "PrinterResultStatus", "BatchPrintResult", "Bt003ConnectionOptions", "PrintInput", "Native.SdkRuntime", "Native.NativeLabelResponse", "Native.PrinterSdkCalls" })
                 if (library.GetType("U2BIO.BT003PROLabelPrinting." + removed) != null) throw new InvalidOperationException("Legacy runtime remains.");
             var search = library.GetCustomAttribute<DefaultDllImportSearchPathsAttribute>();
             if (search == null || search.Paths != (DllImportSearchPath.ApplicationDirectory | DllImportSearchPath.System32))

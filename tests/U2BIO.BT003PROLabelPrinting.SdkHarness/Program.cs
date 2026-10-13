@@ -14,8 +14,8 @@ internal static class Program
     private static Bt003Printer Connected(string port, int distance = 0)
     {
         var printer = new Bt003Printer();
-        Check(printer.ConnectUsb(port, distance).Status == PrinterResultStatus.Succeeded, "Connect failed.");
-        Check(printer.SetPrintingOptions(4, 12).Status == PrinterResultStatus.Succeeded, "Options failed.");
+        Check(printer.ConnectUsb(port, distance).IsSuccess, "Connect failed.");
+        Check(printer.SetPrintingOptions(4, 12).IsSuccess, "Options failed.");
         return printer;
     }
     private static void Invalid(Action action)
@@ -32,12 +32,12 @@ internal static class Program
             string[] values = { "FIRST", "SECOND" };
             Fake.BeforePrint = () => values[0] = "MUTATED";
             var result = printer.Print("^L\nAW,10,10,10,1,0,0,^V00\nE\n", values);
-            Check(result.Status == PrinterResultStatus.Succeeded && result.PrintInvoked && result.PrintCode == 0, "Print evidence differs.");
+            Check(result.IsSuccess && result.PrintInvoked && result.PrintCode == 0, "Print evidence differs.");
             Check(Fake.Variables == "FIRST!!SECOND" && !Fake.LastForm.Replace("\r\n", "").Contains("\n"), "Snapshot/CRLF differs.");
             Check(Fake.Calls.IndexOf("SetPrintFormString") < Fake.Calls.IndexOf("SetPrintFormVariableData") &&
                 Fake.Calls.IndexOf("SetPrintFormVariableData") < Fake.Calls.IndexOf("StartLabelPrint"), "Order differs.");
             Fake.BeforePrint = null; Fake.Calls.Clear();
-            Check(printer.Print(Literal).Status == PrinterResultStatus.Succeeded && !Fake.Calls.Contains("SetPrintFormVariableData"), "Literal call contract differs.");
+            Check(printer.Print(Literal).IsSuccess && !Fake.Calls.Contains("SetPrintFormVariableData"), "Literal call contract differs.");
             Check(Fake.Variables == "FIRST!!SECOND", "Fake hid variable retention.");
             foreach (string value in new[] { "", "A!!B", "A!", "!B", "A\0B" }) {
                 Fake.Calls.Clear(); Invalid(() => printer.Print(Literal, value));
@@ -47,37 +47,40 @@ internal static class Program
             Invalid(() => printer.Print(new string('A', 4 * 1024 * 1024 + 1)));
             Fake.FailAt = "SetPrintFormString"; Fake.FailCode = 103; Fake.Calls.Clear();
             result = printer.Print(Literal);
-            Check(result.Status == PrinterResultStatus.Failed && !result.PrintInvoked && !Fake.Calls.Contains("StartLabelPrint"), "Registration failure printed.");
+            Check(!result.IsSuccess && !result.PrintInvoked && !Fake.Calls.Contains("StartLabelPrint"), "Registration failure printed.");
         }
     }
-    private static void UnknownAndCleanup()
+    private static void UncertainResponseAndCleanup()
     {
         int index = 0;
-        foreach (string response in new[] { ",101", "garbage,0", ",9999" }) {
+        // 정리 예외가 없어도 불명 응답 자체가 false여야 하며, 정리 예외는 원래 설명을 지우지 않는다.
+        foreach (bool cleanupThrows in new[] { false, true })
+        foreach (string response in new[] { ",101", "garbage,0", ",9999", "" }) {
             string port = "SYNTH-UNKNOWN-" + index++;
             Fake.Clear();
             using (var printer = Connected(port)) {
-                Fake.Response = response; Fake.CleanupThrows = true;
+                Fake.Response = response; Fake.CleanupThrows = cleanupThrows;
                 var result = printer.Print(Literal);
                 int? expected = response == ",101" ? 101 : response == ",9999" ? 9999 : (int?)null;
-                Check(result.Status == PrinterResultStatus.Unknown && result.PrintInvoked && result.NativeCode == expected && result.PrintCode == expected
-                    && result.Message.Contains("StartLabelPrint") && result.Message.Contains("ResetForm"), "Cleanup replaced Unknown or original response.");
+                Check(!result.IsSuccess && result.PrintInvoked && result.NativeCode == expected && result.PrintCode == expected
+                    && result.Message.Contains("StartLabelPrint") && result.Message.Contains("확정할 수 없")
+                    && result.Message.Contains("ResetForm") == cleanupThrows, "Uncertain response or cleanup evidence lost.");
                 Fake.Calls.Clear();
-                Check(printer.Print(Literal).Status == PrinterResultStatus.Failed && Fake.Calls.Count == 0, "Cleanup fault allowed print.");
+                Check(!printer.Print(Literal).IsSuccess && Fake.Calls.Count == 0, "Uncertain response or cleanup fault allowed print.");
             }
             Fake.CleanupThrows = false; Fake.Response = ",0";
             using (var printer = Connected(port)) {
                 Fake.Calls.Clear();
                 var blocked = printer.Print(Literal);
-                Check(blocked.Status == PrinterResultStatus.Failed && blocked.Message.Contains("용지 위치") && !Fake.Calls.Contains("StartLabelPrint"), "New instance lost position uncertainty.");
-                Check(printer.ConfirmPrintPosition().Status == PrinterResultStatus.Succeeded && printer.Print(Literal).Status == PrinterResultStatus.Succeeded, "Position confirmation failed.");
+                Check(!blocked.IsSuccess && blocked.Message.Contains("용지 위치") && !Fake.Calls.Contains("StartLabelPrint"), "New instance lost position uncertainty.");
+                Check(printer.ConfirmPrintPosition().IsSuccess && printer.Print(Literal).IsSuccess, "Position confirmation failed.");
             }
         }
         Fake.Clear();
         using (var printer = Connected("SYNTH-CLEANUP")) {
             Fake.CleanupThrows = true;
             var result = printer.Print(Literal);
-            Check(result.Status == PrinterResultStatus.Failed && result.PrintInvoked && result.PrintCode == 0 && result.NativeCode == 0
+            Check(!result.IsSuccess && result.PrintInvoked && result.PrintCode == 0 && result.NativeCode == 0
                 && result.Message.Contains("StartLabelPrint") && result.Message.Contains("ResetForm"), "Cleanup hid successful print response.");
         }
     }
@@ -85,16 +88,16 @@ internal static class Program
     {
         Fake.Clear();
         using (var printer = Connected("SYNTH-MOVE", 15)) {
-            Check(printer.Print(Literal).Status == PrinterResultStatus.Succeeded, "Presentation failed.");
-            Fake.Calls.Clear(); Check(printer.Print(Literal).Status == PrinterResultStatus.Succeeded, "Repeat failed.");
+            Check(printer.Print(Literal).IsSuccess, "Presentation failed.");
+            Fake.Calls.Clear(); Check(printer.Print(Literal).IsSuccess, "Repeat failed.");
             Check(Fake.Calls.Contains("^B15\r\n") && Fake.Calls.Contains("^M15\r\n"), "Return/presentation absent.");
             Fake.FailAt = "SendData"; Fake.FailCode = 7;
             var result = printer.Print(Literal);
-            Check(result.Status == PrinterResultStatus.Failed && !result.PrintInvoked && result.PrintCode == null && result.NativeCode == 7
+            Check(!result.IsSuccess && !result.PrintInvoked && result.PrintCode == null && result.NativeCode == 7
                 && result.Message.Contains("복귀") && result.Message.Contains("SendData"), "Return failure printed or hid movement response.");
             Fake.Calls.Clear();
             var blocked = printer.Print(Literal);
-            Check(blocked.Status == PrinterResultStatus.Failed && blocked.Message.Contains("용지 위치") && !Fake.Calls.Contains("SendData"), "Repeated uncertain return.");
+            Check(!blocked.IsSuccess && blocked.Message.Contains("용지 위치") && !Fake.Calls.Contains("SendData"), "Repeated uncertain return.");
         }
         foreach (bool throwing in new[] { false, true }) {
             Fake.Clear();
@@ -102,12 +105,12 @@ internal static class Program
                 Fake.FailAt = throwing ? null : "SendData"; Fake.FailCode = 7;
                 Fake.ThrowAt = throwing ? "SendData" : null;
                 var result = printer.Print(Literal);
-                Check(result.Status == (throwing ? PrinterResultStatus.Unknown : PrinterResultStatus.Failed)
+                Check(!result.IsSuccess
                     && result.PrintInvoked && result.PrintCode == 0 && result.NativeCode == (throwing ? (int?)null : 7)
                     && result.Message.Contains("StartLabelPrint") && result.Message.Contains("배출") && result.Message.Contains("SendData"), "Ejection failure hid print.");
                 Fake.Calls.Clear();
                 var blocked = printer.Print(Literal);
-                Check(blocked.Status == PrinterResultStatus.Failed && blocked.Message.Contains("용지 위치") && !Fake.Calls.Contains("StartLabelPrint"), "Ejection uncertainty lost.");
+                Check(!blocked.IsSuccess && blocked.Message.Contains("용지 위치") && !Fake.Calls.Contains("StartLabelPrint"), "Ejection uncertainty lost.");
             }
         }
     }
@@ -135,7 +138,7 @@ internal static class Program
     {
         Fake.Clear(); var owner = Connected("SYNTH-OWNER");
         using (var other = new Bt003Printer()) {
-            Fake.Calls.Clear(); Check(other.GetConnectionStatus().Status == PrinterResultStatus.Failed && other.Disconnect().Status == PrinterResultStatus.Succeeded, "Non-owner contract differs.");
+            Fake.Calls.Clear(); Check(!other.GetConnectionStatus().IsSuccess && other.Disconnect().IsSuccess, "Non-owner contract differs.");
             Check(Fake.Calls.Count == 0, "Non-owner touched SDK.");
         }
         using (var entered = new ManualResetEvent(false)) using (var release = new ManualResetEvent(false)) {
@@ -149,20 +152,20 @@ internal static class Program
         }
         Fake.Clear(); Fake.FailAt = "DeviceConnect"; Fake.FailCode = 13;
         using (var printer = new Bt003Printer()) {
-            Check(printer.ConnectUsb("SYNTH-PARTIAL").Status == PrinterResultStatus.Failed && Fake.PortState == 0 && Fake.Calls.Contains("DeviceDisconnect"), "Partial connect not cleaned.");
+            Check(!printer.ConnectUsb("SYNTH-PARTIAL").IsSuccess && Fake.PortState == 0 && Fake.Calls.Contains("DeviceDisconnect"), "Partial connect not cleaned.");
         }
         Fake.Clear(); Fake.FailAt = "DeviceConnect"; Fake.FailCode = 13; Fake.KeepOpen = true;
         var partial = new Bt003Printer();
         try {
-            Check(partial.ConnectUsb("SYNTH-PARTIAL-UNCLOSED").Status == PrinterResultStatus.Failed, "Partial failure accepted.");
+            Check(!partial.ConnectUsb("SYNTH-PARTIAL-UNCLOSED").IsSuccess, "Partial failure accepted.");
             Fake.Calls.Clear();
             var result = partial.Print(Literal);
-            Check(result.Status == PrinterResultStatus.Failed && result.Message.Contains("연결 복구") && !Fake.Calls.Contains("StartLabelPrint"), "Failed connection cleanup allowed printing.");
+            Check(!result.IsSuccess && result.Message.Contains("연결 복구") && !Fake.Calls.Contains("StartLabelPrint"), "Failed connection cleanup allowed printing.");
         } finally { Fake.KeepOpen = false; partial.Dispose(); }
         Fake.Clear(); var blocked = Connected("SYNTH-DISCONNECT"); Fake.KeepOpen = true;
-        Check(blocked.Disconnect().Status == PrinterResultStatus.Failed, "Unconfirmed disconnect succeeded.");
-        using (var other = new Bt003Printer()) Check(other.ConnectUsb("SYNTH-OTHER").Status == PrinterResultStatus.Failed, "Unconfirmed owner was released.");
-        Fake.KeepOpen = false; Check(blocked.Disconnect().Status == PrinterResultStatus.Succeeded, "Disconnect recovery failed."); blocked.Dispose();
+        Check(!blocked.Disconnect().IsSuccess, "Unconfirmed disconnect succeeded.");
+        using (var other = new Bt003Printer()) Check(!other.ConnectUsb("SYNTH-OTHER").IsSuccess, "Unconfirmed owner was released.");
+        Fake.KeepOpen = false; Check(blocked.Disconnect().IsSuccess, "Disconnect recovery failed."); blocked.Dispose();
     }
     private static void ReviewRegressions()
     {
@@ -173,36 +176,36 @@ internal static class Program
                 Fake.KeepOpen = failure == "open";
                 Fake.FailAt = failure == "return" ? "DeviceDisconnect" : null; Fake.FailCode = 7;
                 Fake.ThrowAt = failure == "throw" ? "DeviceDisconnect" : null;
-                Check(printer.Disconnect().Status == PrinterResultStatus.Failed, "Unconfirmed disconnect accepted.");
+                Check(!printer.Disconnect().IsSuccess, "Unconfirmed disconnect accepted.");
                 Fake.Calls.Clear();
                 var print = printer.Print(Literal);
                 var options = printer.SetPrintingOptions(4, 12);
-                Check(print.Status == PrinterResultStatus.Failed && print.Message.Contains("연결 복구")
-                    && options.Status == PrinterResultStatus.Failed && options.Message.Contains("연결 복구") && Fake.Calls.Count == 0,
+                Check(!print.IsSuccess && print.Message.Contains("연결 복구")
+                    && !options.IsSuccess && options.Message.Contains("연결 복구") && Fake.Calls.Count == 0,
                     "Unconfirmed disconnect allowed SDK reuse.");
                 Fake.KeepOpen = false; Fake.FailAt = null; Fake.ThrowAt = null;
-                Check(printer.Disconnect().Status == PrinterResultStatus.Succeeded
-                    && printer.ConnectUsb("SYNTH-DISCONNECT-" + failure).Status == PrinterResultStatus.Succeeded
-                    && printer.Print(Literal).Status == PrinterResultStatus.Succeeded, "Reconnect did not recover.");
+                Check(printer.Disconnect().IsSuccess
+                    && printer.ConnectUsb("SYNTH-DISCONNECT-" + failure).IsSuccess
+                    && printer.Print(Literal).IsSuccess, "Reconnect did not recover.");
             } finally { Fake.KeepOpen = false; Fake.FailAt = null; Fake.ThrowAt = null; printer.Dispose(); }
         }
         // 같은 요청의 앞선 복귀 응답이 마지막 배출 예외의 코드로 남으면 안 된다.
         Fake.Clear();
         using (var printer = Connected("SYNTH-LAST-MOVEMENT", 15)) {
-            Check(printer.Print(Literal).Status == PrinterResultStatus.Succeeded, "First presentation failed.");
+            Check(printer.Print(Literal).IsSuccess, "First presentation failed.");
             Fake.BeforePrint = () => Fake.ThrowAt = "SendData";
             var result = printer.Print(Literal);
-            Check(result.Status == PrinterResultStatus.Unknown && result.PrintCode == 0 && result.NativeCode == null
+            Check(!result.IsSuccess && result.PrintCode == 0 && result.NativeCode == null
                 && result.Message.Contains("배출") && result.Message.Contains("SendData"),
                 "Last movement inherited previous response.");
             var blocked = printer.Print(Literal);
-            Check(blocked.Status == PrinterResultStatus.Failed && blocked.Message.Contains("용지 위치"), "Uncertain presentation was repeated.");
+            Check(!blocked.IsSuccess && blocked.Message.Contains("용지 위치"), "Uncertain presentation was repeated.");
         }
         Fake.Clear(); Fake.ThrowAt = "CheckPrtConnection";
         var connecting = new Bt003Printer();
         try {
             var result = connecting.ConnectUsb("SYNTH-CONNECTION-EXCEPTION");
-            Check(result.Message.Contains("CheckPrtConnection") && result.NativeCode == null && result.Status == PrinterResultStatus.Failed, "Status exception inherited connect response.");
+            Check(result.Message.Contains("CheckPrtConnection") && result.NativeCode == null && !result.IsSuccess, "Status exception inherited connect response.");
         } finally { Fake.ThrowAt = null; connecting.Dispose(); }
         Fake.Clear();
         using (var printer = Connected("SYNTH-VARIABLE-TOTAL")) {
@@ -219,12 +222,12 @@ internal static class Program
             using (var printer = Connected("SYNTH-DOUBLE-" + function)) {
                 Fake.FailAt = function; Fake.FailCode = 103; Fake.CleanupThrows = true; Fake.Calls.Clear();
                 var result = printer.Print(Literal, "VALUE-PRIVATE-MARKER");
-                Check(result.Status == PrinterResultStatus.Failed && result.NativeCode == 103 && !result.PrintInvoked && result.PrintCode == null
+                Check(!result.IsSuccess && result.NativeCode == 103 && !result.PrintInvoked && result.PrintCode == null
                     && result.Message.Contains(function) && result.Message.Contains("103") && result.Message.Contains("ResetForm")
                     && !result.Message.Contains("PRIVATE-MARKER") && !Fake.Calls.Contains("StartLabelPrint"), "Registration and cleanup evidence lost.");
                 Fake.Calls.Clear();
-                Check(printer.Print(Literal).Status == PrinterResultStatus.Failed
-                    && printer.SetPrintingOptions(4, 12).Status == PrinterResultStatus.Failed && Fake.Calls.Count == 0, "Double failure reused unclean SDK state.");
+                Check(!printer.Print(Literal).IsSuccess
+                    && !printer.SetPrintingOptions(4, 12).IsSuccess && Fake.Calls.Count == 0, "Double failure reused unclean SDK state.");
             }
         }
 
@@ -232,16 +235,16 @@ internal static class Program
         using (var printer = Connected("SYNTH-PRINT-FAIL-CLEANUP")) {
             Fake.Response = ",103"; Fake.CleanupThrows = true;
             var result = printer.Print(Literal);
-            Check(result.Status == PrinterResultStatus.Failed && result.NativeCode == 103 && result.PrintInvoked && result.PrintCode == 103
+            Check(!result.IsSuccess && result.NativeCode == 103 && result.PrintInvoked && result.PrintCode == 103
                 && result.Message.Contains("StartLabelPrint") && result.Message.Contains("ResetForm"), "Cleanup replaced known print failure.");
         }
 
         Fake.Clear();
         using (var printer = Connected("SYNTH-RETURN-EXCEPTION", 15)) {
-            Check(printer.Print(Literal).Status == PrinterResultStatus.Succeeded, "Initial presentation failed.");
+            Check(printer.Print(Literal).IsSuccess, "Initial presentation failed.");
             Fake.ThrowAt = "SendData"; Fake.Calls.Clear();
             var result = printer.Print(Literal);
-            Check(result.Status == PrinterResultStatus.Failed && result.NativeCode == null && !result.PrintInvoked && result.PrintCode == null
+            Check(!result.IsSuccess && result.NativeCode == null && !result.PrintInvoked && result.PrintCode == null
                 && result.Message.Contains("복귀") && !Fake.Calls.Contains("SetPrintFormString") && !Fake.Calls.Contains("StartLabelPrint"), "Return exception reached registration or kept stale response.");
         }
 
@@ -250,12 +253,12 @@ internal static class Program
         var partial = new Bt003Printer();
         try {
             var result = partial.ConnectUsb("SYNTH-CONNECT-DISCONNECT-FAIL");
-            Check(result.Status == PrinterResultStatus.Failed && result.NativeCode == 13 && !result.PrintInvoked && result.PrintCode == null
+            Check(!result.IsSuccess && result.NativeCode == 13 && !result.PrintInvoked && result.PrintCode == null
                 && result.Message.Contains("DeviceConnect") && result.Message.Contains("13")
                 && result.Message.Contains("DeviceDisconnect") && result.Message.Contains("7"), "Connection failure was replaced by cleanup failure.");
             Fake.Calls.Clear();
-            using (var other = new Bt003Printer()) Check(other.ConnectUsb("SYNTH-OTHER-BLOCKED").Status == PrinterResultStatus.Failed, "Failed cleanup released owner.");
-            Check(partial.Print(Literal).Status == PrinterResultStatus.Failed && partial.SetPrintingOptions(4, 12).Status == PrinterResultStatus.Failed
+            using (var other = new Bt003Printer()) Check(!other.ConnectUsb("SYNTH-OTHER-BLOCKED").IsSuccess, "Failed cleanup released owner.");
+            Check(!partial.Print(Literal).IsSuccess && !partial.SetPrintingOptions(4, 12).IsSuccess
                 && Fake.Calls.Count == 0, "Failed cleanup allowed native reuse.");
         } finally { Fake.ConnectCode = Fake.DisconnectCode = null; partial.Dispose(); }
 
@@ -264,22 +267,22 @@ internal static class Program
         using (var printer = Connected("SYNTH-MESSAGE-PRIVACY")) {
             Fake.Response = "AB:CD:EF:12,0";
             var result = printer.Print(Literal, "VALUE-PRIVATE-MARKER");
-            Check(result.Status == PrinterResultStatus.Succeeded && result.PrintCode == 0
+            Check(result.IsSuccess && result.PrintCode == 0
                 && !result.Message.Contains("AB:CD:EF:12") && !result.Message.Contains("PRIVATE-MARKER"), "Success message leaked input or UID.");
             Fake.ExceptionText = "PRIVATE-MARKER: synthetic/form.txt"; Fake.ThrowAt = "StartLabelPrint";
             result = printer.Print(Literal);
-            Check(result.Status == PrinterResultStatus.Unknown && result.PrintInvoked && result.NativeCode == null && result.PrintCode == null
+            Check(!result.IsSuccess && result.PrintInvoked && result.NativeCode == null && result.PrintCode == null
                 && result.Message.Contains("StartLabelPrint") && !result.Message.Contains("PRIVATE-MARKER") && !result.Message.Contains("form.txt"), "Exception message lost uncertainty or leaked raw data.");
             Fake.ThrowAt = null; Fake.Calls.Clear();
-            Check(printer.Print(Literal).Status == PrinterResultStatus.Failed && Fake.Calls.Count == 0, "Print exception was automatically repeated.");
+            Check(!printer.Print(Literal).IsSuccess && Fake.Calls.Count == 0, "Print exception was automatically repeated.");
         }
     }
 
     private static int Main()
     {
         try {
-            FormsAndFailures(); UnknownAndCleanup(); Movement(); FileLifetime(); Ownership(); ReviewRegressions(); MessageAndFailureEvidence();
-            Console.WriteLine("PASS: linked product SDK sequencing, input snapshots, Unknown/cleanup, movement, file lifetime and ownership; managed SDK substitute only");
+            FormsAndFailures(); UncertainResponseAndCleanup(); Movement(); FileLifetime(); Ownership(); ReviewRegressions(); MessageAndFailureEvidence();
+            Console.WriteLine("PASS: linked product bool results, SDK sequencing, input snapshots, uncertain response/cleanup, movement, file lifetime and ownership; managed SDK substitute only");
             return 0;
         } catch (Exception error) { Console.Error.WriteLine("FAIL: managed SDK harness (" + error.GetType().Name + "): " + error.Message); return 1; }
     }
