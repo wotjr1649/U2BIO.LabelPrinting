@@ -10,4 +10,17 @@ Bt003Printer.cs는 동기 공개 API와 입력 검사·직접 SDK 호출·실패
 
 Templates는 TXT/JSON/XML 편집·검사·선택 바인딩 기능이다. 완성 문자열은 ToBtpl 또는 BtplProcessor.Render의 BtplText로 얻어 Print(string)에 전달한다. 기본 DLL은 Templates 해석이나 전체 요청 사전검사를 자동 수행하지 않는다. 여러 행을 처리한다면 호출 프로그램이 렌더링·오류 확인·호출 순서를 결정하며 불명 결과를 자동 재인쇄하지 않는다.
 
+Templates는 기존 공개 API와 기능을 유지하면서 8개 파일을 다음 4개로 통합했다. 편집 객체와 요청은 읽기 전용 스냅샷이며 새 실행 계층이나 SDK 호출 경로를 추가하지 않았다.
+
+| 파일 | 수정할 때 확인할 책임 |
+| --- | --- |
+| BtplTemplate.cs | BTPL 읽기·편집·직렬화, 지원 명령과 인자 검사 |
+| BtplTemplate.Formats.cs | JSON/XML 변환, 공통 JSON 구문 검사, 파일 읽기·저장·원본 변경 감지 |
+| BtplModels.cs | 설정·텍스트·바인딩·렌더링 옵션·요청 데이터 스냅샷 |
+| BtplProcessor.cs | 데이터 치환, 행별 검사, 완성 문자열·부분 미리보기 결과 |
+
+`ToBtpl`은 직접 설정·텍스트를 검사하여 이미 만든 문자열의 중복 재파싱을 생략한다. JSON/XML도 같은 검사를 통과한다. 바인딩 JSON의 끝 쉼표는 서식 JSON과 같은 규칙으로 거부한다. 저장 후 반환할 정규화 모델을 만드는 파싱과 저장 충돌 검사는 유지한다.
+
+Templates의 파일 읽기 잠금은 내용을 복사하는 동안만 유지한다. 편집은 메모리에서 수행하고 저장 시 원본 변경을 검사한다. `Bt003Printer.PrintFile`의 잠금은 인쇄용으로, SDK 호출과 `PrintCore`의 정리가 끝난 뒤 해제한다. 두 잠금의 목적과 수명은 서로 다르다.
+
 배포는 U2BIO.BT003PROLabelPrinting.dll과 실제 프로세스 비트수에 맞는 BlackfishNfcLib.dll/HFModule.dll이다. [SDK 배포](SDK_DEPLOYMENT.ko.md)를 따른다. 실제 SDK·장치·인쇄·배출은 이번 관리 검사에서 실행하지 않았다. SDK 정상 응답은 물리 완료 증거가 아니다.
