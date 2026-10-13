@@ -1,4 +1,5 @@
 using System;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Reflection;
@@ -20,8 +21,27 @@ namespace U2BIO.BT003PROLabelPrinting.Validation
                 throw new InvalidOperationException("Unexpected public printer API.");
             foreach (var method in actual.Where(method => method.Name != "Dispose"))
                 if (method.ReturnType != result) throw new InvalidOperationException("PrinterResult contract missing.");
-            foreach (string property in new[] { "Status", "Code", "Function", "NativeCode", "PrintInvoked", "PrintCode", "MovementCode", "CleanupCode", "IsSuccess" })
-                if (result.GetProperty(property) == null) throw new InvalidOperationException("Result metadata missing.");
+            // 결과를 해석하는 공개 항목은 정확히 다섯 개여야 하며 제거한 속성이 남아도 실패한다.
+            string[] names = { "Status", "Message", "NativeCode", "PrintInvoked", "PrintCode" };
+            Type[] types = { library.GetType("U2BIO.BT003PROLabelPrinting.PrinterResultStatus", true), typeof(string), typeof(int?), typeof(bool), typeof(int?) };
+            var properties = result.GetProperties(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly);
+            if (properties.Length != names.Length || properties.Any(property => !names.Contains(property.Name)))
+                throw new InvalidOperationException("PrinterResult must expose exactly five properties.");
+            for (int i = 0; i < names.Length; i++) {
+                var property = result.GetProperty(names[i]);
+                var getter = property.GetGetMethod();
+                var setter = property.GetSetMethod(true);
+                if (property.PropertyType != types[i] || getter == null || !getter.IsPublic || setter == null || !setter.IsAssembly)
+                    throw new InvalidOperationException("PrinterResult property type or access differs.");
+            }
+            if (result.GetConstructors(BindingFlags.Public | BindingFlags.Instance).Length != 0)
+                throw new InvalidOperationException("PrinterResult cannot be constructed by callers.");
+            var constructor = result.GetConstructor(BindingFlags.NonPublic | BindingFlags.Instance, null, Type.EmptyTypes, null);
+            if (constructor == null || !constructor.IsAssembly)
+                throw new InvalidOperationException("PrinterResult requires an internal constructor.");
+            var display = result.GetCustomAttribute<DebuggerDisplayAttribute>();
+            if (display == null || display.Value != "{Status}: {Message}")
+                throw new InvalidOperationException("PrinterResult debugger display must show status and message.");
             foreach (string removed in new[] { "BatchPrintResult", "Bt003ConnectionOptions", "PrintInput", "Native.SdkRuntime", "Native.NativeLabelResponse", "Native.PrinterSdkCalls" })
                 if (library.GetType("U2BIO.BT003PROLabelPrinting." + removed) != null) throw new InvalidOperationException("Legacy runtime remains.");
             var search = library.GetCustomAttribute<DefaultDllImportSearchPathsAttribute>();
