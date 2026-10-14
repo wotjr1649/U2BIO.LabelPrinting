@@ -23,8 +23,35 @@ internal static class Program
     }
     private static void Restart()
     {
-        // 프로그램 재실행처럼 프로세스 메모리의 위치 기록만 지우고 파일은 남긴다.
+        // 프로그램 재실행처럼 프로세스 메모리의 위치 기록과 마지막 이동 시각만 지우고 파일은 남긴다.
         ((System.Collections.IDictionary)typeof(Bt003Printer).GetField("Positions", BindingFlags.NonPublic | BindingFlags.Static).GetValue(null)).Clear();
+        typeof(Bt003Printer).GetField("lastMotionUtc", BindingFlags.NonPublic | BindingFlags.Static).SetValue(null, DateTime.MinValue);
+    }
+    private static void MinimumInterval()
+    {
+        // 실기에서 앞 장 동작이 끝나기 전 다음 장을 보내면 프린터가 멈칫하고 기준이 밀렸다. 직전 이동 뒤 간격을 기다린다.
+        const string port = "SYNTH-INTERVAL";
+        Bt003Printer.MinimumIntervalMs = 300;
+        try {
+            Fake.Clear(); Restart();
+            using (var printer = Connected(port, 15)) {
+                Check(printer.Print(Literal).IsSuccess, "First print failed.");
+                var watch = System.Diagnostics.Stopwatch.StartNew();
+                Check(printer.Print(Literal).IsSuccess && watch.ElapsedMilliseconds >= 250, "Consecutive print did not wait.");
+            }
+            // 재실행 직후에도 위치 기록 파일의 마지막 저장 시각부터 간격을 센다.
+            Restart();
+            using (var printer = new Bt003Printer()) {
+                Check(printer.ConnectUsb(port, 15).IsSuccess, "Reconnect failed.");
+                var watch = System.Diagnostics.Stopwatch.StartNew();
+                Check(printer.Print(Literal).IsSuccess && watch.ElapsedMilliseconds >= 250, "Restart print did not wait.");
+                // 간격이 이미 지났으면 기다리지 않고, 위치 확인만으로는 대기 시각이 바뀌지 않는다.
+                Thread.Sleep(400);
+                Check(printer.ConfirmPrintPosition().IsSuccess, "Confirm failed.");
+                watch.Restart();
+                Check(printer.Print(Literal).IsSuccess && watch.ElapsedMilliseconds < 250, "Print waited after the interval.");
+            }
+        } finally { Bt003Printer.MinimumIntervalMs = 0; }
     }
     private static void PositionFile()
     {
@@ -465,8 +492,10 @@ internal static class Program
         // 실제 운영 기록을 건드리지 않도록 실행 폴더의 임시 위치 파일을 사용한다.
         string positions = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "position-" + Guid.NewGuid().ToString("N") + ".txt");
         Bt003Printer.PositionFile = positions;
+        // 다른 검사는 실제 대기 없이 순서만 확인한다. 간격 검사는 MinimumInterval에서 따로 한다.
+        Bt003Printer.MinimumIntervalMs = 0;
         try {
-            FormsAndFailures(); RawVariableData(); UncertainResponseAndCleanup(); Movement(); FileLifetime(); Ownership(); ReviewRegressions(); RawVariableByteBoundary(); MessageAndFailureEvidence(); PositionFile();
+            FormsAndFailures(); RawVariableData(); UncertainResponseAndCleanup(); Movement(); FileLifetime(); Ownership(); ReviewRegressions(); RawVariableByteBoundary(); MessageAndFailureEvidence(); PositionFile(); MinimumInterval();
             Console.WriteLine("PASS: linked product bool results, SDK sequencing, input snapshots, uncertain response/cleanup, movement, persisted position, file lifetime and ownership; managed SDK substitute only");
             return 0;
         } catch (Exception error) { Console.Error.WriteLine("FAIL: managed SDK harness (" + error.GetType().Name + "): " + error.Message); return 1; }
