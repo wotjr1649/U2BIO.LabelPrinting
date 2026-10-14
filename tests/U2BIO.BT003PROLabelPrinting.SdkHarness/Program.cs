@@ -100,9 +100,18 @@ internal static class Program
                 Check(!printer.Print(Literal).IsSuccess && !Fake.Calls.Contains("StartLabelPrint"), "Print allowed after unsaved feed.");
             } finally { Fake.AfterSendData = null; Bt003Printer.PositionFile = file; }
             // 연결이 열리지 않았으면 FEED를 보내지 않는다.
+            string before = File.ReadAllText(file);
             Fake.PortState = 0; Fake.Calls.Clear();
-            Check(!printer.FeedAndConfirmPosition().IsSuccess && !Fake.Calls.Contains(feed), "Feed sent without an open connection.");
+            Check(!printer.FeedAndConfirmPosition().IsSuccess && !Fake.Calls.Contains(feed) && File.ReadAllText(file) == before, "Feed sent or recorded without an open connection.");
             Fake.PortState = 1;
+            // 서식 정리 실패로 연결 복구가 필요하면 FEED를 보내지 않고 기록도 바꾸지 않는다.
+            Check(printer.FeedAndConfirmPosition().IsSuccess, "Feed failed after the connection reopened.");
+            Fake.CleanupThrows = true;
+            Check(!printer.Print(Literal).IsSuccess, "Cleanup failure was not reported.");
+            Fake.CleanupThrows = false;
+            before = File.ReadAllText(file); Fake.Calls.Clear();
+            var faulted = printer.FeedAndConfirmPosition();
+            Check(!faulted.IsSuccess && faulted.Message.Contains("복구") && Fake.Calls.Count == 0 && File.ReadAllText(file) == before, "Faulted connection sent FEED.");
         }
         // 연결 소유자가 아니면 SDK를 호출하지 않는다.
         using (var other = new Bt003Printer()) {
