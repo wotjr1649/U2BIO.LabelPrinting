@@ -35,6 +35,7 @@
     <Reference Include="System.Xml" />
     <Reference Include="System.Xml.Linq" />
     <Reference Include="DevExpress.Data.v20.2, Version=20.2.6.0, Culture=neutral, PublicKeyToken=b88d1754d700e49a"><Private>True</Private></Reference>
+    <Reference Include="DevExpress.Data.Desktop.v20.2, Version=20.2.6.0, Culture=neutral, PublicKeyToken=b88d1754d700e49a"><Private>True</Private></Reference>
     <Reference Include="DevExpress.Utils.v20.2, Version=20.2.6.0, Culture=neutral, PublicKeyToken=b88d1754d700e49a"><Private>True</Private></Reference>
     <Reference Include="DevExpress.XtraEditors.v20.2, Version=20.2.6.0, Culture=neutral, PublicKeyToken=b88d1754d700e49a"><Private>True</Private></Reference>
     <Reference Include="DevExpress.XtraLayout.v20.2, Version=20.2.6.0, Culture=neutral, PublicKeyToken=b88d1754d700e49a"><Private>True</Private></Reference>
@@ -48,6 +49,15 @@
     </Compile>
     <Compile Include="FrmSettings.Designer.cs">
       <DependentUpon>FrmSettings.cs</DependentUpon>
+    </Compile>
+    <Compile Include="FrmMain.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="FrmMain.Designer.cs">
+      <DependentUpon>FrmMain.cs</DependentUpon>
+    </Compile>
+    <Compile Include="PreviewPanel.cs">
+      <SubType>Component</SubType>
     </Compile>
     <Compile Include="Program.cs" />
     <Compile Include="SelfCheck.cs" />

@@ -43,8 +43,7 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
                 Application.SetCompatibleTextRenderingDefault(false);
                 WindowsFormsSettings.LoadApplicationSettings();
                 WindowsFormsSettings.DefaultFont = new Font("굴림", 9f);
-                // T4에서 FrmMain으로 바꾼다.
-                Application.Run(new XtraForm { Text = Title });
+                Application.Run(new FrmMain());
                 return 0;
             }
         }
