@@ -53,7 +53,7 @@ namespace U2BIO.BT003PROLabelPrinting
         /// SetPrinterPort → DeviceConnect → CheckPrtConnection 순서로 호출하며, 연결 확인 값 1을 정상으로 처리합니다.
         /// 정상 배출 뒤 같은 포트의 다음 인쇄에서는 기록한 거리만큼 먼저 복귀합니다. 거리는 사용하는 용지에 맞춰 지정합니다.
         /// 이 기록은 C:\Bitek\BT003\position.txt에도 저장되어 프로그램을 다시 실행해도 유지됩니다.
-        /// 기록 파일이 없거나 손상됐거나 다른 포트의 기록이면 ConfirmPrintPosition을 호출하기 전까지 인쇄하지 않습니다.
+        /// 기록 파일이 없거나 손상됐거나 다른 포트의 기록이면 FeedAndConfirmPosition 또는 ConfirmPrintPosition을 호출하기 전까지 인쇄하지 않습니다.
         /// 연결 도중 실패하면 해제를 시도합니다. 닫힘을 확인하지 못하면 소유권을 유지하며 명시적인 Disconnect가 필요합니다.
         /// </remarks>
         /// <exception cref="ArgumentException">포트 또는 배출 거리 입력이 유효하지 않습니다.</exception>
@@ -339,6 +339,75 @@ namespace U2BIO.BT003PROLabelPrinting
             }
         }
 
+        /// <summary>프린터 FEED 키와 같은 이송(~S,FEED)을 보내고, 정상 응답이면 해당 포트의 위치 기록과 기록 파일을 0으로 바꿉니다.</summary>
+        /// <returns>FEED 응답과 위치 기록 결과입니다. NativeCode는 SendData 응답이며 PrintInvoked는 false입니다.</returns>
+        /// <remarks>
+        /// 운영자가 FEED 키를 누른 뒤 ConfirmPrintPosition을 호출하는 절차를 대신합니다. 위치 불명·배출 상태와 관계없이 복귀(^B) 없이 FEED만 보냅니다.
+        /// 프린터는 마지막으로 받은 ^Q 라벨 설정으로 다음 마크에 맞추므로, ^Q를 바꾼 직후에는 새 서식으로 한 장 인쇄한 뒤 호출합니다.
+        /// LCD 메뉴가 열려 있으면 실패하거나 메뉴를 닫을 때 용지가 움직일 수 있으므로 대기 화면에서 호출합니다.
+        /// SDK 정상 응답은 실제 이송·정렬 완료를 증명하지 않습니다. 응답 실패·예외나 기록 저장 실패이면 위치를 불명으로 남기며 자동 재시도하지 않습니다.
+        /// 직전 인쇄·이동 뒤 2초가 지나지 않았으면 기다린 뒤 보내며, 이 이송도 다음 인쇄의 대기 기준이 됩니다.
+        /// </remarks>
+        /// <exception cref="ObjectDisposedException">이미 Dispose를 완료한 객체입니다.</exception>
+        public PrinterResult FeedAndConfirmPosition()
+        {
+            lock (Gate)
+            {
+                CheckDisposed();
+                if (owner != this)
+                {
+                    return Failure("이 객체가 소유한 SDK 연결이 없습니다. ConnectUsb로 먼저 연결하십시오.");
+                }
+                if (faulted)
+                {
+                    return Failure("SDK 연결 복구가 필요합니다. Disconnect로 닫힘을 확인한 뒤 다시 연결하십시오.");
+                }
+                var result = Success();
+                string function = "CheckPrtConnection";
+                bool moved = false;
+                try
+                {
+                    result.NativeCode = Vendor.CheckPrtConnection();
+                    if (result.NativeCode != 1)
+                    {
+                        return Fail(result, "SDK 연결이 열린 상태가 아닙니다. CheckPrtConnection 응답: " + result.NativeCode + ".");
+                    }
+                    WaitForPreviousMotion();
+                    result.NativeCode = null;
+                    // 실패 응답에도 일부 이송됐을 수 있으므로 SDK 진입 전에 위치를 불명으로 둔다.
+                    if (!SavePosition(null))
+                    {
+                        return Fail(result, "FEED SDK를 호출하지 않았습니다. " + PositionFileError);
+                    }
+                    function = "SendData";
+                    moved = true;
+                    result.NativeCode = Vendor.SendData("~S,FEED\r\n");
+                    if (result.NativeCode != 0)
+                    {
+                        return Fail(result, "FEED 명령에 실패했습니다. SendData 응답: " + result.NativeCode + ". 용지 위치는 불명으로 남습니다.");
+                    }
+                    // 저장하지 못하면 메모리도 불명으로 남겨, 재실행 전후 모두 같은 확인 절차를 거치게 한다.
+                    if (!SavePosition(0))
+                    {
+                        return Fail(result, "FEED 명령의 SDK 응답은 정상이지만 " + PositionFileError + " 용지 위치는 불명으로 남습니다.");
+                    }
+                    result.Message = "FEED 명령의 SDK 응답이 정상이어서 용지 위치를 인쇄 기준으로 기록했습니다. SendData 응답: 0.";
+                    return result;
+                }
+                catch (Exception error) when (Recoverable(error))
+                {
+                    return Fail(result, function + " 호출 중 " + ErrorMessage(error) + (moved ? " 용지 위치는 불명으로 남습니다." : ""));
+                }
+                finally
+                {
+                    if (moved)
+                    {
+                        lastMotionUtc = DateTime.UtcNow;
+                    }
+                }
+            }
+        }
+
         /// <summary>이 객체의 SDK 연결을 해제하고 포트가 닫혔는지 확인합니다.</summary>
         /// <returns>해제·닫힘 확인 결과입니다. 연결 소유자가 아니면 SDK를 호출하지 않고 정상 결과를 반환합니다.</returns>
         /// <remarks>해제 실패 시 소유권과 faulted를 유지합니다. 원인을 확인한 뒤 Disconnect를 다시 호출할 수 있습니다.</remarks>
@@ -424,7 +493,7 @@ namespace U2BIO.BT003PROLabelPrinting
             }
             if (!Positions[port].HasValue)
             {
-                return Failure("용지 위치가 불명입니다. 실제 용지를 정렬한 뒤 ConfirmPrintPosition으로 확인하십시오.");
+                return Failure("용지 위치가 불명입니다. 대기 화면에서 FeedAndConfirmPosition을 호출하거나, 실제 용지를 정렬한 뒤 ConfirmPrintPosition으로 확인하십시오.");
             }
 
             var result = Success();

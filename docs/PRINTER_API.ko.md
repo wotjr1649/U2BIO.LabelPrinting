@@ -16,6 +16,7 @@
 | Print(string btpl, string variableData = null) | 문자열 서식을 CRLF로 정규화하고 선택 변수와 함께 등록하여 한 장 인쇄 |
 | PrintFile(string path, string variableData = null) | CP949 파일 내용을 CRLF로 정규화해 SetPrintFormString으로 등록하여 한 장 인쇄; 잠금은 정리까지 유지 |
 | ConfirmPrintPosition() | 호출자가 실제 용지를 정렬한 뒤 위치 기록을 0으로 확인 |
+| FeedAndConfirmPosition() | FEED 키와 같은 `~S,FEED`를 보내고 정상 응답이면 위치 기록을 0으로 확인; 복귀(^B)·배출(^M) 없음 |
 | Disconnect() | SDK 해제·Closed 확인; 실패 결과를 반환하고 명시적 재시도 허용 |
 | Dispose() | 진행 중인 작업·정리를 기다린 뒤 연결 해제; 해제 실패는 예외로 전달 |
 
@@ -172,11 +173,13 @@ SDK 코드 0과 `SendData` 코드 0은 물리 출력·이동 완료 증거가 �
 | hasOptions | 정상 설정한 속도·농도를 이후 인쇄에서 다시 적용할지 표시 |
 | disposed | 연결 해제를 마치고 객체 사용을 종료했는지 표시 |
 
-`Positions`는 명령 이력이며 센서로 확인한 위치가 아니다. 인쇄·이동 전에 불명으로 기록하고 정상 응답에서만 갱신한다. 같은 프로세스의 재연결이나 새 객체도 기록을 유지한다. 같은 기록을 `C:\Bitek\BT003\position.txt`(첫 줄 포트, 둘째 줄 mm 또는 `unknown`)에 저장하므로, 프로그램을 다시 실행해도 첫 `ConnectUsb`가 기록을 읽어 다음 인쇄 전에 직전 배출 거리만큼 복귀한다. 파일이 없거나 손상됐거나 다른 포트의 기록이면 위치 불명으로 시작한다. SDK 진입 전에 이 파일을 쓰지 못하면 SDK를 호출하지 않고 IsSuccess=false를 반환한다. 프로그램이 꺼진 동안의 수동 FEED·용지 교체는 감지하지 않으므로 운영자가 정렬 후 `ConfirmPrintPosition`을 호출한다. 정지 위치는 DLL의 M/B만 담당하며 프린터 LCD 정지 위치 설정에 의존하지 않는다.
+`Positions`는 명령 이력이며 센서로 확인한 위치가 아니다. 인쇄·이동 전에 불명으로 기록하고 정상 응답에서만 갱신한다. 같은 프로세스의 재연결이나 새 객체도 기록을 유지한다. 같은 기록을 `C:\Bitek\BT003\position.txt`(첫 줄 포트, 둘째 줄 mm 또는 `unknown`)에 저장하므로, 프로그램을 다시 실행해도 첫 `ConnectUsb`가 기록을 읽어 다음 인쇄 전에 직전 배출 거리만큼 복귀한다. 파일이 없거나 손상됐거나 다른 포트의 기록이면 위치 불명으로 시작한다. SDK 진입 전에 이 파일을 쓰지 못하면 SDK를 호출하지 않고 IsSuccess=false를 반환한다. DLL은 수동 FEED·용지 교체를 감지하지 않으므로 운영자가 정렬 후 `ConfirmPrintPosition`을 호출하거나, 대기 화면에서 `FeedAndConfirmPosition`으로 FEED와 확인을 함께 한다. 정지 위치는 DLL의 M/B만 담당하며 프린터 LCD 정지 위치 설정에 의존하지 않는다.
 
 Message가 용지 위치 불명을 안내하면 실제 위치를 확인하고 수동으로 정렬한 뒤 `ConfirmPrintPosition`을 호출한다. 이 함수는 기록을 0으로 바꿀 뿐 센서를 조회하거나 용지를 이동하지 않는다.
 
-Message가 SDK 연결 복구를 안내하면 `Disconnect`로 닫힘을 확인한 뒤 재연결한다. `GetConnectionStatus`가 Open을 반환하거나 `ConfirmPrintPosition`을 호출해도 faulted는 해제되지 않는다. 연결 상태와 용지 위치에 모두 문제가 있으면 각각 복구해야 한다.
+`FeedAndConfirmPosition`은 FEED 키 + `ConfirmPrintPosition` 절차를 DLL이 대신한다. 연결 확인과 2초 간격 대기 뒤 위치를 불명으로 저장하고 `SendData("~S,FEED")`를 보낸 다음, 응답 0이면 기록을 0으로 저장한다. 배출 상태여도 복귀하지 않으며, 응답 실패·예외·저장 실패이면 위치를 불명으로 남긴다. 프린터는 마지막으로 받은 ^Q로 마크를 맞추므로 ^Q를 바꾼 직후에는 새 서식으로 한 장 인쇄한 뒤 호출하고, LCD 메뉴가 열린 상태에서는 호출하지 않는다. 응답 0도 정렬 완료 증거가 아니다. `~S,FEED` 전송 경로는 아직 실기로 확인하지 않았다(물리 FEED 키 + ConfirmPrintPosition 절차만 확인).
+
+Message가 SDK 연결 복구를 안내하면 `Disconnect`로 닫힘을 확인한 뒤 재연결한다. `GetConnectionStatus`가 Open을 반환하거나 `ConfirmPrintPosition`을 호출해도 faulted는 해제되지 않으며, faulted 연결에서 `FeedAndConfirmPosition`은 FEED를 보내지 않는다. 연결 상태와 용지 위치에 모두 문제가 있으면 각각 복구해야 한다.
 
 `Disconnect`는 `DeviceDisconnect`의 정상 응답과 `CheckPrtConnection`의 Closed를 확인한다. 확인되지 않은 해제는 소유권을 유지하므로 다른 객체로 우회하지 않는다. 소유자가 아닌 객체의 조회·옵션·인쇄는 실패하고, 해제와 `Dispose`는 SDK를 호출하지 않는다.
 
