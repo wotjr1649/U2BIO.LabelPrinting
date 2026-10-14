@@ -1,10 +1,12 @@
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Threading.Tasks;
 using System.Windows.Forms;
 using DevExpress.Utils.Menu;
 using DevExpress.XtraEditors;
@@ -23,17 +25,38 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
         private static readonly string[] ExternalEditCodes = { "AmbiguousFrame", "AmbiguousSetting", "LockedTextArguments" };
         private const NumberStyles MmStyle = NumberStyles.AllowLeadingWhite | NumberStyles.AllowTrailingWhite
             | NumberStyles.AllowLeadingSign | NumberStyles.AllowDecimalPoint;
+        private const int MaxDots = 100000;
+        private const decimal MaxWidthMm = 10000;
+        private const string GapBlocked = "GapLabelSetting";
+        private const string NoResponse = "미응답";
+        private const string ActionConnect = "연결";
+        private const string ActionStatus = "상태";
+        private const string ActionDisconnect = "해제";
+        private const string ActionConfirm = "위치 확인";
+        private const string ActionFeed = "FEED+확인";
 
         private readonly TesterSettings settings;
         private readonly TemplateDocument doc = new TemplateDocument();
         private readonly DXPopupMenu recentMenu = new DXPopupMenu();
         private readonly string startWarning;
+        // 생성만으로는 SDK를 읽지 않는다. 연결·인쇄를 호출할 때 처음 로드된다.
+        private readonly Bt003Printer printer = new Bt003Printer();
+        private readonly BindingList<ResultRow> results = new BindingList<ResultRow>();
+        private string[] recentShown;
+        private bool previewFailed;
+        private bool busy;
+        private bool closeRequested;
+        private bool connectAttempted;
+        private string connectionState = "미연결";
+        private string connectionTarget = "";
+        private string positionState = "미확인";
 
         internal FrmMain()
         {
             InitializeComponent();
             settings = TesterSettings.Load(TesterSettings.DefaultFilePath);
             btnOpen.DropDownControl = recentMenu;
+            gridResults.DataSource = results;
             startWarning = settings.LoadWarning;
             if (startWarning != null) ShowError(startWarning);
             else ClearMessage();
@@ -88,14 +111,34 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
             lblUnsupported.Text = unsupported ? "미지원 줄: " + string.Join(", ", template.UnsupportedLineNumbers) : "";
             layoutItemUnsupported.Visibility = unsupported ? LayoutVisibility.Always : LayoutVisibility.Never;
             RefreshRecentMenu();
+            UpdateEnabled();
+            lblStatus.Text = "연결: " + connectionState + connectionTarget + " · 위치: " + positionState;
+            previewPanel.Invalidate();
+        }
+
+        // 활성 여부를 한곳에서 !busy와 함께 계산해 장치 호출 중 RefreshView가 버튼을 다시 켜지 않게 한다.
+        private void UpdateEnabled()
+        {
+            bool idle = !busy;
+            BtplTemplate template = doc.Template;
+            bool open = idle && template != null;
+            btnOpen.Enabled = idle;
             btnSave.Enabled = open;
             btnSaveAs.Enabled = open;
+            btnSettings.Enabled = idle;
             gridTexts.Enabled = open;
             btnAddText.Enabled = open;
             btnRemoveText.Enabled = open && template.TextElements.Count > 0;
             gridSettings.Enabled = open;
+            gridBlackMark.Enabled = idle;
             btnApplyBlackMark.Enabled = open;
-            previewPanel.Invalidate();
+            btnConnect.Enabled = idle;
+            btnDisconnect.Enabled = idle;
+            btnStatus.Enabled = idle;
+            btnConfirmPosition.Enabled = idle;
+            btnFeed.Enabled = idle;
+            btnPrintEdit.Enabled = open;
+            btnPrintFile.Enabled = open && template.FilePath != null;
         }
 
         private void RefreshTexts(BtplTemplate template)
@@ -108,6 +151,8 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
 
         private void RefreshRecentMenu()
         {
+            if (recentShown != null && recentShown.SequenceEqual(settings.RecentFiles)) return;
+            recentShown = settings.RecentFiles.ToArray();
             recentMenu.Items.Clear();
             foreach (string file in settings.RecentFiles)
             {
@@ -121,6 +166,10 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
 
         internal bool ConfirmDiscard()
         {
+            // 셀 편집기에 남은 값을 먼저 문서에 반영해야 수정됨 여부가 맞다. 값이 거부돼 편집기가 남으면 멈춘다.
+            gridViewTexts.CloseEditor();
+            gridSettings.CloseEditor();
+            if (gridViewTexts.ActiveEditor != null || gridSettings.ActiveEditor != null) return false;
             if (!doc.IsDirty) return true;
             DialogResult answer = XtraMessageBox.Show(this, "저장하지 않은 수정이 있습니다. 저장할까요?", Title,
                 MessageBoxButtons.YesNoCancel, MessageBoxIcon.Question);
@@ -154,11 +203,16 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
             }
         }
 
-        private void recentItem_Click(object sender, EventArgs e) => OpenTemplate((string)((DXMenuItem)sender).Tag);
+        private void recentItem_Click(object sender, EventArgs e)
+        {
+            string path = (string)((DXMenuItem)sender).Tag;
+            // 메뉴가 닫히는 중에 대화 상자를 띄우거나 메뉴 항목을 다시 만들지 않도록 클릭 처리가 끝난 뒤 연다.
+            BeginInvoke(new Action(() => OpenTemplate(path)));
+        }
 
         private void OpenTemplate(string path)
         {
-            if (!ConfirmDiscard()) return;
+            if (busy || !ConfirmDiscard()) return;
             try
             {
                 doc.Open(path);
@@ -209,14 +263,14 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
             if (File.Exists(doc.Template.FilePath))
             {
                 DialogResult answer = XtraMessageBox.Show(this, "원본이 다른 곳에서 바뀌었습니다. 예=편집 버리고 다시 읽기, 아니요=다른 이름 저장, 취소=편집 유지",
-                    Title, MessageBoxButtons.YesNoCancel, MessageBoxIcon.Warning);
+                    Title, MessageBoxButtons.YesNoCancel, MessageBoxIcon.Warning, MessageBoxDefaultButton.Button3);
                 if (answer == DialogResult.Yes) Reload();
                 else if (answer == DialogResult.No) SaveAs();
                 else ShowException(conflict);
                 return;
             }
             if (XtraMessageBox.Show(this, "원본이 없습니다. 예=다른 이름 저장, 아니요=편집 유지", Title,
-                MessageBoxButtons.YesNo, MessageBoxIcon.Warning) == DialogResult.Yes) SaveAs();
+                MessageBoxButtons.YesNo, MessageBoxIcon.Warning, MessageBoxDefaultButton.Button2) == DialogResult.Yes) SaveAs();
             else ShowException(conflict);
         }
 
@@ -258,7 +312,7 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
                 }
                 bool overwrite = File.Exists(path);
                 if (overwrite && XtraMessageBox.Show(this, "이미 있는 파일입니다. 덮어쓸까요?" + Environment.NewLine + path, Title,
-                    MessageBoxButtons.YesNo, MessageBoxIcon.Warning) != DialogResult.Yes) return;
+                    MessageBoxButtons.YesNo, MessageBoxIcon.Warning, MessageBoxDefaultButton.Button2) != DialogResult.Yes) return;
                 try
                 {
                     doc.SaveAs(path, overwrite);
@@ -282,7 +336,135 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
 
         private void FrmMain_FormClosing(object sender, FormClosingEventArgs e)
         {
-            if (!ConfirmDiscard()) e.Cancel = true;
+            // 장치 호출 중에는 닫지 않고, 호출이 끝나면 RunDevice가 닫기를 다시 시도한다.
+            if (busy)
+            {
+                e.Cancel = true;
+                closeRequested = true;
+                return;
+            }
+            if (!ConfirmDiscard())
+            {
+                e.Cancel = true;
+                closeRequested = false;
+                return;
+            }
+            ReleasePrinter();
+        }
+
+        // 정리 실패는 알리기만 하고 종료는 막지 않는다. 연결한 적이 없으면 SDK를 읽지 않는다.
+        private void ReleasePrinter()
+        {
+            try
+            {
+                if (connectAttempted)
+                {
+                    PrinterResult result = printer.Disconnect();
+                    if (!result.IsSuccess) XtraMessageBox.Show(this, "연결 해제 실패: " + result.Message, Title, MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                }
+                printer.Dispose();
+            }
+            catch (Exception error)
+            {
+                XtraMessageBox.Show(this, "프린터 정리 실패: " + error.GetType().Name + ": " + error.Message, Title, MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            }
+        }
+
+        // 모든 장치 호출은 여기서만 실행해 중복 호출을 막고 예외도 결과 행으로 남긴다. 자동 재시도는 하지 않는다.
+        private async Task RunDevice(string action, Func<PrinterResult> call)
+        {
+            if (busy) return;
+            busy = true;
+            UpdateEnabled();
+            try
+            {
+                PrinterResult result = await Task.Run(call);
+                Record(new ResultRow(action, result.IsSuccess, result.NativeCode, result.PrintInvoked, result.PrintCode, result.Message));
+            }
+            catch (Exception error)
+            {
+                Record(new ResultRow(action, false, null, null, null, error.GetType().Name + ": " + error.Message));
+                if (error is InvalidOperationException && error.Message.StartsWith(GapBlocked, StringComparison.Ordinal)) ShowError(error.Message);
+            }
+            finally
+            {
+                busy = false;
+                RefreshView();
+                if (closeRequested) BeginInvoke(new Action(Close));
+            }
+        }
+
+        private void Record(ResultRow row)
+        {
+            results.Add(row);
+            gridViewResults.FocusedRowHandle = gridViewResults.RowCount - 1;
+            gridViewResults.MakeRowVisible(gridViewResults.FocusedRowHandle);
+            string failure = row.Success ? null : "실패: " + row.Message;
+            switch (row.Action)
+            {
+                case ActionConnect:
+                case ActionStatus:
+                    connectionState = failure == null ? "열림" : "닫힘·" + failure;
+                    break;
+                case ActionDisconnect:
+                    connectionState = failure == null ? "닫힘" : "닫힘·" + failure;
+                    break;
+                case ActionConfirm:
+                case ActionFeed:
+                    positionState = failure ?? "확인됨 (" + row.Time + ")";
+                    break;
+            }
+        }
+
+        private async void btnConnect_Click(object sender, EventArgs e)
+        {
+            if (busy) return;
+            string port = settings.Port;
+            int distance = settings.PresentationDistanceMm;
+            connectAttempted = true;
+            connectionTarget = " · 포트 " + port + " · 배출 " + distance.ToString(CultureInfo.InvariantCulture) + " mm";
+            await RunDevice(ActionConnect, () => printer.ConnectUsb(port, distance));
+        }
+
+        private async void btnStatus_Click(object sender, EventArgs e) => await RunDevice(ActionStatus, printer.GetConnectionStatus);
+
+        private async void btnDisconnect_Click(object sender, EventArgs e) => await RunDevice(ActionDisconnect, printer.Disconnect);
+
+        private async void btnConfirmPosition_Click(object sender, EventArgs e) => await RunDevice(ActionConfirm, printer.ConfirmPrintPosition);
+
+        private async void btnFeed_Click(object sender, EventArgs e) => await RunDevice(ActionFeed, printer.FeedAndConfirmPosition);
+
+        // 가변데이터는 입력 그대로 보내고, 빈 칸만 변수 없음(null)으로 본다.
+        private string VariableData() => string.IsNullOrEmpty(txtVariable.Text) ? null : txtVariable.Text;
+
+        private async void btnPrintEdit_Click(object sender, EventArgs e)
+        {
+            if (busy || doc.Template == null) return;
+            // 두 인수 ^Q를 보내면 프린터 라벨 유형이 간격 라벨로 바뀐다.
+            if (TemplateDocument.HasGapLabelSetting(doc.Template))
+            {
+                ShowError(GapBlocked + ": 인수 두 개 ^Q가 있어 인쇄하지 않습니다. 프린터 라벨 유형이 간격 라벨로 바뀝니다.");
+                return;
+            }
+            string btpl = doc.Template.ToBtpl();
+            string data = VariableData();
+            await RunDevice("편집 중 서식 인쇄", () => printer.Print(btpl, data));
+        }
+
+        private async void btnPrintFile_Click(object sender, EventArgs e)
+        {
+            string path = doc.Template?.FilePath;
+            if (busy || path == null) return;
+            if (doc.IsDirty && XtraMessageBox.Show(this, "저장하지 않은 수정은 이 인쇄에 반영되지 않습니다. 계속할까요?", Title,
+                MessageBoxButtons.YesNo, MessageBoxIcon.Warning, MessageBoxDefaultButton.Button2) != DialogResult.Yes) return;
+            string data = VariableData();
+            // 편집본이 아니라 실제로 인쇄할 디스크 내용으로 두 인수 ^Q를 검사한다.
+            await RunDevice("저장된 파일 인쇄", () =>
+            {
+                if (TemplateDocument.HasGapLabelSetting(BtplTemplate.Load(path)))
+                    throw new InvalidOperationException(GapBlocked + ": 디스크 서식에 인수 두 개 ^Q가 있어 인쇄하지 않습니다.");
+                return printer.PrintFile(path, data);
+            });
         }
 
         // 구조 오류는 입력 칸이 아니라 서식 전체 문제이므로 공통 오류 줄에 표시한다.
@@ -442,7 +624,22 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
 
         private void previewPanel_Paint(object sender, PaintEventArgs e)
         {
-            Graphics g = e.Graphics;
+            try
+            {
+                DrawPreview(e.Graphics);
+                previewFailed = false;
+            }
+            // 참고 미리보기 실패가 Paint마다 예외 창을 반복해 띄우지 않도록 오류 줄에 한 번만 알린다.
+            catch (Exception error)
+            {
+                if (previewFailed) return;
+                previewFailed = true;
+                ShowError("미리보기를 그리지 못했습니다. " + error.GetType().Name + ": " + error.Message);
+            }
+        }
+
+        private void DrawPreview(Graphics g)
+        {
             Rectangle client = previewPanel.ClientRectangle;
             BtplTemplate template = doc.Template;
             if (template == null)
@@ -452,10 +649,10 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
                 return;
             }
             BtplBlackMarkMedia media = CreateMedia(out _);
-            string variable = string.IsNullOrEmpty(txtVariable.Text) ? null : txtVariable.Text;
+            string variable = VariableData();
             int width = CanvasWidth(template, media);
-            int height = Math.Max(media?.LabelArea.Bottom ?? 0,
-                template.TextElements.Select(text => text.Y + DotHeight(text)).DefaultIfEmpty(0).Max()) + 40;
+            int height = Clamp(Math.Max(media?.LabelArea.Bottom ?? 0,
+                template.TextElements.Select(text => (long)text.Y + DotHeight(text)).DefaultIfEmpty(0).Max()) + 40);
             float scale = Math.Min((client.Width - 8f) / width, (client.Height - 8f) / height);
             if (scale <= 0) return;
             float left = client.Left + (client.Width - width * scale) / 2;
@@ -475,14 +672,18 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
         }
 
         // SDK가 LOGFONT 높이를 size*340/72 dot로 계산한다.
-        private static int DotHeight(BtplTextElement text) => text.Size * 340 / 72;
+        private static int DotHeight(BtplTextElement text) => Clamp((long)text.Size * 340 / 72);
+
+        // 극단적인 서식 값으로 int 계산이 넘치거나 그리기가 실패하지 않게 dot 값을 제한한다.
+        private static int Clamp(long dots) => (int)Math.Max(1, Math.Min(MaxDots, dots));
 
         private int CanvasWidth(BtplTemplate template, BtplBlackMarkMedia media)
         {
-            if (decimal.TryParse(Parameters(template, "^W"), MmStyle, CultureInfo.InvariantCulture, out decimal mm) && mm > 0)
-                return Math.Max(1, (int)(mm * PreviewDpi() / 25.4m));
-            int right = Math.Max(media?.LabelArea.Right ?? 0, template.TextElements.Select(text => text.X).DefaultIfEmpty(0).Max());
-            return right + 40;
+            // 비현실적으로 큰 ^W는 없는 것으로 보고 문구 위치로 폭을 정한다.
+            if (decimal.TryParse(Parameters(template, "^W"), MmStyle, CultureInfo.InvariantCulture, out decimal mm) && mm > 0 && mm <= MaxWidthMm)
+                return Clamp((long)(mm * PreviewDpi() / 25.4m));
+            long right = Math.Max(media?.LabelArea.Right ?? 0, template.TextElements.Select(text => (long)text.X).DefaultIfEmpty(0).Max());
+            return Clamp(right + 40);
         }
 
         private static void DrawAreas(Graphics g, BtplBlackMarkMedia media, float left, float top, float scale)
@@ -525,6 +726,29 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
             public int Size { get; set; }
             public int Weight { get; set; }
             public string Payload { get; set; }
+        }
+
+        // 결과 표는 표시 문자열만 갖고, 응답이 없던 코드는 "미응답"으로 보여 준다.
+        private sealed class ResultRow
+        {
+            internal ResultRow(string action, bool success, int? nativeCode, bool? printInvoked, int? printCode, string message)
+            {
+                Time = DateTime.Now.ToString("HH:mm:ss", CultureInfo.InvariantCulture);
+                Action = action;
+                Success = success;
+                NativeCode = nativeCode?.ToString(CultureInfo.InvariantCulture) ?? NoResponse;
+                PrintInvoked = printInvoked.HasValue ? (printInvoked.Value ? "예" : "아니요") : NoResponse;
+                PrintCode = printCode?.ToString(CultureInfo.InvariantCulture) ?? NoResponse;
+                Message = message;
+            }
+
+            public string Time { get; }
+            public string Action { get; }
+            public bool Success { get; }
+            public string NativeCode { get; }
+            public string PrintInvoked { get; }
+            public string PrintCode { get; }
+            public string Message { get; }
         }
     }
 }

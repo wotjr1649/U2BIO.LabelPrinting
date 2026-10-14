@@ -34,6 +34,11 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
             this.btnSave = new DevExpress.XtraEditors.SimpleButton();
             this.btnSaveAs = new DevExpress.XtraEditors.SimpleButton();
             this.btnSettings = new DevExpress.XtraEditors.SimpleButton();
+            this.btnConnect = new DevExpress.XtraEditors.SimpleButton();
+            this.btnDisconnect = new DevExpress.XtraEditors.SimpleButton();
+            this.btnStatus = new DevExpress.XtraEditors.SimpleButton();
+            this.btnConfirmPosition = new DevExpress.XtraEditors.SimpleButton();
+            this.btnFeed = new DevExpress.XtraEditors.SimpleButton();
             this.txtPath = new DevExpress.XtraEditors.TextEdit();
             this.lblDirty = new DevExpress.XtraEditors.LabelControl();
             this.lblTime = new DevExpress.XtraEditors.LabelControl();
@@ -81,6 +86,18 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
             this.memoRaw = new DevExpress.XtraEditors.MemoEdit();
             this.txtVariable = new DevExpress.XtraEditors.TextEdit();
             this.lblVariableHint = new DevExpress.XtraEditors.LabelControl();
+            this.btnPrintEdit = new DevExpress.XtraEditors.SimpleButton();
+            this.btnPrintFile = new DevExpress.XtraEditors.SimpleButton();
+            this.gridResults = new DevExpress.XtraGrid.GridControl();
+            this.gridViewResults = new DevExpress.XtraGrid.Views.Grid.GridView();
+            this.colResultTime = new DevExpress.XtraGrid.Columns.GridColumn();
+            this.colResultAction = new DevExpress.XtraGrid.Columns.GridColumn();
+            this.colResultSuccess = new DevExpress.XtraGrid.Columns.GridColumn();
+            this.colResultNativeCode = new DevExpress.XtraGrid.Columns.GridColumn();
+            this.colResultPrintInvoked = new DevExpress.XtraGrid.Columns.GridColumn();
+            this.colResultPrintCode = new DevExpress.XtraGrid.Columns.GridColumn();
+            this.colResultMessage = new DevExpress.XtraGrid.Columns.GridColumn();
+            this.lblStatus = new DevExpress.XtraEditors.LabelControl();
             this.layoutControlGroup1 = new DevExpress.XtraLayout.LayoutControlGroup();
             this.layoutItemOpen = new DevExpress.XtraLayout.LayoutControlItem();
             this.layoutItemSave = new DevExpress.XtraLayout.LayoutControlItem();
@@ -100,6 +117,15 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
             this.layoutItemTabs = new DevExpress.XtraLayout.LayoutControlItem();
             this.layoutItemVariable = new DevExpress.XtraLayout.LayoutControlItem();
             this.layoutItemVariableHint = new DevExpress.XtraLayout.LayoutControlItem();
+            this.layoutItemConnect = new DevExpress.XtraLayout.LayoutControlItem();
+            this.layoutItemDisconnect = new DevExpress.XtraLayout.LayoutControlItem();
+            this.layoutItemStatus = new DevExpress.XtraLayout.LayoutControlItem();
+            this.layoutItemConfirmPosition = new DevExpress.XtraLayout.LayoutControlItem();
+            this.layoutItemFeed = new DevExpress.XtraLayout.LayoutControlItem();
+            this.layoutItemPrintEdit = new DevExpress.XtraLayout.LayoutControlItem();
+            this.layoutItemPrintFile = new DevExpress.XtraLayout.LayoutControlItem();
+            this.layoutItemResults = new DevExpress.XtraLayout.LayoutControlItem();
+            this.layoutItemStatusLine = new DevExpress.XtraLayout.LayoutControlItem();
             ((System.ComponentModel.ISupportInitialize)(this.layoutControl1)).BeginInit();
             this.layoutControl1.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.txtPath.Properties)).BeginInit();
@@ -117,6 +143,8 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
             this.pageRaw.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.memoRaw.Properties)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.txtVariable.Properties)).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)(this.gridResults)).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)(this.gridViewResults)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.layoutControlGroup1)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.layoutItemOpen)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.layoutItemSave)).BeginInit();
@@ -136,6 +164,15 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
             ((System.ComponentModel.ISupportInitialize)(this.layoutItemTabs)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.layoutItemVariable)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.layoutItemVariableHint)).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)(this.layoutItemConnect)).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)(this.layoutItemDisconnect)).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)(this.layoutItemStatus)).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)(this.layoutItemConfirmPosition)).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)(this.layoutItemFeed)).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)(this.layoutItemPrintEdit)).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)(this.layoutItemPrintFile)).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)(this.layoutItemResults)).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)(this.layoutItemStatusLine)).BeginInit();
             this.SuspendLayout();
             //
             // layoutControl1
@@ -156,11 +193,20 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
             this.layoutControl1.Controls.Add(this.tabRight);
             this.layoutControl1.Controls.Add(this.txtVariable);
             this.layoutControl1.Controls.Add(this.lblVariableHint);
+            this.layoutControl1.Controls.Add(this.btnConnect);
+            this.layoutControl1.Controls.Add(this.btnDisconnect);
+            this.layoutControl1.Controls.Add(this.btnStatus);
+            this.layoutControl1.Controls.Add(this.btnConfirmPosition);
+            this.layoutControl1.Controls.Add(this.btnFeed);
+            this.layoutControl1.Controls.Add(this.btnPrintEdit);
+            this.layoutControl1.Controls.Add(this.btnPrintFile);
+            this.layoutControl1.Controls.Add(this.gridResults);
+            this.layoutControl1.Controls.Add(this.lblStatus);
             this.layoutControl1.Dock = System.Windows.Forms.DockStyle.Fill;
             this.layoutControl1.Location = new System.Drawing.Point(0, 0);
             this.layoutControl1.Name = "layoutControl1";
             this.layoutControl1.Root = this.layoutControlGroup1;
-            this.layoutControl1.Size = new System.Drawing.Size(1280, 800);
+            this.layoutControl1.Size = new System.Drawing.Size(1280, 900);
             this.layoutControl1.TabIndex = 0;
             this.layoutControl1.Text = "layoutControl1";
             //
@@ -204,6 +250,56 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
             this.btnSettings.Text = "설정";
             this.btnSettings.Click += new System.EventHandler(this.btnSettings_Click);
             //
+            // btnConnect
+            //
+            this.btnConnect.Location = new System.Drawing.Point(304, 4);
+            this.btnConnect.Name = "btnConnect";
+            this.btnConnect.Size = new System.Drawing.Size(96, 23);
+            this.btnConnect.StyleController = this.layoutControl1;
+            this.btnConnect.TabIndex = 16;
+            this.btnConnect.Text = "연결";
+            this.btnConnect.Click += new System.EventHandler(this.btnConnect_Click);
+            //
+            // btnDisconnect
+            //
+            this.btnDisconnect.Location = new System.Drawing.Point(404, 4);
+            this.btnDisconnect.Name = "btnDisconnect";
+            this.btnDisconnect.Size = new System.Drawing.Size(96, 23);
+            this.btnDisconnect.StyleController = this.layoutControl1;
+            this.btnDisconnect.TabIndex = 17;
+            this.btnDisconnect.Text = "해제";
+            this.btnDisconnect.Click += new System.EventHandler(this.btnDisconnect_Click);
+            //
+            // btnStatus
+            //
+            this.btnStatus.Location = new System.Drawing.Point(504, 4);
+            this.btnStatus.Name = "btnStatus";
+            this.btnStatus.Size = new System.Drawing.Size(96, 23);
+            this.btnStatus.StyleController = this.layoutControl1;
+            this.btnStatus.TabIndex = 18;
+            this.btnStatus.Text = "상태";
+            this.btnStatus.Click += new System.EventHandler(this.btnStatus_Click);
+            //
+            // btnConfirmPosition
+            //
+            this.btnConfirmPosition.Location = new System.Drawing.Point(604, 4);
+            this.btnConfirmPosition.Name = "btnConfirmPosition";
+            this.btnConfirmPosition.Size = new System.Drawing.Size(96, 23);
+            this.btnConfirmPosition.StyleController = this.layoutControl1;
+            this.btnConfirmPosition.TabIndex = 19;
+            this.btnConfirmPosition.Text = "위치 확인";
+            this.btnConfirmPosition.Click += new System.EventHandler(this.btnConfirmPosition_Click);
+            //
+            // btnFeed
+            //
+            this.btnFeed.Location = new System.Drawing.Point(704, 4);
+            this.btnFeed.Name = "btnFeed";
+            this.btnFeed.Size = new System.Drawing.Size(196, 23);
+            this.btnFeed.StyleController = this.layoutControl1;
+            this.btnFeed.TabIndex = 20;
+            this.btnFeed.Text = "FEED+확인 (#19 실기 확인 전)";
+            this.btnFeed.Click += new System.EventHandler(this.btnFeed_Click);
+            //
             // txtPath
             //
             this.txtPath.Location = new System.Drawing.Point(4, 31);
@@ -236,18 +332,18 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
             this.lblMessage.Appearance.Options.UseForeColor = true;
             this.lblMessage.Appearance.Options.UseTextOptions = true;
             this.lblMessage.Appearance.TextOptions.WordWrap = DevExpress.Utils.WordWrap.Wrap;
-            this.lblMessage.AutoSizeMode = DevExpress.XtraEditors.LabelAutoSizeMode.Vertical;
+            this.lblMessage.AutoSizeMode = DevExpress.XtraEditors.LabelAutoSizeMode.None;
             this.lblMessage.Location = new System.Drawing.Point(4, 55);
             this.lblMessage.Name = "lblMessage";
-            this.lblMessage.Size = new System.Drawing.Size(1272, 14);
+            this.lblMessage.Size = new System.Drawing.Size(1272, 32);
             this.lblMessage.StyleController = this.layoutControl1;
             this.lblMessage.TabIndex = 7;
             //
             // previewPanel
             //
-            this.previewPanel.Location = new System.Drawing.Point(4, 73);
+            this.previewPanel.Location = new System.Drawing.Point(4, 91);
             this.previewPanel.Name = "previewPanel";
-            this.previewPanel.Size = new System.Drawing.Size(756, 376);
+            this.previewPanel.Size = new System.Drawing.Size(756, 296);
             this.previewPanel.TabIndex = 8;
             this.previewPanel.Paint += new System.Windows.Forms.PaintEventHandler(this.previewPanel_Paint);
             //
@@ -255,7 +351,7 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
             //
             this.lblUnsupported.Appearance.ForeColor = System.Drawing.Color.Red;
             this.lblUnsupported.Appearance.Options.UseForeColor = true;
-            this.lblUnsupported.Location = new System.Drawing.Point(4, 453);
+            this.lblUnsupported.Location = new System.Drawing.Point(4, 391);
             this.lblUnsupported.Name = "lblUnsupported";
             this.lblUnsupported.Size = new System.Drawing.Size(756, 14);
             this.lblUnsupported.StyleController = this.layoutControl1;
@@ -263,12 +359,12 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
             //
             // gridTexts
             //
-            this.gridTexts.Location = new System.Drawing.Point(4, 471);
+            this.gridTexts.Location = new System.Drawing.Point(4, 409);
             this.gridTexts.MainView = this.gridViewTexts;
             this.gridTexts.Name = "gridTexts";
             this.gridTexts.RepositoryItems.AddRange(new DevExpress.XtraEditors.Repository.RepositoryItem[] {
             this.repositoryTextCell});
-            this.gridTexts.Size = new System.Drawing.Size(756, 274);
+            this.gridTexts.Size = new System.Drawing.Size(756, 255);
             this.gridTexts.TabIndex = 10;
             this.gridTexts.ViewCollection.AddRange(new DevExpress.XtraGrid.Views.Base.BaseView[] {
             this.gridViewTexts});
@@ -357,7 +453,7 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
             //
             // btnAddText
             //
-            this.btnAddText.Location = new System.Drawing.Point(4, 749);
+            this.btnAddText.Location = new System.Drawing.Point(4, 668);
             this.btnAddText.Name = "btnAddText";
             this.btnAddText.Size = new System.Drawing.Size(96, 23);
             this.btnAddText.StyleController = this.layoutControl1;
@@ -367,7 +463,7 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
             //
             // btnRemoveText
             //
-            this.btnRemoveText.Location = new System.Drawing.Point(104, 749);
+            this.btnRemoveText.Location = new System.Drawing.Point(104, 668);
             this.btnRemoveText.Name = "btnRemoveText";
             this.btnRemoveText.Size = new System.Drawing.Size(96, 23);
             this.btnRemoveText.StyleController = this.layoutControl1;
@@ -377,10 +473,10 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
             //
             // tabRight
             //
-            this.tabRight.Location = new System.Drawing.Point(764, 73);
+            this.tabRight.Location = new System.Drawing.Point(764, 91);
             this.tabRight.Name = "tabRight";
             this.tabRight.SelectedTabPage = this.pageSettings;
-            this.tabRight.Size = new System.Drawing.Size(512, 699);
+            this.tabRight.Size = new System.Drawing.Size(512, 600);
             this.tabRight.TabIndex = 13;
             this.tabRight.TabPages.AddRange(new DevExpress.XtraTab.XtraTabPage[] {
             this.pageSettings,
@@ -391,7 +487,7 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
             //
             this.pageSettings.Controls.Add(this.gridSettings);
             this.pageSettings.Name = "pageSettings";
-            this.pageSettings.Size = new System.Drawing.Size(510, 673);
+            this.pageSettings.Size = new System.Drawing.Size(510, 574);
             this.pageSettings.Text = "용지·인쇄";
             //
             // gridSettings
@@ -410,7 +506,7 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
             this.gridSettings.Rows.AddRange(new DevExpress.XtraVerticalGrid.Rows.BaseRow[] {
             this.categoryPaper,
             this.categoryPrint});
-            this.gridSettings.Size = new System.Drawing.Size(510, 673);
+            this.gridSettings.Size = new System.Drawing.Size(510, 574);
             this.gridSettings.TabIndex = 0;
             this.gridSettings.ValidatingEditor += new DevExpress.XtraEditors.Controls.BaseContainerValidateEditorEventHandler(this.gridSettings_ValidatingEditor);
             //
@@ -464,7 +560,7 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
             this.pageBlackMark.Controls.Add(this.gridBlackMark);
             this.pageBlackMark.Controls.Add(this.btnApplyBlackMark);
             this.pageBlackMark.Name = "pageBlackMark";
-            this.pageBlackMark.Size = new System.Drawing.Size(510, 673);
+            this.pageBlackMark.Size = new System.Drawing.Size(510, 574);
             this.pageBlackMark.Text = "블랙마크 계산";
             //
             // gridBlackMark
@@ -483,7 +579,7 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
             this.gridBlackMark.Rows.AddRange(new DevExpress.XtraVerticalGrid.Rows.BaseRow[] {
             this.categoryMeasure,
             this.categoryOffset});
-            this.gridBlackMark.Size = new System.Drawing.Size(510, 646);
+            this.gridBlackMark.Size = new System.Drawing.Size(510, 547);
             this.gridBlackMark.TabIndex = 0;
             this.gridBlackMark.CellValueChanged += new DevExpress.XtraVerticalGrid.Events.CellValueChangedEventHandler(this.gridBlackMark_CellValueChanged);
             //
@@ -587,7 +683,7 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
             // btnApplyBlackMark
             //
             this.btnApplyBlackMark.Dock = System.Windows.Forms.DockStyle.Bottom;
-            this.btnApplyBlackMark.Location = new System.Drawing.Point(0, 646);
+            this.btnApplyBlackMark.Location = new System.Drawing.Point(0, 547);
             this.btnApplyBlackMark.Name = "btnApplyBlackMark";
             this.btnApplyBlackMark.Size = new System.Drawing.Size(510, 27);
             this.btnApplyBlackMark.TabIndex = 1;
@@ -598,7 +694,7 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
             //
             this.pageRaw.Controls.Add(this.memoRaw);
             this.pageRaw.Name = "pageRaw";
-            this.pageRaw.Size = new System.Drawing.Size(510, 673);
+            this.pageRaw.Size = new System.Drawing.Size(510, 574);
             this.pageRaw.Text = "원문";
             //
             // memoRaw
@@ -609,26 +705,146 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
             this.memoRaw.Properties.ReadOnly = true;
             this.memoRaw.Properties.ScrollBars = System.Windows.Forms.ScrollBars.Both;
             this.memoRaw.Properties.WordWrap = false;
-            this.memoRaw.Size = new System.Drawing.Size(510, 673);
+            this.memoRaw.Size = new System.Drawing.Size(510, 574);
             this.memoRaw.TabIndex = 0;
             //
             // txtVariable
             //
-            this.txtVariable.Location = new System.Drawing.Point(68, 776);
+            this.txtVariable.Location = new System.Drawing.Point(68, 695);
             this.txtVariable.Name = "txtVariable";
-            this.txtVariable.Size = new System.Drawing.Size(692, 20);
+            this.txtVariable.Size = new System.Drawing.Size(492, 20);
             this.txtVariable.StyleController = this.layoutControl1;
             this.txtVariable.TabIndex = 14;
             this.txtVariable.EditValueChanged += new System.EventHandler(this.txtVariable_EditValueChanged);
             //
             // lblVariableHint
             //
-            this.lblVariableHint.Location = new System.Drawing.Point(764, 776);
+            this.lblVariableHint.Location = new System.Drawing.Point(844, 695);
             this.lblVariableHint.Name = "lblVariableHint";
-            this.lblVariableHint.Size = new System.Drawing.Size(512, 14);
+            this.lblVariableHint.Size = new System.Drawing.Size(432, 14);
             this.lblVariableHint.StyleController = this.layoutControl1;
             this.lblVariableHint.TabIndex = 15;
             this.lblVariableHint.Text = "!!로 구분, 변수 서식은 V00부터 필요한 값을 매번 입력";
+            //
+            // btnPrintEdit
+            //
+            this.btnPrintEdit.Location = new System.Drawing.Point(564, 695);
+            this.btnPrintEdit.Name = "btnPrintEdit";
+            this.btnPrintEdit.Size = new System.Drawing.Size(136, 23);
+            this.btnPrintEdit.StyleController = this.layoutControl1;
+            this.btnPrintEdit.TabIndex = 21;
+            this.btnPrintEdit.Text = "편집 중 서식 인쇄";
+            this.btnPrintEdit.Click += new System.EventHandler(this.btnPrintEdit_Click);
+            //
+            // btnPrintFile
+            //
+            this.btnPrintFile.Location = new System.Drawing.Point(704, 695);
+            this.btnPrintFile.Name = "btnPrintFile";
+            this.btnPrintFile.Size = new System.Drawing.Size(136, 23);
+            this.btnPrintFile.StyleController = this.layoutControl1;
+            this.btnPrintFile.TabIndex = 22;
+            this.btnPrintFile.Text = "저장된 파일 인쇄";
+            this.btnPrintFile.Click += new System.EventHandler(this.btnPrintFile_Click);
+            //
+            // gridResults
+            //
+            this.gridResults.Location = new System.Drawing.Point(4, 722);
+            this.gridResults.MainView = this.gridViewResults;
+            this.gridResults.Name = "gridResults";
+            this.gridResults.Size = new System.Drawing.Size(1272, 156);
+            this.gridResults.TabIndex = 23;
+            this.gridResults.ViewCollection.AddRange(new DevExpress.XtraGrid.Views.Base.BaseView[] {
+            this.gridViewResults});
+            //
+            // gridViewResults
+            //
+            this.gridViewResults.Columns.AddRange(new DevExpress.XtraGrid.Columns.GridColumn[] {
+            this.colResultTime,
+            this.colResultAction,
+            this.colResultSuccess,
+            this.colResultNativeCode,
+            this.colResultPrintInvoked,
+            this.colResultPrintCode,
+            this.colResultMessage});
+            this.gridViewResults.GridControl = this.gridResults;
+            this.gridViewResults.Name = "gridViewResults";
+            this.gridViewResults.OptionsBehavior.Editable = false;
+            this.gridViewResults.OptionsBehavior.ReadOnly = true;
+            this.gridViewResults.OptionsCustomization.AllowFilter = false;
+            this.gridViewResults.OptionsCustomization.AllowGroup = false;
+            this.gridViewResults.OptionsCustomization.AllowSort = false;
+            this.gridViewResults.OptionsView.ShowGroupPanel = false;
+            //
+            // colResultTime
+            //
+            this.colResultTime.Caption = "시각";
+            this.colResultTime.FieldName = "Time";
+            this.colResultTime.Name = "colResultTime";
+            this.colResultTime.Visible = true;
+            this.colResultTime.VisibleIndex = 0;
+            this.colResultTime.Width = 70;
+            //
+            // colResultAction
+            //
+            this.colResultAction.Caption = "동작";
+            this.colResultAction.FieldName = "Action";
+            this.colResultAction.Name = "colResultAction";
+            this.colResultAction.Visible = true;
+            this.colResultAction.VisibleIndex = 1;
+            this.colResultAction.Width = 120;
+            //
+            // colResultSuccess
+            //
+            this.colResultSuccess.Caption = "성공";
+            this.colResultSuccess.FieldName = "Success";
+            this.colResultSuccess.Name = "colResultSuccess";
+            this.colResultSuccess.Visible = true;
+            this.colResultSuccess.VisibleIndex = 2;
+            this.colResultSuccess.Width = 50;
+            //
+            // colResultNativeCode
+            //
+            this.colResultNativeCode.Caption = "NativeCode";
+            this.colResultNativeCode.FieldName = "NativeCode";
+            this.colResultNativeCode.Name = "colResultNativeCode";
+            this.colResultNativeCode.Visible = true;
+            this.colResultNativeCode.VisibleIndex = 3;
+            this.colResultNativeCode.Width = 80;
+            //
+            // colResultPrintInvoked
+            //
+            this.colResultPrintInvoked.Caption = "PrintInvoked";
+            this.colResultPrintInvoked.FieldName = "PrintInvoked";
+            this.colResultPrintInvoked.Name = "colResultPrintInvoked";
+            this.colResultPrintInvoked.Visible = true;
+            this.colResultPrintInvoked.VisibleIndex = 4;
+            this.colResultPrintInvoked.Width = 80;
+            //
+            // colResultPrintCode
+            //
+            this.colResultPrintCode.Caption = "PrintCode";
+            this.colResultPrintCode.FieldName = "PrintCode";
+            this.colResultPrintCode.Name = "colResultPrintCode";
+            this.colResultPrintCode.Visible = true;
+            this.colResultPrintCode.VisibleIndex = 5;
+            this.colResultPrintCode.Width = 80;
+            //
+            // colResultMessage
+            //
+            this.colResultMessage.Caption = "Message";
+            this.colResultMessage.FieldName = "Message";
+            this.colResultMessage.Name = "colResultMessage";
+            this.colResultMessage.Visible = true;
+            this.colResultMessage.VisibleIndex = 6;
+            this.colResultMessage.Width = 700;
+            //
+            // lblStatus
+            //
+            this.lblStatus.Location = new System.Drawing.Point(4, 882);
+            this.lblStatus.Name = "lblStatus";
+            this.lblStatus.Size = new System.Drawing.Size(1272, 14);
+            this.lblStatus.StyleController = this.layoutControl1;
+            this.lblStatus.TabIndex = 24;
             //
             // layoutControlGroup1
             //
@@ -652,10 +868,19 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
             this.emptySpaceTexts,
             this.layoutItemTabs,
             this.layoutItemVariable,
-            this.layoutItemVariableHint});
+            this.layoutItemVariableHint,
+            this.layoutItemConnect,
+            this.layoutItemDisconnect,
+            this.layoutItemStatus,
+            this.layoutItemConfirmPosition,
+            this.layoutItemFeed,
+            this.layoutItemPrintEdit,
+            this.layoutItemPrintFile,
+            this.layoutItemResults,
+            this.layoutItemStatusLine});
             this.layoutControlGroup1.Name = "Root";
             this.layoutControlGroup1.Padding = new DevExpress.XtraLayout.Utils.Padding(2, 2, 2, 2);
-            this.layoutControlGroup1.Size = new System.Drawing.Size(1280, 800);
+            this.layoutControlGroup1.Size = new System.Drawing.Size(1280, 900);
             this.layoutControlGroup1.TextVisible = false;
             //
             // layoutItemOpen
@@ -697,9 +922,9 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
             // emptySpaceToolbar
             //
             this.emptySpaceToolbar.AllowHotTrack = false;
-            this.emptySpaceToolbar.Location = new System.Drawing.Point(300, 0);
+            this.emptySpaceToolbar.Location = new System.Drawing.Point(900, 0);
             this.emptySpaceToolbar.Name = "emptySpaceToolbar";
-            this.emptySpaceToolbar.Size = new System.Drawing.Size(876, 27);
+            this.emptySpaceToolbar.Size = new System.Drawing.Size(276, 27);
             this.emptySpaceToolbar.TextSize = new System.Drawing.Size(0, 0);
             //
             // layoutItemSettings
@@ -751,24 +976,27 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
             //
             this.layoutItemMessage.Control = this.lblMessage;
             this.layoutItemMessage.Location = new System.Drawing.Point(0, 51);
+            this.layoutItemMessage.MaxSize = new System.Drawing.Size(0, 36);
+            this.layoutItemMessage.MinSize = new System.Drawing.Size(104, 36);
             this.layoutItemMessage.Name = "layoutItemMessage";
-            this.layoutItemMessage.Size = new System.Drawing.Size(1276, 18);
+            this.layoutItemMessage.Size = new System.Drawing.Size(1276, 36);
+            this.layoutItemMessage.SizeConstraintsType = DevExpress.XtraLayout.SizeConstraintsType.Custom;
             this.layoutItemMessage.TextSize = new System.Drawing.Size(0, 0);
             this.layoutItemMessage.TextVisible = false;
             //
             // layoutItemPreview
             //
             this.layoutItemPreview.Control = this.previewPanel;
-            this.layoutItemPreview.Location = new System.Drawing.Point(0, 69);
+            this.layoutItemPreview.Location = new System.Drawing.Point(0, 87);
             this.layoutItemPreview.Name = "layoutItemPreview";
-            this.layoutItemPreview.Size = new System.Drawing.Size(760, 380);
+            this.layoutItemPreview.Size = new System.Drawing.Size(760, 300);
             this.layoutItemPreview.TextSize = new System.Drawing.Size(0, 0);
             this.layoutItemPreview.TextVisible = false;
             //
             // layoutItemUnsupported
             //
             this.layoutItemUnsupported.Control = this.lblUnsupported;
-            this.layoutItemUnsupported.Location = new System.Drawing.Point(0, 449);
+            this.layoutItemUnsupported.Location = new System.Drawing.Point(0, 387);
             this.layoutItemUnsupported.Name = "layoutItemUnsupported";
             this.layoutItemUnsupported.Size = new System.Drawing.Size(760, 18);
             this.layoutItemUnsupported.TextSize = new System.Drawing.Size(0, 0);
@@ -777,16 +1005,16 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
             // layoutItemTexts
             //
             this.layoutItemTexts.Control = this.gridTexts;
-            this.layoutItemTexts.Location = new System.Drawing.Point(0, 467);
+            this.layoutItemTexts.Location = new System.Drawing.Point(0, 405);
             this.layoutItemTexts.Name = "layoutItemTexts";
-            this.layoutItemTexts.Size = new System.Drawing.Size(760, 278);
+            this.layoutItemTexts.Size = new System.Drawing.Size(760, 259);
             this.layoutItemTexts.TextSize = new System.Drawing.Size(0, 0);
             this.layoutItemTexts.TextVisible = false;
             //
             // layoutItemAddText
             //
             this.layoutItemAddText.Control = this.btnAddText;
-            this.layoutItemAddText.Location = new System.Drawing.Point(0, 745);
+            this.layoutItemAddText.Location = new System.Drawing.Point(0, 664);
             this.layoutItemAddText.MaxSize = new System.Drawing.Size(100, 27);
             this.layoutItemAddText.MinSize = new System.Drawing.Size(100, 27);
             this.layoutItemAddText.Name = "layoutItemAddText";
@@ -798,7 +1026,7 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
             // layoutItemRemoveText
             //
             this.layoutItemRemoveText.Control = this.btnRemoveText;
-            this.layoutItemRemoveText.Location = new System.Drawing.Point(100, 745);
+            this.layoutItemRemoveText.Location = new System.Drawing.Point(100, 664);
             this.layoutItemRemoveText.MaxSize = new System.Drawing.Size(100, 27);
             this.layoutItemRemoveText.MinSize = new System.Drawing.Size(100, 27);
             this.layoutItemRemoveText.Name = "layoutItemRemoveText";
@@ -810,7 +1038,7 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
             // emptySpaceTexts
             //
             this.emptySpaceTexts.AllowHotTrack = false;
-            this.emptySpaceTexts.Location = new System.Drawing.Point(200, 745);
+            this.emptySpaceTexts.Location = new System.Drawing.Point(200, 664);
             this.emptySpaceTexts.Name = "emptySpaceTexts";
             this.emptySpaceTexts.Size = new System.Drawing.Size(560, 27);
             this.emptySpaceTexts.TextSize = new System.Drawing.Size(0, 0);
@@ -818,34 +1046,139 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
             // layoutItemTabs
             //
             this.layoutItemTabs.Control = this.tabRight;
-            this.layoutItemTabs.Location = new System.Drawing.Point(760, 69);
+            this.layoutItemTabs.Location = new System.Drawing.Point(760, 87);
             this.layoutItemTabs.Name = "layoutItemTabs";
-            this.layoutItemTabs.Size = new System.Drawing.Size(516, 703);
+            this.layoutItemTabs.Size = new System.Drawing.Size(516, 604);
             this.layoutItemTabs.TextSize = new System.Drawing.Size(0, 0);
             this.layoutItemTabs.TextVisible = false;
             //
             // layoutItemVariable
             //
             this.layoutItemVariable.Control = this.txtVariable;
-            this.layoutItemVariable.Location = new System.Drawing.Point(0, 772);
+            this.layoutItemVariable.Location = new System.Drawing.Point(0, 691);
             this.layoutItemVariable.Name = "layoutItemVariable";
-            this.layoutItemVariable.Size = new System.Drawing.Size(760, 24);
+            this.layoutItemVariable.Size = new System.Drawing.Size(560, 27);
             this.layoutItemVariable.Text = "가변데이터";
             this.layoutItemVariable.TextSize = new System.Drawing.Size(60, 14);
             //
             // layoutItemVariableHint
             //
             this.layoutItemVariableHint.Control = this.lblVariableHint;
-            this.layoutItemVariableHint.Location = new System.Drawing.Point(760, 772);
+            this.layoutItemVariableHint.Location = new System.Drawing.Point(840, 691);
             this.layoutItemVariableHint.Name = "layoutItemVariableHint";
-            this.layoutItemVariableHint.Size = new System.Drawing.Size(516, 24);
+            this.layoutItemVariableHint.Size = new System.Drawing.Size(436, 27);
             this.layoutItemVariableHint.TextSize = new System.Drawing.Size(0, 0);
             this.layoutItemVariableHint.TextVisible = false;
+            //
+            // layoutItemConnect
+            //
+            this.layoutItemConnect.Control = this.btnConnect;
+            this.layoutItemConnect.Location = new System.Drawing.Point(300, 0);
+            this.layoutItemConnect.MaxSize = new System.Drawing.Size(100, 27);
+            this.layoutItemConnect.MinSize = new System.Drawing.Size(100, 27);
+            this.layoutItemConnect.Name = "layoutItemConnect";
+            this.layoutItemConnect.Size = new System.Drawing.Size(100, 27);
+            this.layoutItemConnect.SizeConstraintsType = DevExpress.XtraLayout.SizeConstraintsType.Custom;
+            this.layoutItemConnect.TextSize = new System.Drawing.Size(0, 0);
+            this.layoutItemConnect.TextVisible = false;
+            //
+            // layoutItemDisconnect
+            //
+            this.layoutItemDisconnect.Control = this.btnDisconnect;
+            this.layoutItemDisconnect.Location = new System.Drawing.Point(400, 0);
+            this.layoutItemDisconnect.MaxSize = new System.Drawing.Size(100, 27);
+            this.layoutItemDisconnect.MinSize = new System.Drawing.Size(100, 27);
+            this.layoutItemDisconnect.Name = "layoutItemDisconnect";
+            this.layoutItemDisconnect.Size = new System.Drawing.Size(100, 27);
+            this.layoutItemDisconnect.SizeConstraintsType = DevExpress.XtraLayout.SizeConstraintsType.Custom;
+            this.layoutItemDisconnect.TextSize = new System.Drawing.Size(0, 0);
+            this.layoutItemDisconnect.TextVisible = false;
+            //
+            // layoutItemStatus
+            //
+            this.layoutItemStatus.Control = this.btnStatus;
+            this.layoutItemStatus.Location = new System.Drawing.Point(500, 0);
+            this.layoutItemStatus.MaxSize = new System.Drawing.Size(100, 27);
+            this.layoutItemStatus.MinSize = new System.Drawing.Size(100, 27);
+            this.layoutItemStatus.Name = "layoutItemStatus";
+            this.layoutItemStatus.Size = new System.Drawing.Size(100, 27);
+            this.layoutItemStatus.SizeConstraintsType = DevExpress.XtraLayout.SizeConstraintsType.Custom;
+            this.layoutItemStatus.TextSize = new System.Drawing.Size(0, 0);
+            this.layoutItemStatus.TextVisible = false;
+            //
+            // layoutItemConfirmPosition
+            //
+            this.layoutItemConfirmPosition.Control = this.btnConfirmPosition;
+            this.layoutItemConfirmPosition.Location = new System.Drawing.Point(600, 0);
+            this.layoutItemConfirmPosition.MaxSize = new System.Drawing.Size(100, 27);
+            this.layoutItemConfirmPosition.MinSize = new System.Drawing.Size(100, 27);
+            this.layoutItemConfirmPosition.Name = "layoutItemConfirmPosition";
+            this.layoutItemConfirmPosition.Size = new System.Drawing.Size(100, 27);
+            this.layoutItemConfirmPosition.SizeConstraintsType = DevExpress.XtraLayout.SizeConstraintsType.Custom;
+            this.layoutItemConfirmPosition.TextSize = new System.Drawing.Size(0, 0);
+            this.layoutItemConfirmPosition.TextVisible = false;
+            //
+            // layoutItemFeed
+            //
+            this.layoutItemFeed.Control = this.btnFeed;
+            this.layoutItemFeed.Location = new System.Drawing.Point(700, 0);
+            this.layoutItemFeed.MaxSize = new System.Drawing.Size(200, 27);
+            this.layoutItemFeed.MinSize = new System.Drawing.Size(200, 27);
+            this.layoutItemFeed.Name = "layoutItemFeed";
+            this.layoutItemFeed.Size = new System.Drawing.Size(200, 27);
+            this.layoutItemFeed.SizeConstraintsType = DevExpress.XtraLayout.SizeConstraintsType.Custom;
+            this.layoutItemFeed.TextSize = new System.Drawing.Size(0, 0);
+            this.layoutItemFeed.TextVisible = false;
+            //
+            // layoutItemPrintEdit
+            //
+            this.layoutItemPrintEdit.Control = this.btnPrintEdit;
+            this.layoutItemPrintEdit.Location = new System.Drawing.Point(560, 691);
+            this.layoutItemPrintEdit.MaxSize = new System.Drawing.Size(140, 27);
+            this.layoutItemPrintEdit.MinSize = new System.Drawing.Size(140, 27);
+            this.layoutItemPrintEdit.Name = "layoutItemPrintEdit";
+            this.layoutItemPrintEdit.Size = new System.Drawing.Size(140, 27);
+            this.layoutItemPrintEdit.SizeConstraintsType = DevExpress.XtraLayout.SizeConstraintsType.Custom;
+            this.layoutItemPrintEdit.TextSize = new System.Drawing.Size(0, 0);
+            this.layoutItemPrintEdit.TextVisible = false;
+            //
+            // layoutItemPrintFile
+            //
+            this.layoutItemPrintFile.Control = this.btnPrintFile;
+            this.layoutItemPrintFile.Location = new System.Drawing.Point(700, 691);
+            this.layoutItemPrintFile.MaxSize = new System.Drawing.Size(140, 27);
+            this.layoutItemPrintFile.MinSize = new System.Drawing.Size(140, 27);
+            this.layoutItemPrintFile.Name = "layoutItemPrintFile";
+            this.layoutItemPrintFile.Size = new System.Drawing.Size(140, 27);
+            this.layoutItemPrintFile.SizeConstraintsType = DevExpress.XtraLayout.SizeConstraintsType.Custom;
+            this.layoutItemPrintFile.TextSize = new System.Drawing.Size(0, 0);
+            this.layoutItemPrintFile.TextVisible = false;
+            //
+            // layoutItemResults
+            //
+            this.layoutItemResults.Control = this.gridResults;
+            this.layoutItemResults.Location = new System.Drawing.Point(0, 718);
+            this.layoutItemResults.MaxSize = new System.Drawing.Size(0, 160);
+            this.layoutItemResults.MinSize = new System.Drawing.Size(104, 160);
+            this.layoutItemResults.Name = "layoutItemResults";
+            this.layoutItemResults.Size = new System.Drawing.Size(1276, 160);
+            this.layoutItemResults.SizeConstraintsType = DevExpress.XtraLayout.SizeConstraintsType.Custom;
+            this.layoutItemResults.TextSize = new System.Drawing.Size(0, 0);
+            this.layoutItemResults.TextVisible = false;
+            //
+            // layoutItemStatusLine
+            //
+            this.layoutItemStatusLine.Control = this.lblStatus;
+            this.layoutItemStatusLine.Location = new System.Drawing.Point(0, 878);
+            this.layoutItemStatusLine.Name = "layoutItemStatusLine";
+            this.layoutItemStatusLine.Size = new System.Drawing.Size(1276, 18);
+            this.layoutItemStatusLine.TextSize = new System.Drawing.Size(0, 0);
+            this.layoutItemStatusLine.TextVisible = false;
             //
             // FrmMain
             //
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.None;
-            this.ClientSize = new System.Drawing.Size(1280, 800);
+            this.ClientSize = new System.Drawing.Size(1280, 900);
             this.Controls.Add(this.layoutControl1);
             this.IconOptions.ShowIcon = false;
             this.Name = "FrmMain";
@@ -869,6 +1202,8 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
             this.pageRaw.ResumeLayout(false);
             ((System.ComponentModel.ISupportInitialize)(this.memoRaw.Properties)).EndInit();
             ((System.ComponentModel.ISupportInitialize)(this.txtVariable.Properties)).EndInit();
+            ((System.ComponentModel.ISupportInitialize)(this.gridResults)).EndInit();
+            ((System.ComponentModel.ISupportInitialize)(this.gridViewResults)).EndInit();
             ((System.ComponentModel.ISupportInitialize)(this.layoutControlGroup1)).EndInit();
             ((System.ComponentModel.ISupportInitialize)(this.layoutItemOpen)).EndInit();
             ((System.ComponentModel.ISupportInitialize)(this.layoutItemSave)).EndInit();
@@ -888,6 +1223,15 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
             ((System.ComponentModel.ISupportInitialize)(this.layoutItemTabs)).EndInit();
             ((System.ComponentModel.ISupportInitialize)(this.layoutItemVariable)).EndInit();
             ((System.ComponentModel.ISupportInitialize)(this.layoutItemVariableHint)).EndInit();
+            ((System.ComponentModel.ISupportInitialize)(this.layoutItemConnect)).EndInit();
+            ((System.ComponentModel.ISupportInitialize)(this.layoutItemDisconnect)).EndInit();
+            ((System.ComponentModel.ISupportInitialize)(this.layoutItemStatus)).EndInit();
+            ((System.ComponentModel.ISupportInitialize)(this.layoutItemConfirmPosition)).EndInit();
+            ((System.ComponentModel.ISupportInitialize)(this.layoutItemFeed)).EndInit();
+            ((System.ComponentModel.ISupportInitialize)(this.layoutItemPrintEdit)).EndInit();
+            ((System.ComponentModel.ISupportInitialize)(this.layoutItemPrintFile)).EndInit();
+            ((System.ComponentModel.ISupportInitialize)(this.layoutItemResults)).EndInit();
+            ((System.ComponentModel.ISupportInitialize)(this.layoutItemStatusLine)).EndInit();
             this.ResumeLayout(false);
 
         }
@@ -965,5 +1309,31 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
         private DevExpress.XtraLayout.LayoutControlItem layoutItemTabs;
         private DevExpress.XtraLayout.LayoutControlItem layoutItemVariable;
         private DevExpress.XtraLayout.LayoutControlItem layoutItemVariableHint;
+        private DevExpress.XtraEditors.SimpleButton btnConnect;
+        private DevExpress.XtraEditors.SimpleButton btnDisconnect;
+        private DevExpress.XtraEditors.SimpleButton btnStatus;
+        private DevExpress.XtraEditors.SimpleButton btnConfirmPosition;
+        private DevExpress.XtraEditors.SimpleButton btnFeed;
+        private DevExpress.XtraEditors.SimpleButton btnPrintEdit;
+        private DevExpress.XtraEditors.SimpleButton btnPrintFile;
+        private DevExpress.XtraGrid.GridControl gridResults;
+        private DevExpress.XtraGrid.Views.Grid.GridView gridViewResults;
+        private DevExpress.XtraGrid.Columns.GridColumn colResultTime;
+        private DevExpress.XtraGrid.Columns.GridColumn colResultAction;
+        private DevExpress.XtraGrid.Columns.GridColumn colResultSuccess;
+        private DevExpress.XtraGrid.Columns.GridColumn colResultNativeCode;
+        private DevExpress.XtraGrid.Columns.GridColumn colResultPrintInvoked;
+        private DevExpress.XtraGrid.Columns.GridColumn colResultPrintCode;
+        private DevExpress.XtraGrid.Columns.GridColumn colResultMessage;
+        private DevExpress.XtraEditors.LabelControl lblStatus;
+        private DevExpress.XtraLayout.LayoutControlItem layoutItemConnect;
+        private DevExpress.XtraLayout.LayoutControlItem layoutItemDisconnect;
+        private DevExpress.XtraLayout.LayoutControlItem layoutItemStatus;
+        private DevExpress.XtraLayout.LayoutControlItem layoutItemConfirmPosition;
+        private DevExpress.XtraLayout.LayoutControlItem layoutItemFeed;
+        private DevExpress.XtraLayout.LayoutControlItem layoutItemPrintEdit;
+        private DevExpress.XtraLayout.LayoutControlItem layoutItemPrintFile;
+        private DevExpress.XtraLayout.LayoutControlItem layoutItemResults;
+        private DevExpress.XtraLayout.LayoutControlItem layoutItemStatusLine;
     }
 }
