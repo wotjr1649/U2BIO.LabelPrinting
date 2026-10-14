@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 using System.Text;
 using System.Threading;
 using U2BIO.BT003PROLabelPrinting;
@@ -11,12 +12,72 @@ internal static class Program
     private const string Literal = "^L\nAW,10,10,10,1,0,0,TEST\nE\n";
     private static void Check(bool value, string message)
     { if (!value) throw new InvalidOperationException(message); }
-    private static Bt003Printer Connected(string port, int distance = 0)
+    private static Bt003Printer Connected(string port, int distance = 0, bool confirm = true)
     {
         var printer = new Bt003Printer();
         Check(printer.ConnectUsb(port, distance).IsSuccess, "Connect failed.");
+        // 처음 쓰는 포트는 위치 기록이 없으므로 운영자 정렬 확인을 대신 기록한다.
+        if (confirm) Check(printer.ConfirmPrintPosition().IsSuccess, "Confirm failed.");
         Check(printer.SetPrintingOptions(4, 12).IsSuccess, "Options failed.");
         return printer;
+    }
+    private static void Restart()
+    {
+        // 프로그램 재실행처럼 프로세스 메모리의 위치 기록만 지우고 파일은 남긴다.
+        ((System.Collections.IDictionary)typeof(Bt003Printer).GetField("Positions", BindingFlags.NonPublic | BindingFlags.Static).GetValue(null)).Clear();
+    }
+    private static void PositionFile()
+    {
+        const string port = "SYNTH-PERSIST";
+        string file = Bt003Printer.PositionFile;
+        Fake.Clear(); Restart(); File.Delete(file);
+        using (var printer = new Bt003Printer()) {
+            Check(printer.ConnectUsb(port, 15).IsSuccess, "Connect failed.");
+            Fake.Calls.Clear();
+            var blocked = printer.Print(Literal);
+            Check(!blocked.IsSuccess && blocked.Message.Contains("용지 위치") && !Fake.Calls.Contains("StartLabelPrint"), "Missing file allowed print.");
+            Check(printer.ConfirmPrintPosition().IsSuccess && File.ReadAllLines(file).SequenceEqual(new[] { port, "0" }), "Confirm did not create file.");
+            Check(printer.Print(Literal).IsSuccess && File.ReadAllLines(file).SequenceEqual(new[] { port, "15" }), "Presentation not saved.");
+        }
+        // 재실행 뒤 첫 인쇄도 저장된 15mm를 먼저 복귀하고 다시 배출해야 한다.
+        for (int run = 0; run < 2; run++) {
+            Restart();
+            using (var printer = new Bt003Printer()) {
+                Check(printer.ConnectUsb(port, 15).IsSuccess, "Reconnect failed.");
+                Fake.Calls.Clear();
+                Check(printer.Print(Literal).IsSuccess, "Restarted print failed.");
+                int back = Fake.Calls.IndexOf("^B15\r\n"), print = Fake.Calls.IndexOf("StartLabelPrint"), eject = Fake.Calls.IndexOf("^M15\r\n");
+                Check(back >= 0 && back < print && print < eject && File.ReadAllLines(file).SequenceEqual(new[] { port, "15" }), "Restart did not return then present.");
+            }
+        }
+        // 다른 포트·손상된 기록은 위치 불명으로 시작한다.
+        foreach (string content in new[] { "OTHER\r\n15", "garbage", port + "\r\n-1" }) {
+            File.WriteAllText(file, content); Restart();
+            using (var printer = new Bt003Printer()) {
+                Check(printer.ConnectUsb(port, 15).IsSuccess, "Connect failed.");
+                Fake.Calls.Clear();
+                Check(!printer.Print(Literal).IsSuccess && Fake.Calls.Count(call => call != "CheckPrtConnection") == 0, "Untrusted file allowed movement.");
+            }
+        }
+        // 인쇄 도중 중단되면 다음 실행이 위치 불명으로 시작하도록 기록이 남아야 한다.
+        Restart();
+        using (var printer = Connected(port, 15)) {
+            Fake.ThrowAt = "StartLabelPrint";
+            Check(!printer.Print(Literal).IsSuccess && File.ReadAllLines(file).SequenceEqual(new[] { port, "unknown" }), "Interrupted print was not saved as unknown.");
+            Fake.ThrowAt = null;
+        }
+        // 기록 파일을 쓸 수 없으면 복귀·인쇄 SDK를 호출하지 않는다.
+        File.WriteAllText(file, port + "\r\n15"); Restart();
+        try {
+            using (var printer = new Bt003Printer()) {
+                Check(printer.ConnectUsb(port, 15).IsSuccess, "Connect failed.");
+                Bt003Printer.PositionFile = Path.Combine(file, "unwritable.txt");
+                Fake.Calls.Clear();
+                var result = printer.Print(Literal);
+                Check(!result.IsSuccess && !result.PrintInvoked && !Fake.Calls.Contains("^B15\r\n") && !Fake.Calls.Contains("StartLabelPrint"), "Unwritable file allowed movement.");
+                Check(!printer.ConfirmPrintPosition().IsSuccess, "Unwritable confirm succeeded.");
+            }
+        } finally { Bt003Printer.PositionFile = file; }
     }
     private static void Invalid(Action action, string code = null)
     {
@@ -142,7 +203,7 @@ internal static class Program
                 Check(!printer.Print(Literal).IsSuccess && Fake.Calls.Count == 0, "Uncertain response or cleanup fault allowed print.");
             }
             Fake.CleanupThrows = false; Fake.Response = ",0";
-            using (var printer = Connected(port)) {
+            using (var printer = Connected(port, confirm: false)) {
                 Fake.Calls.Clear();
                 var blocked = printer.Print(Literal);
                 Check(!blocked.IsSuccess && blocked.Message.Contains("용지 위치") && !Fake.Calls.Contains("StartLabelPrint"), "New instance lost position uncertainty.");
@@ -370,10 +431,14 @@ internal static class Program
 
     private static int Main()
     {
+        // 실제 운영 기록을 건드리지 않도록 실행 폴더의 임시 위치 파일을 사용한다.
+        string positions = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "position-" + Guid.NewGuid().ToString("N") + ".txt");
+        Bt003Printer.PositionFile = positions;
         try {
-            FormsAndFailures(); RawVariableData(); UncertainResponseAndCleanup(); Movement(); FileLifetime(); Ownership(); ReviewRegressions(); RawVariableByteBoundary(); MessageAndFailureEvidence();
-            Console.WriteLine("PASS: linked product bool results, SDK sequencing, input snapshots, uncertain response/cleanup, movement, file lifetime and ownership; managed SDK substitute only");
+            FormsAndFailures(); RawVariableData(); UncertainResponseAndCleanup(); Movement(); FileLifetime(); Ownership(); ReviewRegressions(); RawVariableByteBoundary(); MessageAndFailureEvidence(); PositionFile();
+            Console.WriteLine("PASS: linked product bool results, SDK sequencing, input snapshots, uncertain response/cleanup, movement, persisted position, file lifetime and ownership; managed SDK substitute only");
             return 0;
         } catch (Exception error) { Console.Error.WriteLine("FAIL: managed SDK harness (" + error.GetType().Name + "): " + error.Message); return 1; }
+        finally { File.Delete(positions); File.Delete(positions + ".tmp"); }
     }
 }
