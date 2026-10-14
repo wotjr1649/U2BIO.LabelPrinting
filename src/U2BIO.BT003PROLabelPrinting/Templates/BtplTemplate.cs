@@ -134,6 +134,8 @@ namespace U2BIO.BT003PROLabelPrinting
         public BtplTemplate WithSetting(BtplSetting setting)
         {
             if (setting == null) throw new ArgumentNullException(nameof(setting));
+            // Settings에서 읽은 기존 2인수 Q 객체를 다시 넘겨도 2인수 Q를 만들지 않는다.
+            if (setting.Command == "^Q" && setting.Parameters.Split(',').Length != 3) throw new BtplFormatException("GapLabelSetting", setting.TemplateLine);
             int index = SettingIndex(setting.Command);
             if (index >= 0)
             {
@@ -303,8 +305,14 @@ namespace U2BIO.BT003PROLabelPrinting
 
         private void CheckNoGapSetting()
         {
-            var gap = Settings.FirstOrDefault(setting => setting.Command == "^Q" && setting.Parameters.Split(',').Length == 2);
-            if (gap != null) throw new BtplFormatException("GapLabelSetting", gap.TemplateLine);
+            // 펌웨어가 공백·빈 인수를 어떻게 읽는지 모르므로 세 인수로 해석된 Q 줄만 남긴다.
+            for (int index = 0; index < lines.Length; index++)
+            {
+                if (!lines[index].Text.TrimStart().StartsWith("^Q", StringComparison.Ordinal)) continue;
+                bool blackMark = Settings.Any(setting => setting.TemplateLine == index + 1 && setting.Command == "^Q"
+                    && setting.Parameters.Split(',').Length == 3);
+                if (!blackMark) throw new BtplFormatException("GapLabelSetting", index + 1);
+            }
         }
 
         private BtplSetting ExistingSetting(string command)

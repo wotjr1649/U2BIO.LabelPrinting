@@ -425,7 +425,8 @@ namespace U2BIO.BT003PROLabelPrinting
                 {
                     return Fail(result, "SDK 연결이 열린 상태가 아닙니다. CheckPrtConnection 응답: " + result.NativeCode + ".");
                 }
-                if (Positions[port].Value > 0 && !Move(result, "^B", Positions[port].Value))
+                bool returned = Positions[port].Value > 0;
+                if (returned && !Move(result, "^B", Positions[port].Value))
                 {
                     return result;
                 }
@@ -474,7 +475,8 @@ namespace U2BIO.BT003PROLabelPrinting
                 // 인쇄 도중 프로그램이 끝나도 다음 실행이 위치 불명으로 시작하도록 SDK 진입 전에 기록한다.
                 if (!SavePosition(null))
                 {
-                    return Fail(result, PositionFileError);
+                    // 앞선 복귀는 이미 실행됐으므로 그 설명을 지우지 않는다.
+                    return Fail(result, (returned ? result.Message + " " : "") + "인쇄 SDK를 호출하지 않았습니다. " + PositionFileError);
                 }
                 result.PrintInvoked = true;
                 // shortcut: 제조사 StringBuilder 출력 계약을 사용한다. SDK 버퍼 결함 방어가 필요하면 별도 재설계한다.
@@ -542,7 +544,7 @@ namespace U2BIO.BT003PROLabelPrinting
             // 실패 코드도 일부 이동 후 반환될 수 있으므로 SDK 진입 전에 위치를 불명으로 둔다.
             if (!SavePosition(null))
             {
-                Fail(result, printMessage + movement + " 전에 " + PositionFileError);
+                Fail(result, printMessage + movement + " SDK를 호출하지 않았습니다. " + PositionFileError);
                 return false;
             }
             try
@@ -673,7 +675,7 @@ namespace U2BIO.BT003PROLabelPrinting
             return new ArgumentException(code);
         }
 
-        private const string PositionFileError = "용지 위치 기록 파일을 저장하지 못해 SDK를 호출하지 않았습니다. 기록 폴더의 쓰기 권한을 확인하십시오.";
+        private const string PositionFileError = "용지 위치 기록 파일을 저장하지 못했습니다. 기록 폴더의 쓰기 권한을 확인하십시오.";
 
         private static int? LoadPosition(string port)
         {
@@ -701,7 +703,13 @@ namespace U2BIO.BT003PROLabelPrinting
             try
             {
                 Directory.CreateDirectory(Path.GetDirectoryName(PositionFile));
-                File.WriteAllText(temp, port + "\r\n" + (value.HasValue ? value.Value.ToString(CultureInfo.InvariantCulture) : "unknown"));
+                byte[] content = Encoding.UTF8.GetBytes(port + "\r\n" + (value.HasValue ? value.Value.ToString(CultureInfo.InvariantCulture) : "unknown"));
+                using (var file = new FileStream(temp, FileMode.Create, FileAccess.Write, FileShare.None))
+                {
+                    file.Write(content, 0, content.Length);
+                    // SDK 이동 직후 전원이 끊겨도 unknown 기록이 남도록 디스크까지 내린 뒤 교체한다.
+                    file.Flush(true);
+                }
                 // 임시 파일로 교체해 쓰는 도중 중단돼도 이전 기록이 깨지지 않게 한다.
                 if (File.Exists(PositionFile))
                 {
