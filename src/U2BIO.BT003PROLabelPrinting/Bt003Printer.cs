@@ -29,6 +29,11 @@ namespace U2BIO.BT003PROLabelPrinting
         // 프로그램을 다시 실행해도 직전 배출 거리를 복귀하도록 마지막 기록을 파일에 둔다. 검사만 임시 경로로 바꾼다.
         // 첫 줄은 포트, 둘째 줄은 mm 또는 unknown이다. SDK 로그 폴더(Log)는 SDK가 정리하므로 쓰지 않는다.
         internal static string PositionFile = @"C:\Bitek\BT003\position.txt";
+
+        // 실기에서 앞 장의 인쇄·배출이 끝나기 전에 다음 장을 보내면 프린터가 멈칫하고 서식 기준이 밀린 채 남았다(2초 간격에서는 없음).
+        // SDK에 상태 읽기가 없어 마지막 SDK 이동 시각부터 이 간격을 기다린다. 검사만 0으로 바꾼다.
+        internal static int MinimumIntervalMs = 2000;
+        private static DateTime lastMotionUtc = DateTime.MinValue;
         private static readonly Encoding Cp949 = Encoding.GetEncoding(949, EncoderFallback.ExceptionFallback, DecoderFallback.ExceptionFallback);
 
         // owner는 SDK 연결을 사용할 객체다. 연결 해제와 닫힘이 확인되기 전에는 다른 객체에 넘기지 않는다.
@@ -80,6 +85,14 @@ namespace U2BIO.BT003PROLabelPrinting
                 {
                     // 프로세스의 첫 연결에서만 파일 기록을 읽는다. 같은 프로세스에서는 메모리 기록이 최신이다.
                     Positions.Add(port, LoadPosition(port));
+                    // 재실행 직후 인쇄도 앞 프로세스의 마지막 이동과 겹치지 않게 기록 파일의 저장 시각부터 간격을 센다.
+                    try
+                    {
+                        if (File.Exists(PositionFile) && File.GetLastWriteTimeUtc(PositionFile) > lastMotionUtc) lastMotionUtc = File.GetLastWriteTimeUtc(PositionFile);
+                    }
+                    catch (Exception error) when (Recoverable(error))
+                    {
+                    }
                 }
                 owner = this;
 
@@ -227,6 +240,7 @@ namespace U2BIO.BT003PROLabelPrinting
         /// 가변데이터는 분리·재조합·공백 제거 없이 전달합니다. null은 등록 생략이며 빈 전체 문자열·제어문자는 입력 오류입니다.
         /// 빈 항목·부족한 데이터·이전 변수 초기화의 SDK 동작은 보장하지 않습니다. 서식과 가변데이터는 각각 CP949 4 MiB 이내여야 합니다.
         /// SDK 응답이 불명이면 자동으로 다시 인쇄하지 않습니다.
+        /// 직전 인쇄·이동 뒤 2초가 지나지 않았으면 남은 시간을 기다린 뒤 SDK를 호출합니다(재실행 직후 포함).
         /// </remarks>
         /// <exception cref="ArgumentException">서식 또는 변수 입력이 유효하지 않습니다.</exception>
         /// <exception cref="NotSupportedException">현재 ANSI 코드 페이지가 949가 아닙니다.</exception>
@@ -417,6 +431,8 @@ namespace U2BIO.BT003PROLabelPrinting
             string function = "CheckPrtConnection";
             // 최초 ResetForm에서 예외가 나도 마지막 정리를 시도하도록 호출 전에 formTouched를 true로 설정한다.
             bool formTouched = false;
+            // SDK 이동을 시작한 요청만 다음 인쇄의 대기 기준 시각을 갱신한다.
+            bool moved = false;
             try
             {
                 // 1. 연결을 확인하고 이전 정상 배출이 있으면 기록된 거리만큼 먼저 복귀한다.
@@ -425,7 +441,10 @@ namespace U2BIO.BT003PROLabelPrinting
                 {
                     return Fail(result, "SDK 연결이 열린 상태가 아닙니다. CheckPrtConnection 응답: " + result.NativeCode + ".");
                 }
+                // 앞 장의 물리 동작과 겹치지 않도록 첫 이동(복귀 또는 인쇄) 전에 기다린다.
+                WaitForPreviousMotion();
                 bool returned = Positions[port].Value > 0;
+                moved = returned;
                 if (returned && !Move(result, "^B", Positions[port].Value))
                 {
                     return result;
@@ -480,6 +499,7 @@ namespace U2BIO.BT003PROLabelPrinting
                 }
                 result.PrintInvoked = true;
                 // shortcut: 제조사 StringBuilder 출력 계약을 사용한다. SDK 버퍼 결함 방어가 필요하면 별도 재설계한다.
+                moved = true;
                 Vendor.StartLabelPrint(1, response);
                 result.PrintCode = ParsePrintCode(response);
                 result.NativeCode = result.PrintCode;
@@ -518,6 +538,10 @@ namespace U2BIO.BT003PROLabelPrinting
             finally
             {
                 // 6. 등록이나 인쇄 도중 반환해도 정리한다. 파일은 이 정리가 끝날 때까지 PrintFile이 보유한다.
+                if (moved)
+                {
+                    lastMotionUtc = DateTime.UtcNow;
+                }
                 if (formTouched)
                 {
                     try
@@ -673,6 +697,13 @@ namespace U2BIO.BT003PROLabelPrinting
         {
             // 서식·변수·파일 경로와 원래 예외를 노출하지 않고 고정 식별 코드만 전달한다.
             return new ArgumentException(code);
+        }
+
+        private static void WaitForPreviousMotion()
+        {
+            // 시계가 뒤로 바뀌어도 최대 간격까지만 기다린다.
+            double remaining = MinimumIntervalMs - (DateTime.UtcNow - lastMotionUtc).TotalMilliseconds;
+            if (remaining > 0) System.Threading.Thread.Sleep((int)Math.Ceiling(Math.Min(remaining, MinimumIntervalMs)));
         }
 
         private const string PositionFileError = "용지 위치 기록 파일을 저장하지 못했습니다. 기록 폴더의 쓰기 권한을 확인하십시오.";
