@@ -8,7 +8,7 @@ BT-003 Pro의 텍스트 라벨 인쇄용 .NET Framework 4.6.1 DLL입니다. 현�
 
 한 프로그램에서만 같은 프린터를 사용하며, DLL은 프로세스 안의 단일 연결과 전체 호출 직렬화를 관리합니다. API는 SDK 반환까지 기다립니다. UI의 백그라운드 실행은 호출 프로그램 책임입니다. ANSI 코드 페이지 949 환경에서만 지원합니다. 파일은 CP949이며 경로·크기·읽기와 FileStream 읽기 잠금을 확인합니다.
 
-PrinterResult는 IsSuccess(bool), Message, NativeCode, PrintInvoked, PrintCode 다섯 속성입니다. 호출자는 `if (!result.IsSuccess)`로 실패를 확인하고 한글 Message로 이유를 읽습니다. Status와 PrinterResultStatus enum은 제공하지 않습니다. 실패와 결과 불명은 모두 false이며, 무출력을 뜻하지 않으므로 자동 재인쇄하지 않습니다. 인쇄 응답은 PrintCode에 보존되며 배출·정리 오류는 Message에서 확인합니다. SDK 정상 응답이나 SendData 0은 물리 완료 증거가 아닙니다. 위치 불명은 재연결로 지워지지 않으며 수동 정렬 후 ConfirmPrintPosition을 호출해야 합니다. 마지막 배출 기록은 `C:\Bitek\BT003\position.txt`에 저장되어 프로그램을 다시 실행해도 첫 인쇄 전에 복귀합니다. 이 파일이 없는 최초 실행에서는 ConfirmPrintPosition을 한 번 호출해야 합니다.
+PrinterResult는 IsSuccess(bool), Message, NativeCode, PrintInvoked, PrintCode 다섯 속성입니다. 호출자는 `if (!result.IsSuccess)`로 실패를 확인하고 한글 Message로 이유를 읽습니다. Status와 PrinterResultStatus enum은 제공하지 않습니다. 실패와 결과 불명은 모두 false이며, 무출력을 뜻하지 않으므로 자동 재인쇄하지 않습니다. 인쇄 응답은 PrintCode에 보존되며 배출·정리 오류는 Message에서 확인합니다. SDK 정상 응답이나 SendData 0은 물리 완료 증거가 아닙니다. 위치 불명은 재연결로 지워지지 않으며 수동 정렬 후 ConfirmPrintPosition을 호출하거나, 대기 화면에서 FeedAndConfirmPosition으로 FEED와 확인을 함께 해야 합니다(`~S,FEED` 경로는 실기 확인 전). 마지막 배출 기록은 `C:\Bitek\BT003\position.txt`에 저장되어 프로그램을 다시 실행해도 첫 인쇄 전에 복귀합니다. 이 파일이 없는 최초 실행에서는 둘 중 하나를 한 번 호출해야 합니다.
 
 관리 DLL 외에 실행 프로세스 비트수와 맞는 BlackfishNfcLib.dll/HFModule.dll을 함께 배포합니다. [SDK 배포](docs/SDK_DEPLOYMENT.ko.md)의 Bt003NativePlatform 빌드를 사용합니다. 제품 실행 시 해시 검사 없이 .NET 기본 DllImport 로딩을 사용하고 검색 범위는 ApplicationDirectory/System32로 제한합니다.
 
