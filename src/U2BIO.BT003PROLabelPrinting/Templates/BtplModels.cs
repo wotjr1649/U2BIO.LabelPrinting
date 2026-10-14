@@ -201,6 +201,8 @@ namespace U2BIO.BT003PROLabelPrinting
     {
         // 미리보기·배치 검사용 여유다. 라벨 위치 편차와 치수 측정 오차(실측 약 2 mm)를 흡수한다.
         private const decimal SafeMarginMm = 2m;
+        // BTPL의 mm 인수 범위(예: ^B/^M 0~1000 mm)에 맞춘 입력 상한이다.
+        private const decimal MaximumMm = 1000m;
 
         /// <param name="linerWidthMm">받침지 폭이며 ^W 값입니다.</param>
         /// <param name="segmentLengthMm">마크를 뺀 마크 사이 길이이며 ^Q의 첫 인수입니다.</param>
@@ -210,10 +212,16 @@ namespace U2BIO.BT003PROLabelPrinting
         /// <param name="labelHeightMm">흰 라벨 높이입니다.</param>
         /// <param name="dpi">프린터 헤드 해상도입니다. 203 또는 300만 허용합니다.</param>
         /// <param name="sensorOffsetMm">자로 잰 흰 부분과 실제 z의 차이입니다. 기본값은 이 프린터의 실측값 1.5 mm입니다.</param>
-        /// <exception cref="BtplFormatException">값이 범위를 벗어나거나 라벨이 받침지·마크 사이 길이에 들어가지 않으면 InvalidArguments입니다.</exception>
+        /// <exception cref="BtplFormatException">값이 범위(절댓값 1000 mm 이하, 소수 셋째 자리까지)를 벗어나거나 라벨이 받침지·마크 사이 길이에 들어가지 않으면 InvalidArguments입니다.</exception>
         public BtplBlackMarkMedia(decimal linerWidthMm, decimal segmentLengthMm, decimal markWidthMm, decimal markToLabelMm,
             decimal labelWidthMm, decimal labelHeightMm, int dpi = 300, decimal sensorOffsetMm = 1.5m)
         {
+            // 계산 전에 범위와 자릿수를 검사해 overflow나 출력 반올림으로 다른 값이 만들어지지 않게 한다.
+            decimal[] values = { linerWidthMm, segmentLengthMm, markWidthMm, markToLabelMm, labelWidthMm, labelHeightMm, sensorOffsetMm };
+            if (values.Any(value => Math.Abs(value) > MaximumMm || value != Math.Round(value, 3)))
+            {
+                throw new BtplFormatException("InvalidArguments");
+            }
             decimal z = Math.Round((markToLabelMm + sensorOffsetMm) * 2, MidpointRounding.AwayFromZero) / 2;
             if (linerWidthMm <= 0 || segmentLengthMm <= 0 || markWidthMm <= 0 || markToLabelMm < 0 || labelWidthMm <= 0 || labelHeightMm <= 0
                 || (dpi != 203 && dpi != 300) || z < 0
@@ -237,7 +245,7 @@ namespace U2BIO.BT003PROLabelPrinting
         /// <summary>계산한 ^W 설정입니다.</summary>
         public BtplSetting WidthSetting { get; }
 
-        /// <summary>흰 라벨 전체의 서식 좌표 범위(dot)입니다.</summary>
+        /// <summary>입력 치수로 계산한 흰 라벨 전체의 서식 좌표 범위(dot)입니다. 라벨 위치 편차로 실측과 2 mm까지 다를 수 있어 배치에는 SafeArea를 씁니다.</summary>
         public BtplArea LabelArea { get; }
 
         /// <summary>흰 라벨에서 2 mm 안쪽의 권장 배치 범위(dot)입니다.</summary>
