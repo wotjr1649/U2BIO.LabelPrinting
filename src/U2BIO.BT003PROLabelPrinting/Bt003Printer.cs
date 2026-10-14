@@ -707,7 +707,8 @@ namespace U2BIO.BT003PROLabelPrinting
                 using (var file = new FileStream(temp, FileMode.Create, FileAccess.Write, FileShare.None))
                 {
                     file.Write(content, 0, content.Length);
-                    // SDK 이동 직후 전원이 끊겨도 unknown 기록이 남도록 디스크까지 내린 뒤 교체한다.
+                    // 새 기록 내용을 디스크까지 내린 뒤 교체한다.
+                    // shortcut: 이름 교체는 write-through가 아니라 정전 시점에 따라 이전 값이 남을 수 있다, 정전 내구성이 필요하면 MoveFileEx(MOVEFILE_WRITE_THROUGH)로 바꾼다.
                     file.Flush(true);
                 }
                 // 임시 파일로 교체해 쓰는 도중 중단돼도 이전 기록이 깨지지 않게 한다.
