@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="15.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <Configuration Condition="'$(Configuration)' == ''">Debug</Configuration>
+    <Platform Condition="'$(Platform)' == ''">x86</Platform>
+    <ProjectGuid>{31C4BF7A-A8A3-422C-8BCD-1770DCE20C83}</ProjectGuid>
+    <OutputType>WinExe</OutputType>
+    <RootNamespace>U2BIO.BT003PROLabelPrinting.Tester</RootNamespace>
+    <AssemblyName>U2BIO.BT003PROLabelPrinting.Tester</AssemblyName>
+    <TargetFrameworkVersion>v4.6.1</TargetFrameworkVersion>
+    <TargetFrameworkProfile />
+    <PlatformTarget>$(Platform)</PlatformTarget>
+    <Prefer32Bit>false</Prefer32Bit>
+    <OutputPath>bin\$(Platform)\$(Configuration)\</OutputPath>
+    <LangVersion>7.3</LangVersion>
+    <Deterministic>true</Deterministic>
+    <UseSharedCompilation>false</UseSharedCompilation>
+    <WarningLevel>4</WarningLevel>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
+    <DebugSymbols>true</DebugSymbols>
+    <DebugType>full</DebugType>
+    <Optimize>false</Optimize>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)' == 'Release'">
+    <DebugType>pdbonly</DebugType>
+    <Optimize>true</Optimize>
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="System" />
+    <Reference Include="System.Core" />
+    <Reference Include="System.Drawing" />
+    <Reference Include="System.Windows.Forms" />
+    <Reference Include="System.Xml" />
+    <Reference Include="System.Xml.Linq" />
+    <Reference Include="DevExpress.Data.v20.2, Version=20.2.6.0, Culture=neutral, PublicKeyToken=b88d1754d700e49a"><Private>True</Private></Reference>
+    <Reference Include="DevExpress.Utils.v20.2, Version=20.2.6.0, Culture=neutral, PublicKeyToken=b88d1754d700e49a"><Private>True</Private></Reference>
+    <Reference Include="DevExpress.XtraEditors.v20.2, Version=20.2.6.0, Culture=neutral, PublicKeyToken=b88d1754d700e49a"><Private>True</Private></Reference>
+    <Reference Include="DevExpress.XtraLayout.v20.2, Version=20.2.6.0, Culture=neutral, PublicKeyToken=b88d1754d700e49a"><Private>True</Private></Reference>
+    <Reference Include="DevExpress.XtraVerticalGrid.v20.2, Version=20.2.6.0, Culture=neutral, PublicKeyToken=b88d1754d700e49a"><Private>True</Private></Reference>
+    <Reference Include="DevExpress.XtraGrid.v20.2, Version=20.2.6.0, Culture=neutral, PublicKeyToken=b88d1754d700e49a"><Private>True</Private></Reference>
+    <Reference Include="DevExpress.BonusSkins.v20.2, Version=20.2.6.0, Culture=neutral, PublicKeyToken=b88d1754d700e49a"><Private>True</Private></Reference>
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="Program.cs" />
+    <Compile Include="SelfCheck.cs" />
+    <Compile Include="TemplateDocument.cs" />
+    <Compile Include="TesterSettings.cs" />
+    <EmbeddedResource Include="Properties\licenses.licx" />
+    <None Include="..\U2BIO.BT003PROLabelPrinting\Sdk\$(Platform)\BlackfishNfcLib.dll;..\U2BIO.BT003PROLabelPrinting\Sdk\$(Platform)\HFModule.dll">
+      <Link>%(Filename)%(Extension)</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <ProjectReference Include="..\U2BIO.BT003PROLabelPrinting\U2BIO.BT003PROLabelPrinting.csproj">
+      <Project>{8815635E-D90E-460C-A732-7161E758FCA5}</Project>
+      <Name>U2BIO.BT003PROLabelPrinting</Name>
+      <AdditionalProperties>Platform=AnyCPU</AdditionalProperties>
+    </ProjectReference>
+  </ItemGroup>
+  <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
+  <Target Name="CheckPlatform" BeforeTargets="BeforeBuild">
+    <Error Condition="'$(Platform)' != 'x86' And '$(Platform)' != 'x64'" Text="Tester platform must be x86 or x64." />
+    <Error Condition="'$(Bt003NativePlatform)' != '' And '$(Bt003NativePlatform)' != '$(Platform)'" Text="Bt003NativePlatform must match the Tester platform." />
+  </Target>
+  <Target Name="ReportBuildSettings" AfterTargets="Build">
+    <Message Importance="high" Text="BUILD_SETTINGS|$(AssemblyName)|$(TargetFrameworkVersion)|$(PlatformTarget)|$(Prefer32Bit)" />
+  </Target>
+</Project>

@@ -174,9 +174,22 @@ async function main() {
             evidence.artifacts.push({ platform, path: path.relative(root, file).replace(/\\/g, '/'),
                 snapshot: path.relative(root, snapshot).replace(/\\/g, '/'), sha256: crypto.createHash('sha256').update(fs.readFileSync(snapshot)).digest('hex') });
         }
+        // Tester는 솔루션 빌드 결과를 그대로 검사한다. self-check는 SDK를 로드하지 않는다.
+        if (!build.includes(`BUILD_SETTINGS|U2BIO.BT003PROLabelPrinting.Tester|v4.6.1|${platform}|false`))
+            throw new Error(`Evaluated Tester settings missing for ${platform}.`);
+        const tester = path.join(root, 'src', 'U2BIO.BT003PROLabelPrinting.Tester', 'bin', platform, configuration);
+        await run(path.join(tester, 'U2BIO.BT003PROLabelPrinting.Tester.exe'), ['--self-check', `--expect-${platform}`], `tester-${platform}`);
+        if (hash(path.join(tester, 'U2BIO.BT003PROLabelPrinting.dll')) !== hash(path.join(output, 'U2BIO.BT003PROLabelPrinting.dll')))
+            throw new Error(`Tester managed DLL differs from validated product (${platform}).`);
+        for (const [name, expected] of Object.entries(sdkHashes[platform])) {
+            const file = path.join(tester, name);
+            const sha256 = hash(file);
+            if (sha256 !== expected) throw new Error(`Tester SDK file differs from the pinned manufacturer copy: ${platform}/${name}`);
+            evidence.artifacts.push({ platform, path: path.relative(root, file).replace(/\\/g, '/'), sha256 });
+        }
     }
     evidence.result = 'passed';
-    process.stdout.write(`Build checks passed: ${configuration} x86/x64; library AnyCPU; target .NET Framework 4.6.1.\n`);
+    process.stdout.write(`Build checks passed: ${configuration} x86/x64; library AnyCPU; Tester self-check and runtime files; target .NET Framework 4.6.1.\n`);
 }
 
 main().catch(error => { evidence.result = 'failed'; process.stderr.write(`${error.message}\n`); process.exitCode = 1; })
