@@ -50,8 +50,65 @@ internal static class Program
                 Check(printer.ConfirmPrintPosition().IsSuccess, "Confirm failed.");
                 watch.Restart();
                 Check(printer.Print(Literal).IsSuccess && watch.ElapsedMilliseconds < 250, "Print waited after the interval.");
+                // FEED도 이송이므로 앞 동작을 기다리고, 다음 인쇄의 대기 기준이 된다.
+                watch.Restart();
+                Check(printer.FeedAndConfirmPosition().IsSuccess && watch.ElapsedMilliseconds >= 250, "Feed did not wait for the previous motion.");
+                watch.Restart();
+                Check(printer.Print(Literal).IsSuccess && watch.ElapsedMilliseconds >= 250, "Print did not wait after feed.");
             }
         } finally { Bt003Printer.MinimumIntervalMs = 0; }
+    }
+    private static void FeedPosition()
+    {
+        // FEED 키 + ConfirmPrintPosition 수동 절차를 DLL이 대신한다. 배출 상태에서도 복귀 없이 FEED만 보낸다(실기 확인한 수동 절차와 같음).
+        const string port = "SYNTH-FEED";
+        const string feed = "~S,FEED\r\n";
+        string file = Bt003Printer.PositionFile;
+        Fake.Clear(); Restart(); File.Delete(file);
+        using (var printer = new Bt003Printer()) {
+            Check(printer.ConnectUsb(port, 15).IsSuccess, "Connect failed.");
+            Fake.Calls.Clear();
+            var fed = printer.FeedAndConfirmPosition();
+            Check(fed.IsSuccess && fed.NativeCode == 0 && !fed.PrintInvoked && fed.PrintCode == null && fed.Message.Contains("FEED"), "Feed result differs.");
+            Check(Fake.Calls.SequenceEqual(new[] { "CheckPrtConnection", feed, "SendData" }) && File.ReadAllLines(file).SequenceEqual(new[] { port, "0" }), "Feed did not record the print position.");
+            Fake.Calls.Clear();
+            Check(printer.Print(Literal).IsSuccess && !Fake.Calls.Any(call => call.StartsWith("^B")) && Fake.Calls.Contains("^M15\r\n"), "Print after feed returned or skipped presentation.");
+            Fake.Calls.Clear();
+            Check(printer.FeedAndConfirmPosition().IsSuccess && !Fake.Calls.Any(call => call.StartsWith("^B") || call.StartsWith("^M"))
+                && File.ReadAllLines(file).SequenceEqual(new[] { port, "0" }), "Feed from the presented state moved more than FEED.");
+            // SDK 실패·예외는 이송 여부를 모르므로 위치를 불명으로 남기고 인쇄를 막는다.
+            Fake.FailAt = "SendData"; Fake.FailCode = 101;
+            var failed = printer.FeedAndConfirmPosition();
+            Check(!failed.IsSuccess && failed.NativeCode == 101 && File.ReadAllLines(file).SequenceEqual(new[] { port, "unknown" }), "Failed feed was trusted.");
+            Fake.FailAt = null; Fake.Calls.Clear();
+            Check(!printer.Print(Literal).IsSuccess && !Fake.Calls.Contains("StartLabelPrint"), "Print allowed after failed feed.");
+            Fake.ThrowAt = "SendData";
+            Check(!printer.FeedAndConfirmPosition().IsSuccess && File.ReadAllLines(file).SequenceEqual(new[] { port, "unknown" }), "Feed exception was trusted.");
+            Fake.ThrowAt = null;
+            Check(printer.FeedAndConfirmPosition().IsSuccess, "Feed did not recover an unknown position.");
+            // 기록 파일을 쓸 수 없으면 FEED SDK를 호출하지 않는다.
+            string unwritable = Path.Combine(file, "unwritable.txt");
+            try {
+                Bt003Printer.PositionFile = unwritable; Fake.Calls.Clear();
+                Check(!printer.FeedAndConfirmPosition().IsSuccess && !Fake.Calls.Contains(feed), "Unwritable file allowed feed.");
+                // FEED 정상 응답 뒤 저장이 실패하면 위치를 불명으로 남겨 인쇄를 막는다.
+                Bt003Printer.PositionFile = file;
+                Fake.AfterSendData = () => Bt003Printer.PositionFile = unwritable;
+                var unsaved = printer.FeedAndConfirmPosition();
+                Check(!unsaved.IsSuccess && unsaved.NativeCode == 0 && unsaved.Message.Contains("기록 파일"), "Unsaved feed was reported as confirmed.");
+                Fake.AfterSendData = null; Bt003Printer.PositionFile = file; Fake.Calls.Clear();
+                Check(!printer.Print(Literal).IsSuccess && !Fake.Calls.Contains("StartLabelPrint"), "Print allowed after unsaved feed.");
+            } finally { Fake.AfterSendData = null; Bt003Printer.PositionFile = file; }
+            // 연결이 열리지 않았으면 FEED를 보내지 않는다.
+            Fake.PortState = 0; Fake.Calls.Clear();
+            Check(!printer.FeedAndConfirmPosition().IsSuccess && !Fake.Calls.Contains(feed), "Feed sent without an open connection.");
+            Fake.PortState = 1;
+        }
+        // 연결 소유자가 아니면 SDK를 호출하지 않는다.
+        using (var other = new Bt003Printer()) {
+            Fake.Calls.Clear();
+            Check(!other.FeedAndConfirmPosition().IsSuccess && Fake.Calls.Count == 0, "Non-owner feed reached SDK.");
+        }
     }
     private static void PositionFile()
     {
@@ -495,8 +552,8 @@ internal static class Program
         // 다른 검사는 실제 대기 없이 순서만 확인한다. 간격 검사는 MinimumInterval에서 따로 한다.
         Bt003Printer.MinimumIntervalMs = 0;
         try {
-            FormsAndFailures(); RawVariableData(); UncertainResponseAndCleanup(); Movement(); FileLifetime(); Ownership(); ReviewRegressions(); RawVariableByteBoundary(); MessageAndFailureEvidence(); PositionFile(); MinimumInterval();
-            Console.WriteLine("PASS: linked product bool results, SDK sequencing, input snapshots, uncertain response/cleanup, movement, persisted position, file lifetime and ownership; managed SDK substitute only");
+            FormsAndFailures(); RawVariableData(); UncertainResponseAndCleanup(); Movement(); FileLifetime(); Ownership(); ReviewRegressions(); RawVariableByteBoundary(); MessageAndFailureEvidence(); PositionFile(); FeedPosition(); MinimumInterval();
+            Console.WriteLine("PASS: linked product bool results, SDK sequencing, input snapshots, uncertain response/cleanup, movement, persisted position, feed confirmation, file lifetime and ownership; managed SDK substitute only");
             return 0;
         } catch (Exception error) { Console.Error.WriteLine("FAIL: managed SDK harness (" + error.GetType().Name + "): " + error.Message); return 1; }
         finally { File.Delete(positions); File.Delete(positions + ".tmp"); }

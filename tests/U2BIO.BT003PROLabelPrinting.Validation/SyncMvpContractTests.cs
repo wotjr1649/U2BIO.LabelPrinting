@@ -15,7 +15,7 @@ namespace U2BIO.BT003PROLabelPrinting.Validation
         {
             Type printer = library.GetType("U2BIO.BT003PROLabelPrinting.Bt003Printer", true);
             Type result = library.GetType("U2BIO.BT003PROLabelPrinting.PrinterResult", true);
-            string[] methods = { "ConnectUsb", "GetConnectionStatus", "SetPrintingOptions", "Print", "PrintFile", "ConfirmPrintPosition", "Disconnect", "Dispose" };
+            string[] methods = { "ConnectUsb", "GetConnectionStatus", "SetPrintingOptions", "Print", "PrintFile", "ConfirmPrintPosition", "FeedAndConfirmPosition", "Disconnect", "Dispose" };
             var actual = printer.GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly);
             if (actual.Length != methods.Length || actual.Any(method => !methods.Contains(method.Name)))
                 throw new InvalidOperationException("Unexpected public printer API.");
