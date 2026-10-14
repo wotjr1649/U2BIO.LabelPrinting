@@ -73,6 +73,11 @@ namespace U2BIO.BT003PROLabelPrinting.Validation
             Format("InvalidArguments", () => text.WithSize(int.MaxValue));
             Format("InvalidArguments", () => text.WithWeight(4));
             Format("InvalidArguments", () => new BtplTextElement(-1, 0, 10, 1, "x"));
+            // 실기에서 AW X=0은 SDK StartLabelPrint 예외를 냈다. 편집으로 만드는 X는 1 이상이며 Y=0은 허용한다.
+            Format("InvalidArguments", () => new BtplTextElement(0, 5, 10, 1, "x"));
+            Format("InvalidArguments", () => text.WithPosition(0, 120));
+            Check(new BtplTextElement(1, 0, 10, 1, "x").X == 1 && text.WithPosition(1, 0).Y == 0, "X one and Y zero allowed");
+            Format("InvalidArguments", () => original.WithRawText("^L\nAW,0,10,10,1,0,0,x\nE"));
             var protectedText = BtplTemplate.Parse("^L\nAW,1,2,10,1,1,3,x\nE");
             Format("LockedTextArguments", () => protectedText.WithText(0, new BtplTextElement(1, 2, 10, 1, "changed")));
             Check(protectedText.WithText(0, protectedText.TextElements[0].WithSize(12)).ToBtpl().Contains(",12,1,1,3,x"), "direction survives edits");
@@ -131,7 +136,7 @@ namespace U2BIO.BT003PROLabelPrinting.Validation
             {
                 var ambiguous = BtplTemplate.Parse(raw);
                 Check(ambiguous.ToBtpl() == raw, "ambiguous frame source preserved");
-                Format("AmbiguousFrame", () => ambiguous.AddText(new BtplTextElement(0, 0, 10, 1, "x")));
+                Format("AmbiguousFrame", () => ambiguous.AddText(new BtplTextElement(1, 0, 10, 1, "x")));
                 Format("AmbiguousFrame", () => ambiguous.WithSetting(new BtplSetting("^W", "70")));
             }
             var multiple = BtplTemplate.Parse("^L\nAW,1,2,10,1,0,0,A\nE\n^L\nAW,3,4,10,1,0,0,B\nE");
@@ -218,6 +223,9 @@ namespace U2BIO.BT003PROLabelPrinting.Validation
                 Format("GapLabelSetting", () => BtplTemplate.Parse("^Q40,5\r\n^L\r\nE").SaveAs(gapPath));
                 Format("GapLabelSetting", () => BtplTemplate.Parse("^Q40,5,\r\n^L\r\nE").SaveAs(gapPath));
                 Check(!File.Exists(gapPath) && Directory.GetFiles(directory, "*.tmp").Length == 0, "two-argument Q is not saved");
+                string zeroPath = Path.Combine(directory, "zero-x.txt");
+                Format("InvalidArguments", () => BtplTemplate.Parse("^L\r\nAW,0,10,10,1,0,0,x\r\nE").SaveAs(zeroPath));
+                Check(!File.Exists(zeroPath) && BtplTemplate.Parse("^L\r\nAW,0,10,10,1,0,0,x\r\nE").TextElements[0].X == 0, "zero X is readable but not saved");
                 string largePath = Path.Combine(directory, "large.txt");
                 using (var large = new FileStream(largePath, FileMode.CreateNew, FileAccess.Write)) large.SetLength(4 * 1024 * 1024 + 1);
                 Format("TemplateTooLarge", () => BtplTemplate.Load(largePath));
