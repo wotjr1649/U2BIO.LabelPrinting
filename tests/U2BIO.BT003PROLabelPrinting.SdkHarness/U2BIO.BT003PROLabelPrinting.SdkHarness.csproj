@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="15.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <AssemblyName>U2BIO.BT003PROLabelPrinting.SdkHarness</AssemblyName>
+    <TargetFrameworkVersion>v4.6.1</TargetFrameworkVersion>
+    <PlatformTarget>$(Platform)</PlatformTarget>
+    <Prefer32Bit>false</Prefer32Bit>
+    <OutputPath>bin\$(Platform)\$(Configuration)\</OutputPath>
+    <LangVersion>7.3</LangVersion>
+    <UseSharedCompilation>false</UseSharedCompilation>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="System" /><Reference Include="System.Core" />
+    <Compile Include="..\..\src\U2BIO.BT003PROLabelPrinting\Bt003Printer.cs"><Link>Product\Bt003Printer.cs</Link></Compile>
+    <Compile Include="..\..\src\U2BIO.BT003PROLabelPrinting\PrinterModels.cs"><Link>Product\PrinterModels.cs</Link></Compile>
+    <Compile Include="FakeWrapper.cs" /><Compile Include="Program.cs" />
+  </ItemGroup>
+  <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
+</Project>

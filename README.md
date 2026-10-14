@@ -1,42 +1,25 @@
 # U2BIO.LabelPrinting
 
-RFID 값이 이미 기록된 BT-003 Pro 라벨에 프로그램이 전달한 텍스트를 BTPL로 인쇄하기 위한 공통 모듈과 테스트 프로그램입니다.
+BT-003 Pro의 텍스트 라벨 인쇄용 .NET Framework 4.6.1 DLL입니다. 현재 작업은 [이슈 #16](https://github.com/wotjr1649/U2BIO.LabelPrinting/issues/16)의 동기 USB SDK MVP이며 기존 고급 공개 API와 호환되지 않습니다.
 
-현재 단계는 요구사항 및 설계입니다. DLL과 실행 프로그램은 아직 구현하지 않았습니다.
+기본 사용은 ConnectUsb → SetPrintingOptions → Print/PrintFile → Disconnect입니다. 제품 코드는 Bt003Printer.cs와 PrinterModels.cs 두 파일이며 제조사 원본 BT003CtrlWrapper의 39개 선언을 직접 사용합니다. StartLabelPrint도 샘플의 StringBuilder 방식입니다. 자체 로더·실행 시 SDK 해시 검사·포인터 bridge·worker·취소·일괄 처리 체계는 제거했습니다.
 
-구현 기준 버전은 **v0.1.1-design (2026-10-08)**입니다. [기준 문서 목록과 변경 규칙](docs/BASELINE.md), [개발 작업과 완료 조건](docs/IMPLEMENTATION_PLAN.md)을 기준으로 구현합니다. 이 버전은 설계 기준이며 제품 DLL의 릴리스 버전이 아닙니다.
+[확정 스펙](docs/specs/SYNC_USB_MVP.md), [공개 API와 이행 예제](docs/PRINTER_API.ko.md), [용지·^Q·배출 운영 기준](docs/PRINT_PRESENTATION.ko.md#운영-기준), [설계](docs/DESIGN.md), [계획](docs/IMPLEMENTATION_PLAN.md)을 참고합니다. 기능 명세는 제조사 Programming Manual v1.3이며 선언·마샬링은 원본 Wrapper를 따릅니다. BTPL 해석과 변수 치환은 SDK가 수행합니다. 선택 편집 기능은 [TXT 편집 계약](docs/specs/TXT_TEMPLATE_EDITOR.md)에 따라 원문 보존·AW 편집·Save/SaveAs로 축소합니다. 미리보기 화면과 데이터 구성은 호출 프로그램 책임입니다.
 
-| 구성 | 이름 / 기준 |
-| --- | --- |
-| 공통 DLL | `U2BIO.BT003PROLabelPrinting` |
-| 테스트 프로그램 | `U2BIO.BT003PROLabelPrinting.Tester` |
-| 플랫폼 | .NET Framework 4.6.1, Windows |
-| 테스트 UI | WinForms, DevExpress 20.2.6 |
-| 배포 | 관리 DLL AnyCPU, 제조사 DLL x86/x64 세트 |
-| 기준 서식 | BTPL `.txt` / `.btpl` |
-| 부가 설정 | JSON: 변수와 컬럼의 매핑, 출력 형식, `nullText` |
-| 데이터 입력 | 호출 프로그램이 전달하는 `DataTable` |
+한 프로그램에서만 같은 프린터를 사용하며, DLL은 프로세스 안의 단일 연결과 전체 호출 직렬화를 관리합니다. API는 SDK 반환까지 기다립니다. UI의 백그라운드 실행은 호출 프로그램 책임입니다. ANSI 코드 페이지 949 환경에서만 지원합니다. 파일은 CP949이며 경로·크기·읽기와 FileStream 읽기 잠금을 확인합니다.
 
-[설계와 검증 계획](docs/DESIGN.md)에 공개 타입, 바인딩, 단계별 중단·결과·연결 수명, 저장·배포·명령 처리 계약과 24개 구현 인수 사례를 정리했습니다. [SDK 함수 대조표](docs/SDK_API_COVERAGE.md)는 내부 선언 대상 41개와 원형 미공개 export 1개, 기준 DLL 쌍의 해시를 관리합니다. 로컬 참고 자료 `docs/BTPL_API_GUIDE.ko.md`의 관련 내용을 대조했고, 일반 언어 기능과 이 제품의 1차 지원 범위를 구분했습니다.
+PrinterResult는 IsSuccess(bool), Message, NativeCode, PrintInvoked, PrintCode 다섯 속성입니다. 호출자는 `if (!result.IsSuccess)`로 실패를 확인하고 한글 Message로 이유를 읽습니다. Status와 PrinterResultStatus enum은 제공하지 않습니다. 실패와 결과 불명은 모두 false이며, 무출력을 뜻하지 않으므로 자동 재인쇄하지 않습니다. 인쇄 응답은 PrintCode에 보존되며 배출·정리 오류는 Message에서 확인합니다. SDK 정상 응답이나 SendData 0은 물리 완료 증거가 아닙니다. 위치 불명은 재연결로 지워지지 않으며 수동 정렬 후 ConfirmPrintPosition을 호출하거나, 대기 화면에서 FeedAndConfirmPosition으로 FEED와 확인을 함께 해야 합니다(`~S,FEED` 경로는 실기 확인 전). 마지막 배출 기록은 `C:\Bitek\BT003\position.txt`에 저장되어 프로그램을 다시 실행해도 첫 인쇄 전에 복귀합니다. 이 파일이 없는 최초 실행에서는 둘 중 하나를 한 번 호출해야 합니다.
 
-저장소 기본 구성과 검사 명령은 [개발 환경](docs/DEVELOPMENT.md), GitHub 등록 현황은 [이슈 등록 상태](docs/GITHUB_ISSUES.md)를 참고합니다.
+관리 DLL 외에 실행 프로세스 비트수와 맞는 BlackfishNfcLib.dll/HFModule.dll을 함께 배포합니다. [SDK 배포](docs/SDK_DEPLOYMENT.ko.md)의 Bt003NativePlatform 빌드를 사용합니다. 제품 실행 시 해시 검사 없이 .NET 기본 DllImport 로딩을 사용하고 검색 범위는 ApplicationDirectory/System32로 제한합니다.
 
-1차는 텍스트 출력에 집중합니다. USB를 우선 구현·검증하고 TCP/IP와 RS-232 연결 API도 제공합니다. DB 연결·조회·저장을 담당하지 않으며, 테스트 프로그램은 DB 없이 샘플 데이터로 동작합니다.
+```text
+node tools/verify-repository.js
+node tools/verify-build.js
+git diff --check
+```
 
-공통 DLL을 먼저 구현·검증한 다음 테스트 UI를 만듭니다. UI는 자유로운 텍스트 요소의 추가·삭제·수치 편집과 참고용 미리보기를 제공하며 같은 DLL의 검사·렌더링·인쇄 경로를 사용합니다. 수동 줄바꿈은 명시적 배치 간격으로 처리하고 자동 줄바꿈은 하지 않습니다.
+검사기는 Release x86/x64에서 실제 제품 DLL의 공개 계약·제조사 선언, 선택 Templates, 제품 두 소스를 링크한 관리 SDK 대체 harness, 오프라인 호출 예제, 실제 배포 속성의 파일 비트수·고정 해시를 확인합니다. DEVFLOW_ROOT는 설치된 플러그인 경로를 프로세스 환경으로 지정합니다. 제조사 SDK·장치·인쇄·배출은 이 검사에서 실행하지 않습니다.
 
-관리 검사·미리보기는 프린터와 제조사 DLL 없이 실행합니다. `ValidateForPrint`가 실제 연결 대상의 검사까지 수행하며 Print는 이를 매번 다시 검사합니다. `AW` 등의 장치 지원 미확인과 관리 구문 오류를 구분하여 참고 미리보기와 인쇄 가능 여부를 따로 표시합니다. 검사를 안 했거나 완료하지 못한 결과는 null로 표현합니다.
+[TXT 편집 API](docs/BTPL_TEMPLATE_API.ko.md), [오프라인 예제](examples/OfflineSmoke/Program.cs)와 과거 docs/history 기록을 구분합니다. 실제 P/Invoke와 출력 정확성은 별도 실기 확인이 필요합니다.
 
-템플릿 하나에 여러 데이터 행을 바인딩합니다. NULL/DBNull/빈 문자열/공백 값은 문자열 `nullText`를 적용하고, 설정이 없으면 검사 오류입니다. 컬럼 누락도 오류입니다. 전체 행을 먼저 검사하여 한 건이라도 오류면 전체를 출력하지 않습니다. 실행 중 실패·결과 불명이면 즉시 중단하고 남은 행은 미시도로 반환합니다. 취소 시 현재 SDK 호출의 결과를 기록하며 자동 재출력·대기열은 없습니다.
-
-인쇄 함수 진입 전후를 `PrintInvoked`와 실행 단계로 구분합니다. 제한 초과 뒤 늦은 서식 등록이 성공해도 새 인쇄를 시작하지 않습니다. 이미 반환한 행 결과는 불변이며 늦은 정리 완료는 연결 상태 조회로 확인합니다. Dispose 후에도 pending·자원 정리 상태 조회는 가능합니다.
-
-고정 줄바꿈은 `ExpandFixedLines`로 실제 BTPL 명령에 저장합니다. 가변 줄 간격은 호출 프로그램의 실행 옵션이며 바인딩 JSON에 추가하지 않습니다. Tester에서는 현재 세션만 유지하고 재시작/다른 서식 로드 뒤 필요한 간격을 다시 입력합니다. 누락 상태의 출력은 차단합니다. 파일 저장 충돌·실패는 표시하고 기존 파일 삭제로 우회하지 않습니다.
-
-실행 프로그램 폴더에 실제 프로세스와 같은 x86 또는 x64의 `BlackfishNfcLib.dll`·`HFModule.dll` 한 쌍을 배치합니다. Tester의 두 비트 수 출력은 별도 폴더로 분리합니다. 파일·비트 수·해시·모듈 충돌·로드·export 오류는 연결 오류로 반환하며 전역 설치나 검색 경로 변경은 추가하지 않습니다.
-
-RFID 읽기·쓰기·잠금·보안 설정은 공개하지 않습니다. 텍스트 넘침 검사와 별도 DPI 설정도 제공하지 않습니다.
-
-`JODAL_WEBFORM_5.txt`의 `~HE0,0`은 RFID 안테나 설정으로 확인되어 인쇄 전용 서식에서는 제외합니다. 원본은 보존하며 지원하지 않는 명령을 자동 삭제하지 않습니다. `AW` 상세 인수, RFID 포트 없는 연결, `StartLabelPrint`의 응답·한 장 출력·RFID 보존은 실제 장치 계약 검증이 남아 있습니다. 원격 연결은 설정되어 있으며 이 문서 보완을 DLL 구현 또는 인쇄 성공으로 간주하지 않습니다.
-
-SDK 원본은 상위 작업 폴더의 `BT-003 pro SDK`를 참고합니다. 기존 `docs`의 제조사 문서는 보존합니다. 이 설계 문서 작성 단계에서는 원격 push나 제조사 DLL의 업로드를 수행하지 않습니다.
+Print/PrintFile의 선택 인수는 `string variableData = null`이다. 제조사 `!!` 가변데이터 문자열을 기본 검사 후 변경 없이 전달하며 변수 번호 해석은 SDK가 맡는다. 배열/params overload는 제거했고 기존 호출 앱은 새 DLL로 재빌드해야 한다. 가변데이터 전환 당시 Templates는 유지했고, 이후 사용자 결정으로 TXT 편집 전용 재설계를 진행한다. 적용 상태는 이슈와 검증 근거를 확인한다.

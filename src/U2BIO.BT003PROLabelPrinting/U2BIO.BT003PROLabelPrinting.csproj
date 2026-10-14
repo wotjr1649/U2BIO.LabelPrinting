@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="15.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <Configuration Condition="'$(Configuration)' == ''">Debug</Configuration>
+    <Platform Condition="'$(Platform)' == ''">AnyCPU</Platform>
+    <ProjectGuid>{8815635E-D90E-460C-A732-7161E758FCA5}</ProjectGuid>
+    <OutputType>Library</OutputType>
+    <RootNamespace>U2BIO.BT003PROLabelPrinting</RootNamespace>
+    <AssemblyName>U2BIO.BT003PROLabelPrinting</AssemblyName>
+    <TargetFrameworkVersion>v4.6.1</TargetFrameworkVersion>
+    <TargetFrameworkProfile />
+    <PlatformTarget>AnyCPU</PlatformTarget>
+    <Prefer32Bit>false</Prefer32Bit>
+    <OutputPath>bin\$(Configuration)\</OutputPath>
+    <OutputPath Condition="'$(Bt003NativePlatform)' == 'x86' Or '$(Bt003NativePlatform)' == 'x64'">bin\$(Bt003NativePlatform)\$(Configuration)\</OutputPath>
+    <LangVersion>7.3</LangVersion>
+    <Deterministic>true</Deterministic>
+    <UseSharedCompilation>false</UseSharedCompilation>
+    <WarningLevel>4</WarningLevel>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
+    <DebugSymbols>true</DebugSymbols>
+    <DebugType>full</DebugType>
+    <Optimize>false</Optimize>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)' == 'Release'">
+    <DebugType>pdbonly</DebugType>
+    <Optimize>true</Optimize>
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="System" />
+    <Reference Include="System.Core" />
+    <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="Templates\BtplModels.cs" />
+    <Compile Include="Templates\BtplTemplate.cs" />
+    <Compile Include="PrinterModels.cs" />
+    <Compile Include="Sdk\Interop\BT003CtrlWrapper.cs" />
+    <Compile Include="Bt003Printer.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Sdk\README.ko.md" />
+    <None Include="Sdk\x86\BlackfishNfcLib.dll;Sdk\x86\HFModule.dll">
+      <TargetPath>%(Filename)%(Extension)</TargetPath>
+      <CopyToOutputDirectory Condition="'$(Bt003NativePlatform)' == 'x86'">PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Include="Sdk\x64\BlackfishNfcLib.dll;Sdk\x64\HFModule.dll">
+      <TargetPath>%(Filename)%(Extension)</TargetPath>
+      <CopyToOutputDirectory Condition="'$(Bt003NativePlatform)' == 'x64'">PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+  <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
+  <Target Name="ValidateBt003NativePlatform" BeforeTargets="PrepareForBuild">
+    <Error Condition="'$(Bt003NativePlatform)' != '' And '$(Bt003NativePlatform)' != 'x86' And '$(Bt003NativePlatform)' != 'x64'" Text="Bt003NativePlatform must be x86 or x64, or empty for managed-only builds." />
+  </Target>
+  <Target Name="ReportBuildSettings" AfterTargets="Build">
+    <Message Importance="high" Text="BUILD_SETTINGS|$(AssemblyName)|$(TargetFrameworkVersion)|$(PlatformTarget)|$(Prefer32Bit)" />
+  </Target>
+</Project>
