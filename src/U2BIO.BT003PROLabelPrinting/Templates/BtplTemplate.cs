@@ -135,10 +135,19 @@ namespace U2BIO.BT003PROLabelPrinting
             if (index >= 0)
             {
                 var current = Settings.First(value => value.TemplateLine == index + 1);
-                // 수치 입력 화면에서 같은 값을 다시 전달해도 070/05/019 표기를 바꾸지 않는다.
-                if (setting.Command != "^Q" && decimal.Parse(current.Parameters, CultureInfo.InvariantCulture)
-                    == decimal.Parse(setting.Parameters, CultureInfo.InvariantCulture)) return this;
-                return ReplaceLine(index, setting.ToLine());
+                // Q도 인수별로 비교한다. 같은 수치와 방향은 기존 표기를 남기고 바뀐 인수만 교체한다.
+                string[] original = current.Parameters.Split(',');
+                string[] replacement = setting.Parameters.Split(',');
+                for (int argument = 0; argument < Math.Min(original.Length, replacement.Length); argument++)
+                {
+                    string currentNumber = original[argument].TrimEnd('+', '-');
+                    string requestedNumber = replacement[argument].TrimEnd('+', '-');
+                    bool sameDirection = original[argument].Substring(currentNumber.Length)
+                        == replacement[argument].Substring(requestedNumber.Length);
+                    if (sameDirection && decimal.Parse(currentNumber, CultureInfo.InvariantCulture)
+                        == decimal.Parse(requestedNumber, CultureInfo.InvariantCulture)) replacement[argument] = original[argument];
+                }
+                return ReplaceLine(index, setting.Command + string.Join(",", replacement));
             }
             SingleFrameEnd();
             int start = Array.FindIndex(lines, line => line.Text == "^L");
@@ -221,6 +230,13 @@ namespace U2BIO.BT003PROLabelPrinting
                 else File.Move(temporary, target);
                 created = false;
                 return stored;
+            }
+            catch (DirectoryNotFoundException)
+            {
+                // 임시 파일 준비 전에 원본 폴더가 사라져도 Save는 SourceChanged로 알린다.
+                // SaveAs의 잘못된 새 경로는 원본 충돌과 구분하여 기존 파일 오류를 전달한다.
+                if (checkSource) CheckSource();
+                throw;
             }
             finally
             {
