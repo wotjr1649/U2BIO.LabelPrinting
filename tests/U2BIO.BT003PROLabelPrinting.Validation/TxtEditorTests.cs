@@ -111,6 +111,12 @@ namespace U2BIO.BT003PROLabelPrinting.Validation
             var qWithoutOffset = BtplTemplate.Parse("^Q040,005\n^L\nE");
             Check(qWithoutOffset.Settings.Count == 1 && qWithoutOffset.ToBtpl() == "^Q040,005\n^L\nE", "legacy two-argument Q is readable");
             Format("GapLabelSetting", () => qWithoutOffset.WithLabelLength(45m));
+            // 읽어 온 2인수 설정 객체를 다른 서식에 재사용해도 2인수 Q를 만들지 않는다.
+            Format("GapLabelSetting", () => q.WithSetting(qWithoutOffset.Settings[0]));
+            Format("GapLabelSetting", () => minimal.WithSetting(qWithoutOffset.Settings[0]));
+            // 세 인수로 해석되지 않는 Q 변형도 원문 편집으로 넣지 못한다.
+            foreach (string variant in new[] { "^Q40,5 ", "^Q40,5,", "^Q40, 5", " ^Q40,5" })
+                Format("GapLabelSetting", () => minimal.WithRawText(variant + "\n^L\nE"));
             Check(qWithoutOffset.WithSetting(new BtplSetting("^Q", "40,5,7.5+")).ToBtpl() == "^Q040,005,7.5+\n^L\nE", "Q optional offset insertion");
             Format("MissingSetting", () => minimal.WithLabelLength(40m));
             Format("UnsupportedCommand", () => new BtplSetting("^E", "15"));
@@ -209,6 +215,7 @@ namespace U2BIO.BT003PROLabelPrinting.Validation
                 // 두 인수 Q가 남은 서식은 저장 전에 거부되어 파일을 만들지 않는다.
                 string gapPath = Path.Combine(directory, "gap.txt");
                 Format("GapLabelSetting", () => BtplTemplate.Parse("^Q40,5\r\n^L\r\nE").SaveAs(gapPath));
+                Format("GapLabelSetting", () => BtplTemplate.Parse("^Q40,5,\r\n^L\r\nE").SaveAs(gapPath));
                 Check(!File.Exists(gapPath) && Directory.GetFiles(directory, "*.tmp").Length == 0, "two-argument Q is not saved");
                 string largePath = Path.Combine(directory, "large.txt");
                 using (var large = new FileStream(largePath, FileMode.CreateNew, FileAccess.Write)) large.SetLength(4 * 1024 * 1024 + 1);

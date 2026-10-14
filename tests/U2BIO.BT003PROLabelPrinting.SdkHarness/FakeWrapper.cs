@@ -14,13 +14,13 @@ namespace HFSample
         internal static int? ConnectCode, DisconnectCode;
         internal static int FailCode, PortState, ResetCount;
         internal static bool CleanupThrows, KeepOpen;
-        internal static Action BeforePrint, BeforeCleanup;
+        internal static Action BeforePrint, BeforeCleanup, AfterSendData;
 
         internal static void Clear()
         {
             Calls.Clear(); FailAt = ThrowAt = null; Response = ",0";
             LastForm = Variables = null; FailCode = PortState = ResetCount = 0;
-            CleanupThrows = KeepOpen = false; BeforePrint = BeforeCleanup = null;
+            CleanupThrows = KeepOpen = false; BeforePrint = BeforeCleanup = AfterSendData = null;
             ExceptionText = "SyntheticSdkFailure"; ConnectCode = DisconnectCode = null;
         }
         private static int Call(string function)
@@ -68,6 +68,6 @@ namespace HFSample
             Call("StartLabelPrint"); BeforePrint?.Invoke(); output.Append(Response);
         }
         public static int SendData(string command)
-        { Calls.Add(command); return Call("SendData"); }
+        { Calls.Add(command); int code = Call("SendData"); AfterSendData?.Invoke(); return code; }
     }
 }

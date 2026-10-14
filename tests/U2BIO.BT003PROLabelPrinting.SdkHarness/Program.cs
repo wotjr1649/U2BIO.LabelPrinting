@@ -51,7 +51,7 @@ internal static class Program
             }
         }
         // 다른 포트·손상된 기록은 위치 불명으로 시작한다.
-        foreach (string content in new[] { "OTHER\r\n15", "garbage", port + "\r\n-1" }) {
+        foreach (string content in new[] { "OTHER\r\n15", "garbage", port + "\r\n-1", port + "\r\n1001", port + "\r\nunknown" }) {
             File.WriteAllText(file, content); Restart();
             using (var printer = new Bt003Printer()) {
                 Check(printer.ConnectUsb(port, 15).IsSuccess, "Connect failed.");
@@ -66,6 +66,34 @@ internal static class Program
             Check(!printer.Print(Literal).IsSuccess && File.ReadAllLines(file).SequenceEqual(new[] { port, "unknown" }), "Interrupted print was not saved as unknown.");
             Fake.ThrowAt = null;
         }
+        string unwritable = Path.Combine(file, "unwritable.txt");
+        // 인쇄 SDK가 정상 응답한 뒤 파일 저장이 실패하면 메모리는 0으로 갱신하고 파일은 unknown으로 남기며, 배출 SDK는 호출하지 않는다.
+        Restart();
+        try {
+            using (var printer = Connected(port, 15)) {
+                Fake.BeforePrint = () => Bt003Printer.PositionFile = unwritable;
+                Fake.Calls.Clear();
+                var printed = printer.Print(Literal);
+                Check(!printed.IsSuccess && printed.PrintInvoked && printed.PrintCode == 0 && printed.Message.Contains("배출")
+                    && !Fake.Calls.Contains("^M15\r\n"), "Presentation ran without a saved unknown record.");
+                Fake.BeforePrint = null; Bt003Printer.PositionFile = file;
+                Check(File.ReadAllLines(file).SequenceEqual(new[] { port, "unknown" }), "Failed follow-up save changed the file.");
+                Fake.Calls.Clear();
+                Check(printer.Print(Literal).IsSuccess && !Fake.Calls.Any(call => call.StartsWith("^B")) && Fake.Calls.Contains("^M15\r\n"), "Known position was lost after SDK success.");
+            }
+            // 복귀가 성공한 뒤 인쇄 전 저장이 실패하면 복귀 사실을 남기고 인쇄 SDK는 호출하지 않는다.
+            using (var printer = new Bt003Printer()) {
+                Check(printer.ConnectUsb(port, 15).IsSuccess, "Connect failed.");
+                Fake.AfterSendData = () => Bt003Printer.PositionFile = unwritable;
+                Fake.Calls.Clear();
+                var returned = printer.Print(Literal);
+                Check(!returned.IsSuccess && !returned.PrintInvoked && Fake.Calls.Contains("^B15\r\n") && !Fake.Calls.Contains("StartLabelPrint")
+                    && returned.Message.Contains("복귀") && returned.Message.Contains("인쇄 SDK를 호출하지"), "Return evidence was replaced.");
+                Fake.AfterSendData = null; Bt003Printer.PositionFile = file;
+                Fake.Calls.Clear();
+                Check(printer.Print(Literal).IsSuccess && !Fake.Calls.Any(call => call.StartsWith("^B")), "Completed return was repeated.");
+            }
+        } finally { Fake.BeforePrint = Fake.AfterSendData = null; Bt003Printer.PositionFile = file; }
         // 기록 파일을 쓸 수 없으면 복귀·인쇄 SDK를 호출하지 않는다.
         File.WriteAllText(file, port + "\r\n15"); Restart();
         try {
