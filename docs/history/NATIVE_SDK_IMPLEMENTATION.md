@@ -1,12 +1,12 @@
 # TASK-02 Native SDK 구현·검증 상태
 
-이 문서는 버전별 native 진단·실기 이력이다. 현재 #16 제품은 제조사 원본 Wrapper 39개 선언과 StringBuilder를 직접 사용하고 자체 로더·실행 시 해시·포인터 bridge를 제거했다. 현재 계약은 [동기 스펙](specs/SYNC_USB_MVP.md)과 [공개 API](PRINTER_API.ko.md)다. 아래 과거 보호·바인딩·실기 기록은 새 구현의 native 성공 증거가 아니다.
+이 문서는 버전별 native 진단·실기 이력이다. 현재 #16 제품은 제조사 원본 Wrapper 39개 선언과 StringBuilder를 직접 사용하고 자체 로더·실행 시 해시·포인터 bridge를 제거했다. 현재 계약은 [동기 스펙](../specs/SYNC_USB_MVP.md)과 [공개 API](../PRINTER_API.ko.md)다. 아래 과거 보호·바인딩·실기 기록은 새 구현의 native 성공 증거가 아니다.
 
-기준: v0.1.1-design, SDK_API_COVERAGE.md의 두 native 배포 쌍. .NET Framework 4.6.1 관리 DLL은 AnyCPU다. 후속 TASK-05에서 고정 제조사 런타임 사본을 Sdk/x86·x64에 준비했으며 [배포 가이드](SDK_DEPLOYMENT.ko.md)를 따른다.
+기준: v0.1.1-design, SDK_API_COVERAGE.md의 두 native 배포 쌍. .NET Framework 4.6.1 관리 DLL은 AnyCPU다. 후속 TASK-05에서 고정 제조사 런타임 사본을 Sdk/x86·x64에 준비했으며 [배포 가이드](../SDK_DEPLOYMENT.ko.md)를 따른다.
 
-2026-10-09 TASK-05 현황: [제품 API 가이드](PRINTER_API.ko.md)의 동기 연결·사전검사·단건 wrapper를 구현·합성 검사했다. 아래는 TASK-02 시점의 진단/게이트 이력이다. raw GetFunction 게이트는 유지하고 현재 제품은 허용된 네 연결 함수·세 인쇄 함수의 typed 접근과 사전검사를 사용한다. 새 실제 장치 검증·일괄/취소·native 장애 격리 완료를 뜻하지 않는다. 과거 “제품 인쇄 미구현/차단” 문구는 당시 버전의 상태로 읽는다.
+2026-10-09 TASK-05 현황: [제품 API 가이드](../PRINTER_API.ko.md)의 동기 연결·사전검사·단건 wrapper를 구현·합성 검사했다. 아래는 TASK-02 시점의 진단/게이트 이력이다. raw GetFunction 게이트는 유지하고 현재 제품은 허용된 네 연결 함수·세 인쇄 함수의 typed 접근과 사전검사를 사용한다. 새 실제 장치 검증·일괄/취소·native 장애 격리 완료를 뜻하지 않는다. 과거 “제품 인쇄 미구현/차단” 문구는 당시 버전의 상태로 읽는다.
 
-2026-10-08 모듈 역할 정정: 아래 기록은 TASK-02의 진단 이력이며 공개 제품 API의 구현 완료가 아니다. 후속 TASK-05는 [모듈 역할](MODULE_OVERVIEW.ko.md)에 따라 제조사 wrapper의 연결·인쇄 기능을 기본 사용으로 제공하고 DataTable/JSON은 선택 기능으로 둔다. 별도 NativeHost와 native 장애 격리 보장은1차에 포함하지 않는다. 과거 보호 경계 검토·진단 근거를 범용 안전 보장으로 바꾸지 않으며 미검증 범위는 #10에 남긴다. 현재 소스의 인쇄 게이트는 그대로 유지하고 확인된 호출 경로의 제품 구현·검증을 먼저 완료한다.
+2026-10-08 모듈 역할 정정: 아래 기록은 TASK-02의 진단 이력이며 공개 제품 API의 구현 완료가 아니다. 후속 TASK-05는 [모듈 역할](../MODULE_OVERVIEW.ko.md)에 따라 제조사 wrapper의 연결·인쇄 기능을 기본 사용으로 제공하고 DataTable/JSON은 선택 기능으로 둔다. 별도 NativeHost와 native 장애 격리 보장은1차에 포함하지 않는다. 과거 보호 경계 검토·진단 근거를 범용 안전 보장으로 바꾸지 않으며 미검증 범위는 #10에 남긴다. 현재 소스의 인쇄 게이트는 그대로 유지하고 확인된 호출 경로의 제품 구현·검증을 먼저 완료한다.
 
 최신 판정은 마지막 [이번 실기 판정과 남은 계약](#이번-실기-판정과-남은-계약)을 기준으로 한다. 앞선 실행·미확인·다음 작업 기록은 각 시험 시점의 이력이며 현재 상태로 읽지 않는다. 제조사 추가 문서의 부재는 중단 사유에서 제외하되 제품 인쇄 차단은 유지한다.
 
@@ -126,7 +126,7 @@ node tests/connection-probe-cli.test.js
 
 RS-232/TCP/IP 명령은 입력 예시이며 COM3의 인쇄 포트 역할이나 예시 주소에 장치가 있다는 뜻이 아니다. COM 목록 조회는 .NET SerialPort.GetPortNames만 사용하고 포트를 열거나 선택하지 않는다. 실제 통신은 SDK가 수행하며 별도 SerialPort를 함께 열지 않는다. 현재 장치는 두 케이블을 모두 연결해야 한다는 사용자 확인 조건을 따른다. 이 보완은 TASK-02의 internal 진단이며 생산 공개 연결 API·수명 통합은 TASK-05다.
 
-StartLabelPrint의 추가 정적 근거와 남은 버퍼·응답 경계는 [정적 분석 결과](START_LABEL_PRINT_ANALYSIS.md)에 기록한다. 실제 인쇄 호출을 실행하거나 게이트를 해제하지 않았다.
+StartLabelPrint의 추가 정적 근거와 남은 버퍼·응답 경계는 [정적 분석 결과](../START_LABEL_PRINT_ANALYSIS.md)에 기록한다. 실제 인쇄 호출을 실행하거나 게이트를 해제하지 않았다.
 
 2026-10-08, `49e9b86`에서 fresh verifier가 CLI·문서 검사를 통과하고 Release 실행 파일/DLL 네 개가 관리 소스 `9c62367`의 manifest와 일치함을 확인했다. `3dbbad2`에서 독립적으로 실행한 validation csproj 직접 Release/Debug × x86/x64 빌드·검증도 모두 exit 0이었다. root의 일반 verify-build는 기존 사용자 솔루션에 Release|x86 구성이 없어 MSB4126/exit 1로 실패했다. 직접 프로젝트 검사를 솔루션 검사 성공으로 표시하지 않는다. 관리 검증에서는 vendor를 실행하지 않았고 양쪽 새 연결 CLI의 SDK 없는 경로는 NativeLibraryMissing/exit 3이었다. 양쪽 `--list-ports`는 COM3을 반환했으며 포트를 열지 않았다.
 
@@ -173,7 +173,7 @@ node tests/label-probe-cli.test.js
 
 `--label-test`는 USB와 단일 x86/x64 선택을 필수로 한다. 다른 아키텍처를 자동 시도하지 않으며, 실패·불명 후 재출력하지 않는다. ResetForm→SetPrintFormString→StartLabelPrint만 내부 typed 경로로 사용하고 생산 GetFunction 게이트는 유지한다. 연결 전 점유, 포트 설정·연결·Open 실패와 서식 등록 실패는 인쇄 진입을 막는다. 호출이 반환한 뒤 기존 연결 정리 규칙을 적용한다.
 
-새 메타데이터 파서·42-byte 뒤 접근 불가 페이지·오류 정리의 근거와 한계는 [정적 분석 결과](START_LABEL_PRINT_ANALYSIS.md)를 따른다. CLI 결과의 `Returned`는 응답이 문법 검사를 통과했다는 뜻이다. native=0도 물리적 출력 완료나 RFID 보존을 확정하지 않는다. 원문 UID·vendor 출력은 보고하거나 Issue에 기록하지 않는다. native 예외/프로세스 종료 시 실제 인쇄 여부는 불명이며 호출 실패를 미출력으로 단정하지 않는다.
+새 메타데이터 파서·42-byte 뒤 접근 불가 페이지·오류 정리의 근거와 한계는 [정적 분석 결과](../START_LABEL_PRINT_ANALYSIS.md)를 따른다. CLI 결과의 `Returned`는 응답이 문법 검사를 통과했다는 뜻이다. native=0도 물리적 출력 완료나 RFID 보존을 확정하지 않는다. 원문 UID·vendor 출력은 보고하거나 Issue에 기록하지 않는다. native 예외/프로세스 종료 시 실제 인쇄 여부는 불명이며 호출 실패를 미출력으로 단정하지 않는다.
 
 추가 재현 시험은 구현 전에 실패를 관측한 후 커밋했다. 관리 fixture는 최대 42-byte 응답, 실패 단계별 인쇄 차단, 반환 예외 후 해제를 검사하며 vendor 코드를 실행하지 않는다. CLI 검사는 명시적 단일 아키텍처와 메타데이터 allowlist를 검사한다. 이 검사를 실기 인쇄·한글·RFID 일치 증거로 확대하지 않는다.
 
@@ -222,7 +222,7 @@ BTPL 원문 10쪽 이미지에서 일반 Gap의 Q 인수는 라벨 길이와 실
 
 SDK 일일 로그에서는 자체 합성 요소를 두 번 확인했다. 첫 기록은 API 서식 등록 인수, 둘째는 SDK가 가공한 서식으로 구분된다. 가공된 자체 서식은 12행(빈 행 1개)·CRLF 기준 85 bytes·E 1개이며, 원문의 P1/R0가 빠지고 E0가 E0,0으로 바뀌었다. 임의 private 내용은 출력하거나 기록하지 않았다. 이 85 bytes는 텍스트 로그 크기이며 GDI 처리 후 실제 native 전송 버퍼 크기와 동일하다고 선언하지 않는다.
 
-프로그램의 StartLabelPrint(1)은 1회이고 x64는 미시도다. 로그 두 서식 기록과 native buffer의 조각 전송 call site 두 개를 두 장 출력으로 해석하지 않는다. 자세한 x86 전송·로깅 경로 및 반환값의 한계는 [정적 분석 결과](START_LABEL_PRINT_ANALYSIS.md)를 따른다. 재출력 대신 흰색 라벨 크기·빈 뒷종이 간격·마크 유무와 위치를 확인한 뒤, 확정한 용지에 맞는 단일 서식으로 다시 검증한다. 한글·장수·RFID 전후 일치·펌웨어 조건은 계속 미확인이다.
+프로그램의 StartLabelPrint(1)은 1회이고 x64는 미시도다. 로그 두 서식 기록과 native buffer의 조각 전송 call site 두 개를 두 장 출력으로 해석하지 않는다. 자세한 x86 전송·로깅 경로 및 반환값의 한계는 [정적 분석 결과](../START_LABEL_PRINT_ANALYSIS.md)를 따른다. 재출력 대신 흰색 라벨 크기·빈 뒷종이 간격·마크 유무와 위치를 확인한 뒤, 확정한 용지에 맞는 단일 서식으로 다시 검증한다. 한글·장수·RFID 전후 일치·펌웨어 조건은 계속 미확인이다.
 
 ### 실측값과 뒷면 Black-Mark 확인
 
@@ -249,7 +249,7 @@ SDK 일일 로그에서는 자체 합성 요소를 두 번 확인했다. 첫 기
 
 검증 프로그램은 기존 `50x25gap3`와 새 `blackmark60x20` 두 고정 합성 후보만 선택한다. 새 후보는 `^Q40,5,7.5+`, `^W70`, `^G0`이며 아직 해당 SDK·펌웨어의 지원이 검증된 보정 서식이 아니다. CLI가 후보를 선택할 수 있다는 사실과 물리적 사용 가능 여부를 구분한다. 임의 원문·파일·DB 값을 진단 입력으로 받지 않는다. 내부 null/empty/NUL/길이 검사는 완전한 BTPL 검증기가 아니며, 공개 제품 인쇄 경로의 검증·게이트를 대신하지 않는다.
 
-정적 분석에서 Q의 세 번째 값 처리에 구체적인 한계를 확인했다. x86 `^Q` literal과 3-field 분기를 대조했으며, 두 번째 값이 0이 아닌 경로는 세 번째 값을 내부 용지 metadata로 읽지 않는다. 후보의 `5`는 이 경로를 따른다. 원문이 가공 로그에 남더라도 GDI/raster 후 전송에 offset이 반영된다는 증거가 아니다. `^G0`의 처리와 모델 지원도 미확인이다. 상세 주소·소수 입력의 한계는 [정적 분석 결과](START_LABEL_PRINT_ANALYSIS.md)의 Black-Mark 절에 기록한다. 이 발견 때문에 후보를 보정 완료로 간주해 재출력하지 않았다. 다음 확인은 실제 전송 버퍼에 생성되는 용지/센서 설정과 원점 처리이며 Registry 변경이나 raw SendData로 우회하지 않는다.
+정적 분석에서 Q의 세 번째 값 처리에 구체적인 한계를 확인했다. x86 `^Q` literal과 3-field 분기를 대조했으며, 두 번째 값이 0이 아닌 경로는 세 번째 값을 내부 용지 metadata로 읽지 않는다. 후보의 `5`는 이 경로를 따른다. 원문이 가공 로그에 남더라도 GDI/raster 후 전송에 offset이 반영된다는 증거가 아니다. `^G0`의 처리와 모델 지원도 미확인이다. 상세 주소·소수 입력의 한계는 [정적 분석 결과](../START_LABEL_PRINT_ANALYSIS.md)의 Black-Mark 절에 기록한다. 이 발견 때문에 후보를 보정 완료로 간주해 재출력하지 않았다. 다음 확인은 실제 전송 버퍼에 생성되는 용지/센서 설정과 원점 처리이며 Registry 변경이나 raw SendData로 우회하지 않는다.
 
 fresh verifier가 `c163e24`에서 일반 `verify-build`의 Release/Debug × x86/x64 네 빌드·실행과 두 CLI 회귀 검사를 모두 exit 0으로 확인했다. 서로 다른 두 입력 서식의 전달, 기존 실패 단계별 인쇄 차단·연결 정리, 잘못된 서식의 callback 전 거부가 통과했다. 생산 `PrintContractUnverified` 게이트는 유지된다. 이 검증에서는 vendor DLL·장치·인쇄·RFID 함수를 실행하지 않았다. 기존 Visual Studio metadata 변경은 보존하고 task 커밋에서 제외했다.
 
@@ -263,7 +263,7 @@ fresh verifier가 `c163e24`에서 일반 `verify-build`의 Release/Debug × x86/
 
 ## Black-Mark 후보의 단일 실기: 응답 timeout, 이송·출력 없음
 
-후속 정적 확인에서 Q가 이미 있을 때 원문 행을 보존하고, FONT/AUID/AW 외 일반 행에 CRLF를 붙여 전송 buffer에 append하는 경로를 확인했다. Q의 세 번째 값을 내부 metadata로 읽지 않는 관측을 프린터 전송 누락으로 확대하지 않는다. [추가 분석](START_LABEL_PRINT_ANALYSIS.md)의 후속 확인 절에 주소와 USB WriteFile·응답 대기 경로를 기록했다.
+후속 정적 확인에서 Q가 이미 있을 때 원문 행을 보존하고, FONT/AUID/AW 외 일반 행에 CRLF를 붙여 전송 buffer에 append하는 경로를 확인했다. Q의 세 번째 값을 내부 metadata로 읽지 않는 관측을 프린터 전송 누락으로 확대하지 않는다. [추가 분석](../START_LABEL_PRINT_ANALYSIS.md)의 후속 확인 절에 주소와 USB WriteFile·응답 대기 경로를 기록했다.
 
 2026-10-08 11:35:28 KST, `7600257`에서 현재 관리 코드 핀 `c163e24`를 사용해 다음 명령을 한 번 실행했다. 실행 전 네 Release 산출물과 제조사 DLL 쌍의 해시 일치, SDK 로그 대상의 reparse point 부재, 기존 task probe 프로세스 0을 확인했다. SDK 로그 생성·추가 기록은 이전 사용자 허용 범위이며 재요청하지 않았다.
 
@@ -285,7 +285,7 @@ Windows에서 BT-003 Pro의 USB 관련 두 PnP 항목과 FTDI COM3은 OK 상태�
 
 다음 진단은 동일 용지 후보에서 텍스트 명령만 제조사 샘플의 AW 형태로 바꾸어 native AC와 SDK의 AW 그림 변환 경로를 구분한다. AC 미지원이 원인으로 확인된 것은 아니며 AW 인수의 보편 계약도 확정하지 않는다. 합성 문구만 사용하고 위치/센서/용지 설정을 동시에 바꾸지 않는다.
 
-추가 USB 경로 분석에서 SDK가 `SetPrinterPort` 중 사용자별 USB 연결 캐시를 삭제·재등록하는 별도 효과를 확인했다. 대상은 `HKCU\Software\BitekTechnology\AXBT003`의 USBn 값이다. 현재 USB 프린터 열거 수와 캐시 값은 각각 1이며 USB1의 vendor VID/PID·USB printer interface class뿐 아니라 활성 프린터 instance와의 일치도 내용 공개 없이 확인했다. 정확한 주소와 Registry API는 [정적 분석](START_LABEL_PRINT_ANALYSIS.md)의 USB 캐시 절을 따른다. 이 효과는 SDK 자체 로그 기록 허용과 별도이며, 발견 뒤 현재 USB1 삭제·재등록/갱신에 대한 명시 허용 전까지 추가 native 호출을 보류했다. 이후 사용자가 TASK-02 동안 현재 USB1 캐시 갱신을 명시 허용했다. root에서 Registry를 수동 수정하거나 SetLabelSetting을 호출하지 않았다. TASK-02 조건 3·5·6·7과 TASK-03 착수는 계속 열어 둔다.
+추가 USB 경로 분석에서 SDK가 `SetPrinterPort` 중 사용자별 USB 연결 캐시를 삭제·재등록하는 별도 효과를 확인했다. 대상은 `HKCU\Software\BitekTechnology\AXBT003`의 USBn 값이다. 현재 USB 프린터 열거 수와 캐시 값은 각각 1이며 USB1의 vendor VID/PID·USB printer interface class뿐 아니라 활성 프린터 instance와의 일치도 내용 공개 없이 확인했다. 정확한 주소와 Registry API는 [정적 분석](../START_LABEL_PRINT_ANALYSIS.md)의 USB 캐시 절을 따른다. 이 효과는 SDK 자체 로그 기록 허용과 별도이며, 발견 뒤 현재 USB1 삭제·재등록/갱신에 대한 명시 허용 전까지 추가 native 호출을 보류했다. 이후 사용자가 TASK-02 동안 현재 USB1 캐시 갱신을 명시 허용했다. root에서 Registry를 수동 수정하거나 SetLabelSetting을 호출하지 않았다. TASK-02 조건 3·5·6·7과 TASK-03 착수는 계속 열어 둔다.
 
 ## AW 비교 후보 준비
 
@@ -342,7 +342,7 @@ Pre=0, SetPort=0, Connect=0, Open=1, Form=0, Invoked=1, response=parsed, native=
 
 사용자는 문구가 흰 라벨 안에 출력됐지만 충분히 배출되지 않아 직접 당겨서 확인했다고 답했다. 후속 사진에서도 흰 라벨 왼쪽 위의 `U2BIO TEST`가 선명하게 보인다. 따라서 이번 x86·AW·합성 ASCII 조합의 실제 문구 출력은 확인됐다. 인쇄 후 배출은 미해결이며, API 한 번 호출과 실제 수량 계약 전체를 구분한다. 원본 사진은 복사·게시하지 않는다. Y120은 이번 시험 서식에만 적용되며 공통 DLL의 기본값으로 넣지 않는다. 이전 시험 사이에 본체 calibration도 있었으므로 Y 변경만을 모든 원인의 단독 해결로 확대하지 않는다.
 
-배출 문제에는 Y를 더 옮기는 대신 정지·이송 경로를 확인한다. [정적 분석](START_LABEL_PRINT_ANALYSIS.md)의 `^E` 절에서 현재 SDK의 명령 재작성과 내부 대기시간을 구분했다. RFID 인쇄 함수의 후처리를 인쇄 전용 경로에 적용하거나, 거리와 대기시간을 혼동해 `^E`를 변경하지 않는다. 추가 인쇄·이송·설정 변경은 이 확인 과정에서 실행하지 않았다. TASK-02 조건 3·5·6·7은 한글/글꼴·x64 인쇄·RFID 저장 데이터 전후 일치·펌웨어와 응답 계약의 남은 증거가 필요하므로 계속 열어 둔다.
+배출 문제에는 Y를 더 옮기는 대신 정지·이송 경로를 확인한다. [정적 분석](../START_LABEL_PRINT_ANALYSIS.md)의 `^E` 절에서 현재 SDK의 명령 재작성과 내부 대기시간을 구분했다. RFID 인쇄 함수의 후처리를 인쇄 전용 경로에 적용하거나, 거리와 대기시간을 혼동해 `^E`를 변경하지 않는다. 추가 인쇄·이송·설정 변경은 이 확인 과정에서 실행하지 않았다. TASK-02 조건 3·5·6·7은 한글/글꼴·x64 인쇄·RFID 저장 데이터 전후 일치·펌웨어와 응답 계약의 남은 증거가 필요하므로 계속 열어 둔다.
 
 ## Black-Mark 7.5 mm 인수 제외 비교 준비
 
@@ -374,7 +374,7 @@ fresh verifier의 일반 Release/Debug × x86/x64 빌드·관리 검증, 두 CLI
 
 사용자가 HFSample_UL에서 정상 출력·완전 배출됐다고 보고한 두 서식의 명령·순서를 그대로 반영했다. 기존 blackmark60x20은 AW, 신규 blackmark60x20ac는 AC를 StartLabelPrint로 전달한다. 별도 blackmark60x20direct는 동일 AC 서식을 SendData로 한 번 전달한다. 어느 선택도 공통 DLL의 용지·좌표·농도 기본값이 아니다. 50x25gap3 시험 데이터는 보존했다.
 
-현재 샘플 소스가 원래 StartPrintWithRfid 루프에서 SendData 루프로 달라진 점을 재확인했다. 원인 분석은 [START_LABEL_PRINT_ANALYSIS.md](START_LABEL_PRINT_ANALYSIS.md)의 현재 샘플 절을 따른다. 현재 소스는 직접전송 AW를 거부하므로 사용자 보고만으로 두 글꼴의 모든 실행 경로를 검증 완료로 처리하지 않는다.
+현재 샘플 소스가 원래 StartPrintWithRfid 루프에서 SendData 루프로 달라진 점을 재확인했다. 원인 분석은 [START_LABEL_PRINT_ANALYSIS.md](../START_LABEL_PRINT_ANALYSIS.md)의 현재 샘플 절을 따른다. 현재 소스는 직접전송 AW를 거부하므로 사용자 보고만으로 두 글꼴의 모든 실행 경로를 검증 완료로 처리하지 않는다.
 
 직접전송 진단은 기존 process/target 예약·worker·연결 정리를 재사용한다. ASCII·AW 거부는 native load/callback 전에 적용하며 고정 CLI recipe만 허용한다. SendData를 한 번 호출하고 ResetForm/SetPrintForm/StartLabelPrint/RFID API는 호출하지 않는다. 보고는 DIRECT_LABEL·send·invoked·completion=unknown·printApiCalls=0·rfidApiCalls=0만 추가한다. SDK0과 정상 연결 정리를 실기 인쇄 성공으로 선언하지 않으며 기존 제품 PrintContractUnverified gate는 유지한다.
 
@@ -453,7 +453,7 @@ node tools/probe-native-load.js --sdk-directory '..\BT-003 pro SDK\라이브러�
 
 근거는 `.work/native-load/1791442246611/evidence.json`이다. x64 결과 하나, form0·StartLabelPrint(1) 호출 경로·response parsed·native0·empty prefix·length2·disconnect0·closed0·RFID API calls0이며 supervisor exit0, 잔여 probe0이다. native0은 물리 성공 판정이 아니다. 사용자는 문구가 없거나 출력이 이상하다고 답했고 세부 상태 설명은 아직 받지 못했다. x86·한글·추가 FEED·자동 재출력은 하지 않았다.
 
-후속 사용자 로그에서 입력 E15가 SDK 가공 기록의 E0,0으로 변경된 것을 확인했다. 두 기록은 서식 저장과 내부 가공으로 구분하며 두 번 인쇄 요청의 증거가 아니다. 관리 호출·supervisor에는 retry2 또는 자동 재출력이 없다. 자세한 판정과 잔여 한계는 [로그 분석](START_LABEL_PRINT_ANALYSIS.md)의 15:50 x64 절을 따른다. 현재 TASK-02는 OPEN이며 정상 AW 인쇄·완전 배출 및 남은 응답 계약 확인 전 TASK-03에 착수하지 않는다.
+후속 사용자 로그에서 입력 E15가 SDK 가공 기록의 E0,0으로 변경된 것을 확인했다. 두 기록은 서식 저장과 내부 가공으로 구분하며 두 번 인쇄 요청의 증거가 아니다. 관리 호출·supervisor에는 retry2 또는 자동 재출력이 없다. 자세한 판정과 잔여 한계는 [로그 분석](../START_LABEL_PRINT_ANALYSIS.md)의 15:50 x64 절을 따른다. 현재 TASK-02는 OPEN이며 정상 AW 인쇄·완전 배출 및 남은 응답 계약 확인 전 TASK-03에 착수하지 않는다.
 
 ## AW 크기 단독 비교: 문구 확인·배출 부족
 

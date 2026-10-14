@@ -44,7 +44,7 @@ Issue가 생기기 전 저장소 최초 구성에는 `chore/repository-bootstrap
 
 ## DLL 기반 빌드와 실행 검사
 
-TASK-02의 추가 검사와 native 실행 경계는 [NATIVE_SDK_IMPLEMENTATION.md](NATIVE_SDK_IMPLEMENTATION.md)를 따른다. 아래 최초 missing-library 시험과 [BUILD_EVIDENCE.md](BUILD_EVIDENCE.md)는 TASK-01 당시의 근거다.
+TASK-02의 추가 검사와 native 실행 경계는 [NATIVE_SDK_IMPLEMENTATION.md](history/NATIVE_SDK_IMPLEMENTATION.md)를 따른다. 아래 최초 missing-library 시험과 [BUILD_EVIDENCE.md](BUILD_EVIDENCE.md)는 TASK-01 당시의 근거다.
 
 검증한 커밋·구성별 결과·산출물 해시는 [BUILD_EVIDENCE.md](BUILD_EVIDENCE.md)에 기록한다.
 

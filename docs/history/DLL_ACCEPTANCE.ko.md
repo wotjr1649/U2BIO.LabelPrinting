@@ -1,6 +1,6 @@
 # TASK-07 DLL 인수·배포 상태
 
-2026-10-09 기준이다. 제품 소스 `3050c1f`, TASK-06 완료 문서 `7de27b0`을 기반으로 검사·미실행을 구분한다. 사용자가 실기 검증을 별도 보류로 지시하여 TASK-07은 소프트웨어 인수로 정리하고 실제 SDK/장치 인수는 [별도 실기 #11](HARDWARE_VALIDATION.ko.md)에 남긴다. 실제 출력 금지 기간에 제조사 SDK를 실행하거나 용지를 이송하지 않았다.
+2026-10-09 기준이다. 제품 소스 `3050c1f`, TASK-06 완료 문서 `7de27b0`을 기반으로 검사·미실행을 구분한다. 사용자가 실기 검증을 별도 보류로 지시하여 TASK-07은 소프트웨어 인수로 정리하고 실제 SDK/장치 인수는 [별도 실기 #11](../HARDWARE_VALIDATION.ko.md)에 남긴다. 실제 출력 금지 기간에 제조사 SDK를 실행하거나 용지를 이송하지 않았다.
 
 ## 공통 실행 근거
 
@@ -51,17 +51,17 @@ USB 인터페이스와 COM 인터페이스를 혼동하지 않는다. TASK-02의
 
 ## 배포 검사와 한계
 
-SDK 사본은 `src/U2BIO.BT003PROLabelPrinting/Sdk/x86` 및 `Sdk/x64`다. BlackfishNfcLib.dll과 제조사 의존 HFModule.dll을 실제 앱 프로세스와 같은 비트 수로 함께 배포한다. 관리 DLL은 AnyCPU다. [배포 명령·파일 배치](SDK_DEPLOYMENT.ko.md)를 따른다.
+SDK 사본은 `src/U2BIO.BT003PROLabelPrinting/Sdk/x86` 및 `Sdk/x64`다. BlackfishNfcLib.dll과 제조사 의존 HFModule.dll을 실제 앱 프로세스와 같은 비트 수로 함께 배포한다. 관리 DLL은 AnyCPU다. [배포 명령·파일 배치](../SDK_DEPLOYMENT.ko.md)를 따른다.
 
 2026-10-09 read-only `NativeSdk.InspectPair` 검사에서 양쪽 사본의 PE 아키텍처·고정 해시·41 exact export·import를 확인했다. 이 검사는 파일 핸들로 읽고 vendor DLL을 로드하지 않는다. TASK-05의 별도 packaging 검사는 두 플랫폼 선택 복사, 관리 전용 빌드의 SDK 미복사, 잘못된 platform 속성 거절, ProjectReference 전달과 네 DLL 고정 해시를 확인했다.
 
-`VerifySdkAssets.ps1` 직접 실행은 호스트 정책으로 거절되어 미실행이다. 허용된 CertUtil/MSBuild 검사와 현재 PE/해시 검사는 별도 근거이며 그 스크립트를 실행한 것으로 보고하지 않는다. 두 쌍의 고정 해시는 [SDK API 대조표](SDK_API_COVERAGE.md)에 있다.
+`VerifySdkAssets.ps1` 직접 실행은 호스트 정책으로 거절되어 미실행이다. 허용된 CertUtil/MSBuild 검사와 현재 PE/해시 검사는 별도 근거이며 그 스크립트를 실행한 것으로 보고하지 않는다. 두 쌍의 고정 해시는 [SDK API 대조표](../SDK_API_COVERAGE.md)에 있다.
 
 새 제품 경로의 실제 LoadLibrary/GetProcAddress/ABI/SDK 함수 정상 실행, 실제 device 오류·timeout·취소·재연결은 미실행이다. 제조사 모듈의 정상 로드가 DllMain/의존 초기화를 실행하므로 오프라인 파일 검사와 동일하지 않다. 다른 SDK/ANSI 환경/글꼴 조합은 미검증이며 native fatal 장애 격리를 보장하지 않는다. RFID 저장값 전후 비교는 사용자 제외 정책에 따라 미검증으로 남기고 RFID API/기록 명령 미사용과 구분한다.
 
 ## DB·DevExpress 없는 독립 호출
 
-[OfflineSmoke 소스](../examples/OfflineSmoke/Program.cs)와 [프로젝트](../examples/OfflineSmoke/OfflineSmoke.csproj)는 관리 DLL의 공개 API만 참조한다. 솔루션에 UI 프로젝트를 추가하지 않았다. 현재 예제는 합성 두 줄의 선택 Templates Parse/Validate/Render, 연결 없는 Print(string)의 NotConnected 및 native SDK 파일/모듈 부재를 확인한다. 취소·비동기 공개 API는 #16에서 제거됐다. 아래 기존 인수 증거는 이전 API의 역사 기록이다. Connect를 호출하지 않아 장치·인쇄·이송·DB가 실행되지 않는다. 예시 용지값은 DLL 기본값이 아니다.
+[OfflineSmoke 소스](../../examples/OfflineSmoke/Program.cs)와 [프로젝트](../../examples/OfflineSmoke/OfflineSmoke.csproj)는 관리 DLL의 공개 API만 참조한다. 솔루션에 UI 프로젝트를 추가하지 않았다. 현재 예제는 합성 두 줄의 선택 Templates Parse/Validate/Render, 연결 없는 Print(string)의 NotConnected 및 native SDK 파일/모듈 부재를 확인한다. 취소·비동기 공개 API는 #16에서 제거됐다. 아래 기존 인수 증거는 이전 API의 역사 기록이다. Connect를 호출하지 않아 장치·인쇄·이송·DB가 실행되지 않는다. 예시 용지값은 DLL 기본값이 아니다.
 
 ```text
 MSBuild examples\OfflineSmoke\OfflineSmoke.csproj /t:Rebuild /m:1 /nr:false /p:Platform=x86 /p:Configuration=Release
@@ -76,6 +76,6 @@ examples\OfflineSmoke\bin\x64\Release\U2BIO.LabelPrinting.OfflineSmoke.exe --exp
 
 ## 다음 완료 조건
 
-TASK-07 조건1·4·5·6의 기존 증거에 조건2의 실기 이관, 조건3의 파일 배포/정적 검사와 runtime 미검증 구분, 조건7의 소프트웨어 개발 선행 정리를 적용한다. TASK-05의 새 USB 정상/오류 실기도 #11로 보류한다. 원래 조건과 이관 근거는 [실기 검증 보류·이관](HARDWARE_VALIDATION.ko.md)에 보존한다. 이 소프트웨어 인수 기준으로 TASK-08/09를 진행할 수 있으며 실제 장치 지원·운영 인수는 보류한다.
+TASK-07 조건1·4·5·6의 기존 증거에 조건2의 실기 이관, 조건3의 파일 배포/정적 검사와 runtime 미검증 구분, 조건7의 소프트웨어 개발 선행 정리를 적용한다. TASK-05의 새 USB 정상/오류 실기도 #11로 보류한다. 원래 조건과 이관 근거는 [실기 검증 보류·이관](../HARDWARE_VALIDATION.ko.md)에 보존한다. 이 소프트웨어 인수 기준으로 TASK-08/09를 진행할 수 있으며 실제 장치 지원·운영 인수는 보류한다.
 
 C24 전체 사례의 UI 부분은 TASK-08에서 검사한다. TASK-07은 이미 실행한 DLL 저장/충돌/I/O/연속 저장 계약을 확인하며 화면 구현 전 UI 버튼/표시 검사를 선행 조건으로 요구하지 않는다. 표의 C24 부분 판정은 전체 사례의 UI 검증이 아직 남았다는 뜻이다. 실제 USB/runtime ABI 검사 의무는 #11에 보존하며 표의 C20/C21 부분 판정을 유지한다.

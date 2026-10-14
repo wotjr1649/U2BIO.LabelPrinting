@@ -32,12 +32,6 @@ HFModule.dll
 
 ## 검증과 현재 개발 상태
 
-```text
-powershell -NoProfile -File tests/VerifySdkAssets.ps1
-```
+현재 #16은 [동기 USB 스펙](specs/SYNC_USB_MVP.md)과 [공개 API](PRINTER_API.ko.md)를 따른다. node tools/verify-build.js가 x86/x64 각각 Bt003NativePlatform 배포 빌드를 수행하고, 복사한 두 SDK 파일이 [SDK API 대조표](SDK_API_COVERAGE.md)의 플랫폼별 고정 해시와 같은지 검사한다. 고정 해시가 같으면 PE 아키텍처·export·import도 감사한 원본과 같다. 이 검사는 SDK를 로드하거나 프린터를 호출하지 않는다. 제품 실행 중 해시 검사는 하지 않으며 DllImport 기본 로딩과 ApplicationDirectory/System32 검색 제한을 사용한다.
 
-이 검사는 저장소의 네 파일이 고정 제조사 해시와 같은지만 확인하며 SDK를 로드하거나 프린터를 호출하지 않는다. 아키텍처별 복사, 기본 빌드의 SDK 미복사, 잘못된 속성 오류 및 ProjectReference 전달은 별도 MSBuild 구성 검사 대상이다.
-
-현재 #16은 [동기 USB 스펙](specs/SYNC_USB_MVP.md)과 [공개 API](PRINTER_API.ko.md)를 따른다. node tools/verify-build.js가 x86/x64 각각 Bt003NativePlatform 배포 빌드를 수행하고 복사한 두 SDK 파일의 PE·고정 해시를 Validation --inspect-deployment로 검사한다. SDK를 로드하지 않는다. 제품 실행 중 해시 검사는 하지 않으며 DllImport 기본 로딩과 ApplicationDirectory/System32 검색 제한을 사용한다.
-
-관리 대체 harness·제품 DLL 메타데이터 검사와 실제 P/Invoke/물리 출력 확인은 구분한다. 현재 SDK·장치·인쇄·배출 실기는 수행하지 않았다. 이전 비동기/일괄 인쇄 증거는 이전 API의 역사 기록이다.
+관리 대체 harness·제품 DLL 메타데이터 검사와 실제 P/Invoke/물리 출력 확인은 구분한다. 실기 결과와 운영 서식·배출 기준은 [인쇄 위치 운영 기준](PRINT_PRESENTATION.ko.md#운영-기준)에 있다. 이전 비동기/일괄 인쇄 증거는 이전 API의 역사 기록이다.

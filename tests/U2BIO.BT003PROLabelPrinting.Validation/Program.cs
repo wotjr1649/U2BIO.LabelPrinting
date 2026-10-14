@@ -21,51 +21,6 @@ namespace U2BIO.BT003PROLabelPrinting.Validation
 
         private static int Main(string[] args)
         {
-            if (args.Length == 1 && args[0] == "--host-system-directory")
-            {
-                Console.WriteLine("HOST_SYSTEM_DIRECTORY|" + Environment.SystemDirectory);
-                return 0;
-            }
-            if (args.Length == 1 && args[0] == "--list-ports")
-            {
-                foreach (string port in System.IO.Ports.SerialPort.GetPortNames())
-                    if (System.Text.RegularExpressions.Regex.IsMatch(port, "\\ACOM[1-9][0-9]*\\z", System.Text.RegularExpressions.RegexOptions.IgnoreCase))
-                        Console.WriteLine("SERIAL_PORT|" + port.ToUpperInvariant());
-                return 0;
-            }
-            if ((args.Length == 1 || args.Length == 2) && args[0] == "--probe-native-load")
-            {
-                string nonce = args.Length == 2 ? args[1] : "";
-                if (nonce.Length != 0 && !System.Text.RegularExpressions.Regex.IsMatch(nonce, "\\A[a-f0-9]{32}\\z")) return 2;
-                try { return NativeLoadProbe.RunWithNonce(Assembly.LoadFrom(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "U2BIO.BT003PROLabelPrinting.dll")), nonce); }
-                catch (Exception) { Console.Error.WriteLine("NATIVE_LOAD|status=Failed|code=ProbeInternalError" + (nonce.Length == 0 ? "" : "|nonce=" + nonce)); return 8; }
-            }
-            if (args.Length >= 3 && (args[0] == "--probe-connection" || args[0] == "--probe-label-50x25gap3" || args[0] == "--probe-label-blackmark60x20" || args[0] == "--probe-label-blackmark60x20ac" || args[0] == "--probe-label-blackmark60x20direct" || args[0] == "--probe-label-present15" || args[0] == "--probe-label-return15"))
-            {
-                bool label = args[0] != "--probe-connection";
-                string transport = args[1];
-                int required = transport == "tcp" ? 4 : 3;
-                if ((transport != "usb" && transport != "serial" && transport != "tcp") || (args.Length != required && args.Length != required + 1)) return 2;
-                if (label && transport != "usb") return 2;
-                string nonce = args.Length == required + 1 ? args[required] : "";
-                if (nonce.Length != 0 && !System.Text.RegularExpressions.Regex.IsMatch(nonce, "\\A[a-f0-9]{32}\\z")) return 2;
-                try { return NativeLoadProbe.RunWithNonce(Assembly.LoadFrom(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "U2BIO.BT003PROLabelPrinting.dll")), nonce,
-                    transport, args[2], transport == "tcp" ? args[3] : "", label ? LabelDiagnosticForms.Create(args[0].Substring("--probe-label-".Length)) : null, args[0] == "--probe-label-blackmark60x20direct" || args[0] == "--probe-label-present15" || args[0] == "--probe-label-return15"); }
-                catch (Exception) { Console.Error.WriteLine("NATIVE_LOAD|status=Failed|code=ProbeInternalError" + (nonce.Length == 0 ? "" : "|nonce=" + nonce)); return 8; }
-            }
-            if (args.Length == 3 && args[0] == "--inspect-deployment" && (args[1] == "x86" || args[1] == "x64"))
-            {
-                try { NativeTests.InspectDeployment(args[2], args[1] == "x64"); return 0; }
-                catch (Exception error) { Console.Error.WriteLine("FAIL: deployment inspection (" + error.GetType().Name + ")"); return 1; }
-            }
-            if (args.Length == 2 && args[0] == "--inspect-sdk")
-            {
-                try {
-                    NativeTests.InspectSdk(Assembly.LoadFrom(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "U2BIO.BT003PROLabelPrinting.dll")), args[1]);
-                    return 0;
-                }
-                catch (Exception error) { Console.Error.WriteLine("FAIL: SDK inspection (" + error.GetType().Name + ")"); return 1; }
-            }
             bool txtOnly = args.Length == 2 && args[1] == "--txt-only";
             if ((args.Length != 1 && !txtOnly) || (args[0] != "--expect-x86" && args[0] != "--expect-x64"))
             {
@@ -89,7 +44,6 @@ namespace U2BIO.BT003PROLabelPrinting.Validation
                 TxtEditorTests.Run();
                 if (txtOnly) Console.WriteLine("SCOPE: TXT editor and common printer contracts; JSON/XML APIs removed");
                 SyncMvpContractTests.Run(library);
-                NativeTests.Run(library);
 
                 PortableExecutableKinds libraryKind;
                 ImageFileMachine libraryMachine;

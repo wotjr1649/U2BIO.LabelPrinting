@@ -26,7 +26,7 @@
 
 ## 초기 실패와 후속 확인
 
-2026-10-12 사용자 확정에 따른 [서식 확장 #12](https://github.com/wotjr1649/U2BIO.LabelPrinting/issues/12)은 TXT/BTPL·JSON·XML을 같은 BtplTemplate으로 읽고 저장하는 작업이다. TASK-03/04 모델·검증·저장을 재사용하고 실기/연결 수명 보완은 분리한다. [서식 계약](TEMPLATE_FORMATS.ko.md)을 따른다. 실제 진행 상태는 원격 이슈를 기준으로 한다.
+2026-10-12 사용자 확정에 따른 [서식 확장 #12](https://github.com/wotjr1649/U2BIO.LabelPrinting/issues/12)은 TXT/BTPL·JSON·XML을 같은 BtplTemplate으로 읽고 저장하는 작업이다. TASK-03/04 모델·검증·저장을 재사용하고 실기/연결 수명 보완은 분리한다. [서식 계약](specs/TXT_TEMPLATE_EDITOR.md)을 따른다. 실제 진행 상태는 원격 이슈를 기준으로 한다.
 
 1. `gh issue create`의 GraphQL 생성 요청이 서버 오류로 실패했다.
 2. REST 생성 요청도 실패했다. JSON 입력을 로컬에서 검증한 뒤 별도 입력 방식으로 확인한 응답은 `HTTP/2.0 500 Internal Server Error`이며 CLI는 `unexpected end of JSON input`을 반환했다.

@@ -15,6 +15,11 @@ const configuration = cli.length === 0 ? 'Release'
 const evidence = { configuration, scope: txtOnly ? 'txt-and-printer' : 'full', deferredFormats: [], commands: [], artifacts: [] };
 let logRoot;
 let childEnv, taskkill;
+// docs/SDK_API_COVERAGE.md의 고정 제조사 사본 해시다.
+const sdkHashes = {
+    x86: { 'BlackfishNfcLib.dll': 'fed09bae47835dcf78f58579e3cfb9382561799b369e54fd9fa0902e5b89dbf5', 'HFModule.dll': 'bb2721801bc853ead75e647608c6b36a5a3a75f344095e4e29ffc35e822319d4' },
+    x64: { 'BlackfishNfcLib.dll': '64c7874980cb0a774a766e299359bc9cba5dd66fd052d758f1d4d1678d8cf72c', 'HFModule.dll': '542ebfbccca1f953b4dcafb2a1faed198707d8fbcdb0653c0fc121d3c273edf5' }
+};
 
 function inside(parent, candidate) {
     const relative = path.relative(parent, candidate);
@@ -146,7 +151,7 @@ async function main() {
         await run(msbuild, [path.join(example, 'OfflineSmoke.csproj'), '/t:Rebuild', '/m:1', '/nr:false', '/nologo', '/v:minimal',
             `/p:Configuration=${configuration}`, `/p:Platform=${platform}`], `example-build-${platform}`);
         await run(path.join(example, 'bin', platform, configuration, 'U2BIO.LabelPrinting.OfflineSmoke.exe'), [`--expect-${platform}`], `example-${platform}`);
-        // 실제 배포 속성을 사용해 복사된 SDK의 PE·고정 해시를 검사한다. DLL 로딩은 하지 않는다.
+        // 실제 배포 속성으로 복사된 SDK가 플랫폼별 고정 해시와 같은지 검사한다. 고정 해시가 같으면 PE 아키텍처·export·import도 감사한 원본과 같다. DLL 로딩은 하지 않는다.
         const product = path.join(root, 'src', 'U2BIO.BT003PROLabelPrinting');
         await run(msbuild, [path.join(product, 'U2BIO.BT003PROLabelPrinting.csproj'), '/t:Rebuild', '/m:1', '/nr:false', '/nologo', '/v:minimal',
             `/p:Configuration=${configuration}`, `/p:Bt003NativePlatform=${platform}`], `deployment-build-${platform}`);
@@ -154,11 +159,11 @@ async function main() {
         const hash = file => crypto.createHash('sha256').update(fs.readFileSync(file)).digest('hex');
         if (hash(path.join(deployment, 'U2BIO.BT003PROLabelPrinting.dll')) !== hash(path.join(output, 'U2BIO.BT003PROLabelPrinting.dll')))
             throw new Error(`Deployed managed DLL differs from validated product (${platform}).`);
-        await run(path.join(output, 'U2BIO.BT003PROLabelPrinting.Validation.exe'), ['--inspect-deployment', platform, deployment], `deployment-inspect-${platform}`);
-        for (const name of ['BlackfishNfcLib.dll', 'HFModule.dll']) {
+        for (const [name, expected] of Object.entries(sdkHashes[platform])) {
             const file = path.join(deployment, name);
-            evidence.artifacts.push({ platform, path: path.relative(root, file).replace(/\\/g, '/'),
-                sha256: crypto.createHash('sha256').update(fs.readFileSync(file)).digest('hex') });
+            const sha256 = hash(file);
+            if (sha256 !== expected) throw new Error(`Deployed SDK file differs from the pinned manufacturer copy: ${platform}/${name}`);
+            evidence.artifacts.push({ platform, path: path.relative(root, file).replace(/\\/g, '/'), sha256 });
         }
         for (const name of ['U2BIO.BT003PROLabelPrinting.dll', 'U2BIO.BT003PROLabelPrinting.Validation.exe']) {
             const file = path.join(output, name);

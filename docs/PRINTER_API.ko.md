@@ -190,7 +190,7 @@ SDK 호출 중 DLL 누락·형식/비트수 불일치·함수 누락은 IsSucces
 
 ## 검증과 배포 범위
 
-관리 DLL은 .NET Framework 4.6.1/AnyCPU다. 호출 프로그램의 비트수와 맞는 `BlackfishNfcLib.dll`, `HFModule.dll`을 실행 폴더에 배포한다. 배포 파일의 PE와 고정 해시는 Validation에서 검사하고 제품 DLL은 실행 시 해시를 검사하지 않는다.
+관리 DLL은 .NET Framework 4.6.1/AnyCPU다. 호출 프로그램의 비트수와 맞는 `BlackfishNfcLib.dll`, `HFModule.dll`을 실행 폴더에 배포한다. 배포 파일의 고정 해시는 verify-build에서 검사하고 제품 DLL은 실행 시 해시를 검사하지 않는다.
 
 관리 harness는 제품 두 소스를 연결하여 SDK 대체 호출로 순서·실패·잠금 수명을 검사한다. 실제 제품 DLL의 계약 검사는 공개 API와 선언을 확인하며 SDK를 로드하지 않는다. [오프라인 예제](../examples/OfflineSmoke/Program.cs)도 실제 프린터 연결과 인쇄를 실행하지 않는다. 문서의 사용 예제는 SDK를 실행하는 코드이므로 자동 검사 대상으로 실행하지 않는다.
 

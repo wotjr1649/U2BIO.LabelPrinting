@@ -1,8 +1,8 @@
-현재 #16은 [동기 USB MVP 스펙](specs/SYNC_USB_MVP.md)을 따른다. 제조사 원본 39개 Wrapper 선언을 직접 사용하며 StartLabelPrint도 StringBuilder 방식이다. 아래 41개 카탈로그·과거 포인터 보호 설명은 Validation/LegacySdk의 역사 진단 기록이며 현재 제품 실행 구조가 아니다.
+현재 #16은 [동기 USB MVP 스펙](specs/SYNC_USB_MVP.md)을 따른다. 제조사 원본 39개 Wrapper 선언을 직접 사용하며 StartLabelPrint도 StringBuilder 방식이다. 아래 41개 카탈로그·과거 포인터 보호 설명은 제거한 과거 Validation 진단 코드의 역사 기록이며 현재 제품 실행 구조가 아니다.
 
 # SDK 장치 API 대조표
 
-검사일: 2026-10-07. 헤더·C# 샘플·PE export를 정적으로 대조했다. DLL을 로드하거나 장치 함수를 실행한 결과가 아니다. 후속 TASK-02에서 41개 내부 선언과 배포 검사·로더 코드를 추가했으며, 실행 가능 여부와 미확정 계약은 [NATIVE_SDK_IMPLEMENTATION.md](NATIVE_SDK_IMPLEMENTATION.md)에 기록한다.
+검사일: 2026-10-07. 헤더·C# 샘플·PE export를 정적으로 대조했다. DLL을 로드하거나 장치 함수를 실행한 결과가 아니다. 후속 TASK-02에서 41개 내부 선언과 배포 검사·로더 코드를 추가했으며, 실행 가능 여부와 미확정 계약은 [NATIVE_SDK_IMPLEMENTATION.md](history/NATIVE_SDK_IMPLEMENTATION.md)에 기록한다.
 
 ## 1. 기준과 커버리지
 
@@ -82,9 +82,9 @@
 
 두 Blackfish 파일의 버전 표기는 2.1.0.0이다. SDK 내 같은 버전 번호의 다른 해시 파일과 혼합하지 않는다. Blackfish의 HFModule 의존성을 배포 세트로 고정한다. 관리 DLL AnyCPU와 native 아키텍처 일치는 별도로 확인한다. COM 등록·전역 설치는 하지 않는다.
 
-실행 프로그램 폴더에 프로세스와 같은 native 한 세트를 배치한다. 현재 #16의 배포 파일 PE·아키텍처·고정 해시는 Validation에서 검사한다. 실행 시 해시나 기존 모듈 충돌 검사는 하지 않는다. ConnectUsb에서 원본 DllImport를 처음 호출하며 DLL 누락·아키텍처·entrypoint 예외는 현재 공개 API의 고정 식별 코드로 전달한다. 오프라인 검사·미리보기는 SDK 파일 없이 동작한다. 실제 로딩 정책과 수명은 [동기 USB 스펙](specs/SYNC_USB_MVP.md), 오류 전달은 [공개 API](PRINTER_API.ko.md)가 기준이다.
+실행 프로그램 폴더에 프로세스와 같은 native 한 세트를 배치한다. 현재 #16의 배포 파일은 verify-build가 플랫폼별 고정 해시로 검사하며, 해시가 같으면 PE 아키텍처도 원본과 같다. 실행 시 해시나 기존 모듈 충돌 검사는 하지 않는다. ConnectUsb에서 원본 DllImport를 처음 호출하며 DLL 누락·아키텍처·entrypoint 예외는 현재 공개 API의 고정 식별 코드로 전달한다. 오프라인 검사·미리보기는 SDK 파일 없이 동작한다. 실제 로딩 정책과 수명은 [동기 USB 스펙](specs/SYNC_USB_MVP.md), 오류 전달은 [공개 API](PRINTER_API.ko.md)가 기준이다.
 
-과거 TASK-02는 당시 Windows 환경의 실제 x86/x64 로딩·41개 바인딩과 USB "0"의 SetRfidPort 미호출 연결·해제를 확인했다. 파일·해시·기존 모듈 충돌을 구분한 자체 로더 오류 체계도 당시 구현의 역사다. RFID 케이블을 물리적으로 분리한 조건은 검증하지 않았다. [당시 구현·검증 상태](NATIVE_SDK_IMPLEMENTATION.md)의 근거는 현재 #16 로더·StringBuilder 또는 모든 OS·인쇄 계약의 실행 검증으로 사용하지 않는다.
+과거 TASK-02는 당시 Windows 환경의 실제 x86/x64 로딩·41개 바인딩과 USB "0"의 SetRfidPort 미호출 연결·해제를 확인했다. 파일·해시·기존 모듈 충돌을 구분한 자체 로더 오류 체계도 당시 구현의 역사다. RFID 케이블을 물리적으로 분리한 조건은 검증하지 않았다. [당시 구현·검증 상태](history/NATIVE_SDK_IMPLEMENTATION.md)의 근거는 현재 #16 로더·StringBuilder 또는 모든 OS·인쇄 계약의 실행 검증으로 사용하지 않는다.
 
 ## 3. 반환값 해석과 인쇄 경로
 

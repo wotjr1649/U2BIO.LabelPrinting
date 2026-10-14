@@ -44,6 +44,6 @@ PrintAsync 추가 전 `3b9753d`의 빌드는 CS1061로 실패했다. 추가 검�
 
 ## 완료 경계
 
-TASK-06의 관리·합성 SDK 제어 흐름 검증이다. 실제 vendor SDK 로드/USB 출력/물리 배출/RFID 저장값 비교/native 장애 격리는 실행하지 않았다. TASK-05의 실기 조건7과 TASK-07의 제품 인수 조건을 통과로 바꾸지 않는다. DevExpress Tester는 TASK-07 필수 조건 충족 후 시작한다. [제품 API](PRINTER_API.ko.md)와 [작업 계획](IMPLEMENTATION_PLAN.md)을 함께 따른다.
+TASK-06의 관리·합성 SDK 제어 흐름 검증이다. 실제 vendor SDK 로드/USB 출력/물리 배출/RFID 저장값 비교/native 장애 격리는 실행하지 않았다. TASK-05의 실기 조건7과 TASK-07의 제품 인수 조건을 통과로 바꾸지 않는다. DevExpress Tester는 TASK-07 필수 조건 충족 후 시작한다. [제품 API](../PRINTER_API.ko.md)와 [작업 계획](../IMPLEMENTATION_PLAN.md)을 함께 따른다.
 
-후속 2026-10-09 사용자 결정: 실기 조건은 [별도 #11](HARDWARE_VALIDATION.ko.md)에 미실행으로 보류하고 TASK-05/07은 소프트웨어 범위로 정리한다. Tester는 변경된 소프트웨어 인수 뒤 개발할 수 있다. 위 실행 기록이나 실제 장치 미검증을 통과로 변경하지 않는다.
+후속 2026-10-09 사용자 결정: 실기 조건은 [별도 #11](../HARDWARE_VALIDATION.ko.md)에 미실행으로 보류하고 TASK-05/07은 소프트웨어 범위로 정리한다. Tester는 변경된 소프트웨어 인수 뒤 개발할 수 있다. 위 실행 기록이나 실제 장치 미검증을 통과로 변경하지 않는다.
