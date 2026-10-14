@@ -197,11 +197,13 @@ namespace U2BIO.BT003PROLabelPrinting
     /// <remarks>
     /// <para>모든 길이는 mm이며 소수 셋째 자리까지, 절댓값 1000 이하입니다. "폭"은 급지 방향에 수직, "길이·높이"는 급지 방향 치수입니다.</para>
     /// <para>계산: <c>^Q{segmentLengthMm},{markWidthMm},{z}+</c>, z = markToLabelMm + sensorOffsetMm(0.5 mm 단위 반올림), <c>^W{linerWidthMm}</c>.
-    /// LabelArea는 받침지 가운데에 놓인 흰 라벨의 서식 좌표이고 SafeArea는 그보다 2 mm 안쪽입니다.</para>
-    /// <para>예: 받침지 70, 마크 제외 길이 35(피치 40 − 마크 5), 마크 5, 흰 부분 7.5, 흰 라벨 60×20, 300dpi → ^Q35,5,9+, ^W70, SafeArea X 83~744·Y 24~213.
-    /// 이 값과 기본 보정 1.5 mm는 BT-003 Pro 실기에서 서식 원점이 흰 라벨 상단에 오도록 확인한 결과입니다.</para>
-    /// <para>다른 용지나 센서 재보정 뒤에는 계산값으로 시작해 눈금 라벨 한 장으로 확인합니다. 인쇄 후 배출 거리와 글자 높이는 계산하지 않습니다.
-    /// 운영 중 ^Q 값을 바꾸면 바꾼 뒤 첫 장은 이전 원점으로 인쇄됩니다.</para>
+    /// LabelArea는 서식 원점(0,0)에서 실측 보정만큼 떨어진 흰 라벨의 서식 좌표이고 SafeArea는 그보다 2 mm 안쪽입니다.</para>
+    /// <para>예: 받침지 70, 마크 제외 길이 35(피치 40 − 마크 5), 마크 5, 흰 부분 7.5, 흰 라벨 60×20, 300dpi → ^Q35,5,9+, ^W70,
+    /// LabelArea X 47~756·Y 43~279, SafeArea X 71~732·Y 66~255. BT-003 Pro 실기에서 이 z는 FEED 직후·연속·복귀·재실행 모두 같은 위치였고,
+    /// 흰 라벨 상단은 원점보다 3.6 mm 아래, 왼쪽 끝은 받침지 가운데 기준보다 1.0 mm 왼쪽이었습니다(기본 보정값).
+    /// 같은 용지에서 z=12.5(마크 + 흰 부분)는 원점이 라벨 상단에 오지만 FEED 직후 약 20 mm, 연속 셋째 장부터 약 3 mm 어긋나 쓰지 않습니다.</para>
+    /// <para>다른 용지나 센서 재보정 뒤에는 계산값으로 시작해 눈금 라벨로 z의 안정성과 보정값을 확인합니다. 인쇄 후 배출 거리와 글자 높이는 계산하지 않습니다.
+    /// 운영 중 ^Q 값을 바꾸면 바꾼 뒤 첫 장은 이전 원점으로 인쇄되므로 한 장 인쇄 뒤 FEED로 다시 맞춥니다.</para>
     /// </remarks>
     public sealed class BtplBlackMarkMedia
     {
@@ -220,13 +222,17 @@ namespace U2BIO.BT003PROLabelPrinting
         /// <param name="labelHeightMm">흰 라벨 높이(급지 방향)입니다. markToLabelMm과 더한 값이 segmentLengthMm 이하여야 하며 4 mm보다 커야 합니다. 예: 20.</param>
         /// <param name="dpi">프린터 헤드 해상도입니다. 203 또는 300만 허용하며 SafeArea·LabelArea의 dot 환산에 씁니다. 예: 300.</param>
         /// <param name="sensorOffsetMm">자로 잰 흰 부분과 프린터가 쓰는 z의 차이(mm)입니다. 기본값 1.5는 이 BT-003 Pro의 실측값입니다.
-        /// 눈금 라벨에서 흰 라벨 상단 경계가 Y−n dot이면 n ÷ (dpi ÷ 25.4)만큼 줄이고, Y+n이면 그만큼 늘립니다.</param>
+        /// z를 바꾸면 원점이 1 mm당 약 dpi ÷ 25.4 dot 움직이지만, 마크 경계와 맞물리는 값은 위치가 흔들리므로 눈금 라벨 여러 장으로 안정성을 확인합니다.</param>
+        /// <param name="verticalOffsetMm">서식 원점(Y0)에서 흰 라벨 상단까지의 거리(mm)입니다. 눈금 라벨에서 라벨 상단 경계가 걸린 Y dot ÷ (dpi ÷ 25.4)로 잽니다.
+        /// 기본값 3.6은 이 프린터·운영 기준 용지의 실측값(Y≈42)입니다. 0 이상이며 라벨이 원점 위로 나가면 인쇄할 수 없어 거부합니다.</param>
+        /// <param name="horizontalOffsetMm">흰 라벨 왼쪽 끝이 받침지 가운데 정렬 위치보다 오른쪽(+)·왼쪽(−)으로 떨어진 거리(mm)입니다.
+        /// 눈금 라벨의 실제 왼쪽 끝 X dot ÷ (dpi ÷ 25.4) − (받침지 폭 − 라벨 폭) ÷ 2로 잽니다. 기본값 −1.0은 이 프린터의 실측값(X≈47)입니다.</param>
         /// <exception cref="BtplFormatException">값이 범위(절댓값 1000 mm 이하, 소수 셋째 자리까지)를 벗어나거나 라벨이 받침지·마크 사이 길이에 들어가지 않으면 InvalidArguments입니다.</exception>
         public BtplBlackMarkMedia(decimal linerWidthMm, decimal segmentLengthMm, decimal markWidthMm, decimal markToLabelMm,
-            decimal labelWidthMm, decimal labelHeightMm, int dpi = 300, decimal sensorOffsetMm = 1.5m)
+            decimal labelWidthMm, decimal labelHeightMm, int dpi = 300, decimal sensorOffsetMm = 1.5m, decimal verticalOffsetMm = 3.6m, decimal horizontalOffsetMm = -1.0m)
         {
             // 계산 전에 범위와 자릿수를 검사해 overflow나 출력 반올림으로 다른 값이 만들어지지 않게 한다.
-            decimal[] values = { linerWidthMm, segmentLengthMm, markWidthMm, markToLabelMm, labelWidthMm, labelHeightMm, sensorOffsetMm };
+            decimal[] values = { linerWidthMm, segmentLengthMm, markWidthMm, markToLabelMm, labelWidthMm, labelHeightMm, sensorOffsetMm, verticalOffsetMm, horizontalOffsetMm };
             if (values.Any(value => Math.Abs(value) > MaximumMm || value != Math.Round(value, 3)))
             {
                 throw new BtplFormatException("InvalidArguments");
@@ -242,10 +248,15 @@ namespace U2BIO.BT003PROLabelPrinting
 
             LabelSetting = new BtplSetting("^Q", Mm(segmentLengthMm) + "," + Mm(markWidthMm) + "," + Mm(z) + "+");
             WidthSetting = new BtplSetting("^W", Mm(linerWidthMm));
-            // 원점이 흰 라벨 상단에 오는 Q에서 라벨은 받침지 가운데에 놓인다.
-            decimal left = (linerWidthMm - labelWidthMm) / 2;
-            LabelArea = Area(dpi, left, 0, left + labelWidthMm, labelHeightMm);
-            SafeArea = Area(dpi, left + SafeMarginMm, SafeMarginMm, left + labelWidthMm - SafeMarginMm, labelHeightMm - SafeMarginMm);
+            // 라벨은 받침지 가운데 기준에서 실측 가로 보정만큼, 원점에서 실측 세로 보정만큼 떨어져 놓인다.
+            decimal left = (linerWidthMm - labelWidthMm) / 2 + horizontalOffsetMm;
+            decimal top = verticalOffsetMm;
+            if (left < 0 || top < 0)
+            {
+                throw new BtplFormatException("InvalidArguments");
+            }
+            LabelArea = Area(dpi, left, top, left + labelWidthMm, top + labelHeightMm);
+            SafeArea = Area(dpi, left + SafeMarginMm, top + SafeMarginMm, left + labelWidthMm - SafeMarginMm, top + labelHeightMm - SafeMarginMm);
         }
 
         /// <summary>계산한 ^Q 설정이며 BtplTemplate.WithSetting에 그대로 쓸 수 있습니다.</summary>
@@ -254,7 +265,7 @@ namespace U2BIO.BT003PROLabelPrinting
         /// <summary>계산한 ^W 설정입니다.</summary>
         public BtplSetting WidthSetting { get; }
 
-        /// <summary>입력 치수로 계산한 흰 라벨 전체의 서식 좌표 범위(dot)입니다. 라벨 위치 편차로 실측과 2 mm까지 다를 수 있어 배치에는 SafeArea를 씁니다.</summary>
+        /// <summary>입력 치수와 보정으로 계산한 흰 라벨 전체의 서식 좌표 범위(dot)입니다. 라벨 폭 측정 오차만큼 실측과 다를 수 있어 배치에는 SafeArea를 씁니다.</summary>
         public BtplArea LabelArea { get; }
 
         /// <summary>흰 라벨에서 2 mm 안쪽의 권장 배치 범위(dot)입니다.</summary>
