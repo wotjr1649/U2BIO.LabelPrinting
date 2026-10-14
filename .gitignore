@@ -33,6 +33,7 @@ TestResults/
 /docs/.btpl-*/
 /docs/Blackfish BT-003 PRO_markdown/
 /docs/NFC_BT003-M01-04_Programming_Manual_v1.3_markdown/
+/docs/NFC_BT003-M01-04_Programming_Manual_v1.3_markdown.zip
 /docs/BTPL_API_GUIDE.ko.md
 /docs/verify_btpl_guide.ps1
 **/BlackfishNfcLib.dll
