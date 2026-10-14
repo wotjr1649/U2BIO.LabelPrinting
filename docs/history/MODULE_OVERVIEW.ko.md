@@ -1,6 +1,6 @@
 # 공통 USB 라벨 인쇄 DLL
 
-기본 인쇄 계약은 [동기 USB MVP](specs/SYNC_USB_MVP.md), 선택 편집 계약은 [TXT 편집 API](specs/TXT_TEMPLATE_EDITOR.md)다. 이슈 #16의 TXT 재설계 문서이며 구현/검증 상태는 이슈와 실행 근거를 확인한다.
+기본 인쇄 계약은 [동기 USB MVP](../specs/SYNC_USB_MVP.md), 선택 편집 계약은 [TXT 편집 API](../specs/TXT_TEMPLATE_EDITOR.md)다. 이슈 #16의 TXT 재설계 문서이며 구현/검증 상태는 이슈와 실행 근거를 확인한다.
 
 | 파일 | 책임 |
 | --- | --- |
@@ -16,4 +16,4 @@ Templates의 JSON/XML·DataTable·렌더링 결과는 제거하고 네 소스를
 
 인쇄 사용은 ConnectUsb → 선택 SetPrintingOptions → Print/PrintFile → Disconnect/Dispose다. 인쇄 후 배출과 다음 인쇄 전 복귀는 DLL 내부에서 처리한다. 호출자는 이동 명령을 중복 전송하지 않는다. 실패/불명 응답은 IsSuccess=false이며 자동 재인쇄하지 않는다. SDK 정상 응답도 물리 완료를 증명하지 않는다.
 
-[사용 예제](BTPL_TEMPLATE_API.ko.md), [프린터 API](PRINTER_API.ko.md), [배포 계약](SDK_DEPLOYMENT.ko.md)을 따른다. 관리 DLL 참조와 프로세스 비트수에 맞는 제조사 두 DLL이 필요하며 UI/DB provider를 제품에 추가하지 않는다.
+[사용 예제](../BTPL_TEMPLATE_API.ko.md), [프린터 API](../PRINTER_API.ko.md), [배포 계약](../SDK_DEPLOYMENT.ko.md)을 따른다. 관리 DLL 참조와 프로세스 비트수에 맞는 제조사 두 DLL이 필요하며 UI/DB provider를 제품에 추가하지 않는다.

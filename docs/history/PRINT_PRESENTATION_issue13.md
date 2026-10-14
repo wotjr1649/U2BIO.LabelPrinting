@@ -1,6 +1,6 @@
 # Print의 선택 배출·복귀
 
-2026-10-12 [배출 통합 #13](https://github.com/wotjr1649/U2BIO.LabelPrinting/issues/13)의 소프트웨어 계약이다. TASK-02의 M/B 제어 진단을 기존 공개 Print worker에 통합한다. 실제 새 공개 API의 장치 검증은 [#11](../HARDWARE_VALIDATION.ko.md)에 보류한다.
+2026-10-12 [배출 통합 #13](https://github.com/wotjr1649/U2BIO.LabelPrinting/issues/13)의 소프트웨어 계약이다. TASK-02의 M/B 제어 진단을 기존 공개 Print worker에 통합한다. 실제 새 공개 API의 장치 검증은 [#11](HARDWARE_VALIDATION.ko.md)에 보류한다.
 
 ## 설정과 사용
 

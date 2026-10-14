@@ -1,4 +1,4 @@
-현재 #16의 계약은 [동기 USB 스펙](specs/SYNC_USB_MVP.md)이다. 아래 분석은 포인터 보호와 자체 로더가 있던 이전 구현의 역사 기록이다. 제품은 원본 StringBuilder/DllImport로 전환했고 출력 버퍼 결함 방어와 실행 시 고정 SDK 해시는 MVP에서 제외했다. 아래 과거 보호를 현재 제품 기능이나 새 실기 성공으로 해석하지 않는다.
+현재 #16의 계약은 [동기 USB 스펙](../specs/SYNC_USB_MVP.md)이다. 아래 분석은 포인터 보호와 자체 로더가 있던 이전 구현의 역사 기록이다. 제품은 원본 StringBuilder/DllImport로 전환했고 출력 버퍼 결함 방어와 실행 시 고정 SDK 해시는 MVP에서 제외했다. 아래 과거 보호를 현재 제품 기능이나 새 실기 성공으로 해석하지 않는다.
 
 # StartLabelPrint 정적 분석 결과
 
@@ -127,7 +127,7 @@ SetPrinterPort의 USB 분기 `0xF459`는 `0x42B0`을 호출하고 이 함수의 
 
 일회 인쇄 경로의 상태 polling helper가 mode 0으로 logger를 호출한다. x86 logger `0x307D0`의 IAT와 원본 문자열을 해석한 결과, `wvsprintfA`는 상태 문자열을 만들고 `GetFileAttributesA`는 고정된 SDK 로그 디렉터리를 검사한다. 디렉터리가 없으면 `CreateDirectoryA` 경로를 거치고 날짜별 `.log` 파일을 `a+`로 연다. 이는 런타임 경로 조회가 아니라 **작업 루트 밖 고정 디렉터리에 대한 생성·추가 기록 효과**다.
 
-준비 단계에서는 정확한 외부 로그 대상의 사용자 허용 전까지 실제 진단을 호출하지 않았다. 이후 사용자가 TASK-02 시험 중 SDK 자체 로그 생성·추가 기록을 명시 허용하여 x86 진단을 실행했다. 원본 DLL 패치, 로그 API hook, 보안 정책 변경은 하지 않았다. 실제 로그 내용·UID는 저장소나 Issue에 복사하지 않는다. 시험별 SDK 응답과 실제 출력 관측은 [NATIVE_SDK_IMPLEMENTATION.md](history/NATIVE_SDK_IMPLEMENTATION.md)에 기록한다.
+준비 단계에서는 정확한 외부 로그 대상의 사용자 허용 전까지 실제 진단을 호출하지 않았다. 이후 사용자가 TASK-02 시험 중 SDK 자체 로그 생성·추가 기록을 명시 허용하여 x86 진단을 실행했다. 원본 DLL 패치, 로그 API hook, 보안 정책 변경은 하지 않았다. 실제 로그 내용·UID는 저장소나 Issue에 복사하지 않는다. 시험별 SDK 응답과 실제 출력 관측은 [NATIVE_SDK_IMPLEMENTATION.md](NATIVE_SDK_IMPLEMENTATION.md)에 기록한다.
 
 ## 문구 출력 확인 후 정지·배출 분석
 
