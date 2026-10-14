@@ -103,6 +103,7 @@ internal static class Program
                     && !Fake.Calls.Contains("StartLabelPrint"), "Variable exception reached print or kept stale code.");
                 // 변수 등록 실패와 정리 실패가 겹쳐도 파일은 정리 중 잠기고 반환 후 해제된다.
                 Fake.ThrowAt = null; Fake.FailAt = "SetPrintFormVariableData"; Fake.CleanupThrows = true;
+                Fake.ResetCount = 0;
                 Fake.BeforeCleanup = () => {
                     try { using (File.Open(path, FileMode.Open, FileAccess.Write, FileShare.ReadWrite)) { } }
                     catch (IOException) { return; }
