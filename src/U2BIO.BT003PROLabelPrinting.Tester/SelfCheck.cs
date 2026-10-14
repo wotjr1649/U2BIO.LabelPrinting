@@ -160,6 +160,13 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
 
             step = "document-conflict";
             CheckSaveFailuresKeepState(document, directory, copy);
+
+            step = "document-close";
+            Edit(document, "닫기 전");
+            document.Close();
+            Check(document.Template == null && !document.IsDirty && document.LastLoadedOrSaved == null && document.DisplayPath == "열린 서식 없음");
+            document.Open(path);
+            Check(document.Template != null && document.DisplayPath == path && !document.IsDirty);
         }
 
         // 저장이 실패하면 편집본·수정 표시·디스크 내용이 모두 그대로여야 한다.

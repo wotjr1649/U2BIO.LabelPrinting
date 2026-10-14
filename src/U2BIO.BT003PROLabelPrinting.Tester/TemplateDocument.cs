@@ -16,6 +16,14 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
 
         internal void Reload() => Open(Current.FilePath);
 
+        // 저장 여부 확인은 화면이 먼저 한다. 처음 실행한 상태로 되돌린다.
+        internal void Close()
+        {
+            Template = null;
+            IsDirty = false;
+            LastLoadedOrSaved = null;
+        }
+
         internal void Apply(Func<BtplTemplate, BtplTemplate> edit)
         {
             BtplTemplate result = edit(Current) ?? throw new InvalidOperationException("편집 결과가 없습니다.");

@@ -12,7 +12,6 @@ using DevExpress.Utils.Menu;
 using DevExpress.XtraEditors;
 using DevExpress.XtraEditors.Controls;
 using DevExpress.XtraGrid.Views.Grid;
-using DevExpress.XtraLayout.Utils;
 using DevExpress.XtraVerticalGrid.Rows;
 
 namespace U2BIO.BT003PROLabelPrinting.Tester
@@ -108,9 +107,11 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
             rowS.Properties.Value = Parameters(template, "^S") ?? "";
             rowH.Properties.Value = Parameters(template, "^H") ?? "";
             memoRaw.Text = open ? template.ToBtpl() : "";
+            // 줄을 숨기거나 글자 길이로 너비를 바꾸면 왼쪽 열 배치가 흔들리므로 항상 같은 자리에 둔다.
             bool unsupported = open && template.UnsupportedLineNumbers.Count > 0;
-            lblUnsupported.Text = unsupported ? "미지원 줄: " + string.Join(", ", template.UnsupportedLineNumbers) : "";
-            layoutItemUnsupported.Visibility = unsupported ? LayoutVisibility.Always : LayoutVisibility.Never;
+            lblUnsupported.Text = !open ? "" : "미지원 줄: " + (unsupported ? string.Join(", ", template.UnsupportedLineNumbers) : "없음");
+            lblUnsupported.ToolTip = lblUnsupported.Text;
+            lblUnsupported.Appearance.ForeColor = unsupported ? Color.Red : Color.Gray;
             RefreshRecentMenu();
             UpdateEnabled();
             lblStatus.Text = "연결: " + connectionState + connectionTarget + " · 위치: " + positionState;
@@ -126,6 +127,7 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
             btnOpen.Enabled = idle;
             btnSave.Enabled = open;
             btnSaveAs.Enabled = open;
+            btnClose.Enabled = open;
             btnSettings.Enabled = idle;
             gridTexts.Enabled = open;
             btnAddText.Enabled = open;
@@ -226,6 +228,14 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
                 return;
             }
             AddRecent(doc.Template.FilePath);
+            RefreshView();
+        }
+
+        private void btnClose_Click(object sender, EventArgs e)
+        {
+            if (busy || !ConfirmDiscard()) return;
+            doc.Close();
+            ClearMessage();
             RefreshView();
         }
 
