@@ -19,6 +19,8 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
         {
             InitializeComponent();
             this.settings = settings ?? throw new ArgumentNullException(nameof(settings));
+            // Designer 직렬화 형식을 지키려고 버튼 툴팁은 코드에서 정한다.
+            repositoryPort.Buttons[1].ToolTip = "다시 감지";
             FillPorts(settings.Port, repositoryPort.Items);
             rowPort.Properties.Value = settings.Port;
             rowDistance.Properties.Value = settings.PresentationDistanceMm;
@@ -62,6 +64,8 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
                 }
             }
             rowDetected.Properties.Value = summary;
+            // 긴 안내가 칸에서 잘려도 전체를 볼 수 있게 한다.
+            rowDetected.Properties.ToolTip = summary;
         }
 
         private void repositoryPort_ButtonClick(object sender, ButtonPressedEventArgs e)

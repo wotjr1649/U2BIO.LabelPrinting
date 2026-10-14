@@ -143,7 +143,7 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
             this.repositoryPort.AutoHeight = false;
             this.repositoryPort.Buttons.AddRange(new DevExpress.XtraEditors.Controls.EditorButton[] {
             new DevExpress.XtraEditors.Controls.EditorButton(DevExpress.XtraEditors.Controls.ButtonPredefines.Combo),
-            new DevExpress.XtraEditors.Controls.EditorButton(DevExpress.XtraEditors.Controls.ButtonPredefines.Redo) { ToolTip = "다시 감지" }});
+            new DevExpress.XtraEditors.Controls.EditorButton(DevExpress.XtraEditors.Controls.ButtonPredefines.Redo)});
             this.repositoryPort.Name = "repositoryPort";
             this.repositoryPort.ButtonClick += new DevExpress.XtraEditors.Controls.ButtonPressedEventHandler(this.repositoryPort_ButtonClick);
             //
