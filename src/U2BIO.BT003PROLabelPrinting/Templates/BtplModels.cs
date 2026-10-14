@@ -191,11 +191,15 @@ namespace U2BIO.BT003PROLabelPrinting
         }
     }
 
-    /// <summary>블랙마크 용지를 자로 잰 값(mm)으로 ^Q·^W 설정과 흰 라벨 인쇄 영역을 계산합니다.</summary>
+    /// <summary>블랙마크 용지를 자로 잰 값(mm)으로 ^Q·^W 설정과 흰 라벨 인쇄 영역(dot)을 계산합니다.</summary>
     /// <remarks>
-    /// z = 흰 부분(마크의 라벨 쪽 경계 → 흰 라벨 상단) + 센서 보정 상수이며 0.5 mm 단위로 반올림합니다.
-    /// 기본 보정 상수 1.5 mm와 원점이 흰 라벨 상단에 오는 결과는 BT-003 Pro 실기(용지 1종)에서 확인한 값입니다.
-    /// 새 용지는 계산값으로 시작하고 눈금 라벨 한 장으로 확인합니다. 인쇄 후 배출 거리와 글자 높이는 계산하지 않습니다.
+    /// <para>모든 길이는 mm이며 소수 셋째 자리까지, 절댓값 1000 이하입니다. "폭"은 급지 방향에 수직, "길이·높이"는 급지 방향 치수입니다.</para>
+    /// <para>계산: <c>^Q{segmentLengthMm},{markWidthMm},{z}+</c>, z = markToLabelMm + sensorOffsetMm(0.5 mm 단위 반올림), <c>^W{linerWidthMm}</c>.
+    /// LabelArea는 받침지 가운데에 놓인 흰 라벨의 서식 좌표이고 SafeArea는 그보다 2 mm 안쪽입니다.</para>
+    /// <para>예: 받침지 70, 마크 제외 길이 35(피치 40 − 마크 5), 마크 5, 흰 부분 7.5, 흰 라벨 60×20, 300dpi → ^Q35,5,9+, ^W70, SafeArea X 83~744·Y 24~213.
+    /// 이 값과 기본 보정 1.5 mm는 BT-003 Pro 실기에서 서식 원점이 흰 라벨 상단에 오도록 확인한 결과입니다.</para>
+    /// <para>다른 용지나 센서 재보정 뒤에는 계산값으로 시작해 눈금 라벨 한 장으로 확인합니다. 인쇄 후 배출 거리와 글자 높이는 계산하지 않습니다.
+    /// 운영 중 ^Q 값을 바꾸면 바꾼 뒤 첫 장은 이전 원점으로 인쇄됩니다.</para>
     /// </remarks>
     public sealed class BtplBlackMarkMedia
     {
@@ -204,14 +208,17 @@ namespace U2BIO.BT003PROLabelPrinting
         // BTPL의 mm 인수 범위(예: ^B/^M 0~1000 mm)에 맞춘 입력 상한이다.
         private const decimal MaximumMm = 1000m;
 
-        /// <param name="linerWidthMm">받침지 폭이며 ^W 값입니다.</param>
-        /// <param name="segmentLengthMm">마크를 뺀 마크 사이 길이이며 ^Q의 첫 인수입니다.</param>
-        /// <param name="markWidthMm">블랙마크 폭이며 ^Q의 둘째 인수입니다.</param>
-        /// <param name="markToLabelMm">마크의 라벨 쪽 경계에서 흰 라벨 상단까지의 거리입니다.</param>
-        /// <param name="labelWidthMm">흰 라벨 폭입니다. 받침지 가운데에 있다고 가정합니다.</param>
-        /// <param name="labelHeightMm">흰 라벨 높이입니다.</param>
-        /// <param name="dpi">프린터 헤드 해상도입니다. 203 또는 300만 허용합니다.</param>
-        /// <param name="sensorOffsetMm">자로 잰 흰 부분과 실제 z의 차이입니다. 기본값은 이 프린터의 실측값 1.5 mm입니다.</param>
+        /// <param name="linerWidthMm">받침지(뒷종이) 전체 폭입니다. 급지 방향에 수직으로 재며 ^W 값이 됩니다. 예: 70.</param>
+        /// <param name="segmentLengthMm">한 블랙마크의 끝에서 다음 블랙마크의 시작까지 급지 방향 길이입니다. 피치에서 마크 폭을 뺀 값이며 ^Q의 첫 인수입니다.
+        /// 피치(마크 포함 40)를 넣으면 프린터가 피치를 45 mm로 알아 빈 라벨이 나올 수 있습니다. 예: 35.</param>
+        /// <param name="markWidthMm">블랙마크 하나의 급지 방향 길이입니다. 받침지 뒷면에서 재며 ^Q의 둘째 인수입니다. 예: 5.</param>
+        /// <param name="markToLabelMm">블랙마크의 흰 라벨 쪽 경계에서 흰 라벨 상단(서식 Y0가 놓일 끝)까지의 흰 받침지 길이입니다.
+        /// 마크 폭은 포함하지 않습니다(마크를 더한 12.5가 아니라 7.5). 0 이상입니다. 예: 7.5.</param>
+        /// <param name="labelWidthMm">흰 라벨(스티커) 폭입니다. 급지 방향에 수직으로 재며 받침지 가운데에 있다고 가정합니다. 4 mm보다 커야 합니다. 예: 60.</param>
+        /// <param name="labelHeightMm">흰 라벨 높이(급지 방향)입니다. markToLabelMm과 더한 값이 segmentLengthMm 이하여야 하며 4 mm보다 커야 합니다. 예: 20.</param>
+        /// <param name="dpi">프린터 헤드 해상도입니다. 203 또는 300만 허용하며 SafeArea·LabelArea의 dot 환산에 씁니다. 예: 300.</param>
+        /// <param name="sensorOffsetMm">자로 잰 흰 부분과 프린터가 쓰는 z의 차이(mm)입니다. 기본값 1.5는 이 BT-003 Pro의 실측값입니다.
+        /// 눈금 라벨에서 흰 라벨 상단 경계가 Y−n dot이면 n ÷ (dpi ÷ 25.4)만큼 줄이고, Y+n이면 그만큼 늘립니다.</param>
         /// <exception cref="BtplFormatException">값이 범위(절댓값 1000 mm 이하, 소수 셋째 자리까지)를 벗어나거나 라벨이 받침지·마크 사이 길이에 들어가지 않으면 InvalidArguments입니다.</exception>
         public BtplBlackMarkMedia(decimal linerWidthMm, decimal segmentLengthMm, decimal markWidthMm, decimal markToLabelMm,
             decimal labelWidthMm, decimal labelHeightMm, int dpi = 300, decimal sensorOffsetMm = 1.5m)
