@@ -242,13 +242,18 @@ namespace U2BIO.BT003PROLabelPrinting.Validation
             var media = new BtplBlackMarkMedia(70m, 35m, 5m, 7.5m, 60m, 20m);
             Check(media.LabelSetting.Command == "^Q" && media.LabelSetting.Parameters == "35,5,9+", "black-mark Q from ruler values");
             Check(media.WidthSetting.Command == "^W" && media.WidthSetting.Parameters == "70", "W from liner width");
-            Check(Area(media.LabelArea, 59, 0, 768, 236), "label area dots");
-            Check(Area(media.SafeArea, 83, 24, 744, 213), "2 mm safe area dots");
+            // 기본 보정은 실측 위치다: 흰 라벨 상단이 원점보다 3.6 mm 아래, 왼쪽 끝이 받침지 가운데 기준보다 1.0 mm 왼쪽.
+            Check(Area(media.LabelArea, 47, 43, 756, 279), "label area dots");
+            Check(Area(media.SafeArea, 71, 66, 732, 255), "2 mm safe area dots");
+            var centred = new BtplBlackMarkMedia(70m, 35m, 5m, 7.5m, 60m, 20m, 300, 1.5m, 0m, 0m);
+            Check(Area(centred.LabelArea, 59, 0, 768, 236) && Area(centred.SafeArea, 83, 24, 744, 213), "offset arguments");
+            Format("InvalidArguments", () => new BtplBlackMarkMedia(70m, 35m, 5m, 7.5m, 60m, 20m, 300, 1.5m, 3.6m, -6m));
+            Format("InvalidArguments", () => new BtplBlackMarkMedia(70m, 35m, 5m, 7.5m, 60m, 20m, 300, 1.5m, -1m, -1m));
             // z는 0.5 mm 단위로 반올림하고 센서 보정 상수를 바꿀 수 있다.
             Check(new BtplBlackMarkMedia(70m, 35m, 5m, 7.3m, 60m, 20m).LabelSetting.Parameters == "35,5,9+", "z rounds up to 0.5 mm");
             Check(new BtplBlackMarkMedia(70m, 35m, 5m, 7.1m, 60m, 20m).LabelSetting.Parameters == "35,5,8.5+", "z rounds down to 0.5 mm");
             Check(new BtplBlackMarkMedia(70m, 35m, 5m, 7.5m, 60m, 20m, 300, 0m).LabelSetting.Parameters == "35,5,7.5+", "sensor offset argument");
-            Check(Area(new BtplBlackMarkMedia(70m, 35m, 5m, 7.5m, 60m, 20m, 203).LabelArea, 40, 0, 519, 160), "203 dpi area");
+            Check(Area(new BtplBlackMarkMedia(70m, 35m, 5m, 7.5m, 60m, 20m, 203).LabelArea, 32, 29, 511, 189), "203 dpi area");
             // 계산한 Q는 기존 2인수 서식을 세 인수로 고치는 편집에 그대로 쓴다.
             Check(BtplTemplate.Parse("^Q40,5\n^L\nE").WithSetting(media.LabelSetting).ToBtpl() == "^Q35,5,9+\n^L\nE", "apply calculated Q");
             Format("InvalidArguments", () => new BtplBlackMarkMedia(70m, 35m, 5m, 7.5m, 60m, 20m, 250));
@@ -259,7 +264,7 @@ namespace U2BIO.BT003PROLabelPrinting.Validation
             Format("InvalidArguments", () => new BtplBlackMarkMedia(70m, 35m, 5m, 7.5m, 3m, 20m));
             // 반올림 경계는 0.5 mm 위로 올리고(8.75 → 9), 203dpi 안전 영역도 같은 식으로 계산한다.
             Check(new BtplBlackMarkMedia(70m, 35m, 5m, 7.25m, 60m, 20m).LabelSetting.Parameters == "35,5,9+", "midpoint rounds away from zero");
-            Check(Area(new BtplBlackMarkMedia(70m, 35m, 5m, 7.5m, 60m, 20m, 203).SafeArea, 56, 16, 504, 144), "203 dpi safe area");
+            Check(Area(new BtplBlackMarkMedia(70m, 35m, 5m, 7.5m, 60m, 20m, 203).SafeArea, 48, 45, 496, 173), "203 dpi safe area");
             // 큰 값·표현할 수 없는 소수·음수 z도 다른 예외 없이 InvalidArguments다.
             Format("InvalidArguments", () => new BtplBlackMarkMedia(70m, 35m, 5m, 7.5m, 60m, 20m, 300, -9m));
             Format("InvalidArguments", () => new BtplBlackMarkMedia(70m, 35m, 0.0004m, 7.5m, 60m, 20m));
