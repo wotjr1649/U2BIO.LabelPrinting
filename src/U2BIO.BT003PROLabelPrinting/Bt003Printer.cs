@@ -25,6 +25,10 @@ namespace U2BIO.BT003PROLabelPrinting
         // 포트별 명령 이력: null은 위치 불명, 0은 복귀 불필요, 양수는 다음 인쇄 전에 복귀할 거리(mm)다.
         // 객체를 교체하거나 재연결해도 이 기록은 유지되며, 센서로 확인한 실제 용지 위치를 뜻하지 않는다.
         private static readonly Dictionary<string, int?> Positions = new Dictionary<string, int?>(StringComparer.OrdinalIgnoreCase);
+
+        // 프로그램을 다시 실행해도 직전 배출 거리를 복귀하도록 마지막 기록을 파일에 둔다. 검사만 임시 경로로 바꾼다.
+        // 첫 줄은 포트, 둘째 줄은 mm 또는 unknown이다. SDK 로그 폴더(Log)는 SDK가 정리하므로 쓰지 않는다.
+        internal static string PositionFile = @"C:\Bitek\BT003\position.txt";
         private static readonly Encoding Cp949 = Encoding.GetEncoding(949, EncoderFallback.ExceptionFallback, DecoderFallback.ExceptionFallback);
 
         // owner는 SDK 연결을 사용할 객체다. 연결 해제와 닫힘이 확인되기 전에는 다른 객체에 넘기지 않는다.
@@ -43,6 +47,8 @@ namespace U2BIO.BT003PROLabelPrinting
         /// <remarks>
         /// SetPrinterPort → DeviceConnect → CheckPrtConnection 순서로 호출하며, 연결 확인 값 1을 정상으로 처리합니다.
         /// 정상 배출 뒤 같은 포트의 다음 인쇄에서는 기록한 거리만큼 먼저 복귀합니다. 거리는 사용하는 용지에 맞춰 지정합니다.
+        /// 이 기록은 C:\Bitek\BT003\position.txt에도 저장되어 프로그램을 다시 실행해도 유지됩니다.
+        /// 기록 파일이 없거나 손상됐거나 다른 포트의 기록이면 ConfirmPrintPosition을 호출하기 전까지 인쇄하지 않습니다.
         /// 연결 도중 실패하면 해제를 시도합니다. 닫힘을 확인하지 못하면 소유권을 유지하며 명시적인 Disconnect가 필요합니다.
         /// </remarks>
         /// <exception cref="ArgumentException">포트 또는 배출 거리 입력이 유효하지 않습니다.</exception>
@@ -72,7 +78,8 @@ namespace U2BIO.BT003PROLabelPrinting
                 presentationDistance = presentationDistanceMm;
                 if (!Positions.ContainsKey(port))
                 {
-                    Positions.Add(port, 0);
+                    // 프로세스의 첫 연결에서만 파일 기록을 읽는다. 같은 프로세스에서는 메모리 기록이 최신이다.
+                    Positions.Add(port, LoadPosition(port));
                 }
                 owner = this;
 
@@ -296,8 +303,8 @@ namespace U2BIO.BT003PROLabelPrinting
             }
         }
 
-        /// <summary>호출자가 용지를 수동으로 정렬했음을 확인하고 해당 포트의 위치 기록을 0으로 바꿉니다.</summary>
-        /// <returns>위치 기록을 바꿨으면 IsSuccess=true, 연결 소유자가 아니면 false와 한글 설명을 반환합니다.</returns>
+        /// <summary>호출자가 용지를 수동으로 정렬했음을 확인하고 해당 포트의 위치 기록과 기록 파일을 0으로 바꿉니다.</summary>
+        /// <returns>위치 기록을 바꿨으면 IsSuccess=true, 연결 소유자가 아니거나 기록 파일을 저장하지 못하면 false와 한글 설명을 반환합니다.</returns>
         /// <remarks>SDK 센서를 조회하거나 용지를 이동하지 않습니다. faulted를 해제하지 않으므로 연결 오류는 별도로 복구해야 합니다.</remarks>
         /// <exception cref="ObjectDisposedException">이미 Dispose를 완료한 객체입니다.</exception>
         public PrinterResult ConfirmPrintPosition()
@@ -310,7 +317,10 @@ namespace U2BIO.BT003PROLabelPrinting
                     return Failure("이 객체가 소유한 SDK 연결이 없습니다. ConnectUsb로 먼저 연결하십시오.");
                 }
                 // 센서 조회가 아닌 호출자의 수동 용지 정렬 확인이다. 연결 정리 오류는 해제하지 않는다.
-                Positions[port] = 0;
+                if (!SavePosition(0))
+                {
+                    return Failure(PositionFileError);
+                }
                 return Success("호출자의 수동 용지 정렬 확인을 기록했습니다. SDK 조회나 이동은 수행하지 않았습니다.");
             }
         }
@@ -461,8 +471,12 @@ namespace U2BIO.BT003PROLabelPrinting
                 function = "StartLabelPrint";
                 result.NativeCode = null;
                 var response = new StringBuilder(100);
+                // 인쇄 도중 프로그램이 끝나도 다음 실행이 위치 불명으로 시작하도록 SDK 진입 전에 기록한다.
+                if (!SavePosition(null))
+                {
+                    return Fail(result, PositionFileError);
+                }
                 result.PrintInvoked = true;
-                Positions[port] = null;
                 // shortcut: 제조사 StringBuilder 출력 계약을 사용한다. SDK 버퍼 결함 방어가 필요하면 별도 재설계한다.
                 Vendor.StartLabelPrint(1, response);
                 result.PrintCode = ParsePrintCode(response);
@@ -471,7 +485,8 @@ namespace U2BIO.BT003PROLabelPrinting
                 // 5. 정상 인쇄 응답에서만 추가 배출한다. 배출 결과와 관계없이 PrintCode는 인쇄 응답을 보존한다.
                 if (result.PrintCode == 0)
                 {
-                    Positions[port] = 0;
+                    // 이 쓰기가 실패해도 파일에는 unknown이 남으므로 재실행 시 운영자 확인을 받는다.
+                    SavePosition(0);
                     result.Message = "인쇄 SDK 응답은 정상입니다. StartLabelPrint 응답 코드: 0.";
                     if (presentationDistance > 0)
                     {
@@ -524,7 +539,11 @@ namespace U2BIO.BT003PROLabelPrinting
             string printMessage = result.PrintInvoked ? result.Message + " " : "";
             result.NativeCode = null;
             // 실패 코드도 일부 이동 후 반환될 수 있으므로 SDK 진입 전에 위치를 불명으로 둔다.
-            Positions[port] = null;
+            if (!SavePosition(null))
+            {
+                Fail(result, printMessage + movement + " 전에 " + PositionFileError);
+                return false;
+            }
             try
             {
                 result.NativeCode = Vendor.SendData(command + distance.ToString(CultureInfo.InvariantCulture) + "\r\n");
@@ -533,7 +552,7 @@ namespace U2BIO.BT003PROLabelPrinting
                     Fail(result, printMessage + movement + "에 실패했습니다. SendData 응답: " + result.NativeCode + ".");
                     return false;
                 }
-                Positions[port] = command == "^B" ? 0 : distance;
+                SavePosition(command == "^B" ? 0 : distance);
                 result.Message = command == "^B"
                     ? "인쇄 전 복귀 명령의 SDK 응답은 정상입니다. SendData 응답: 0."
                     : result.Message + " 인쇄 후 배출 명령의 SDK 응답도 정상입니다. SendData 응답: 0.";
@@ -649,6 +668,53 @@ namespace U2BIO.BT003PROLabelPrinting
         {
             // 서식·변수·파일 경로와 원래 예외를 노출하지 않고 고정 식별 코드만 전달한다.
             return new ArgumentException(code);
+        }
+
+        private const string PositionFileError = "용지 위치 기록 파일을 저장하지 못해 SDK를 호출하지 않았습니다. 기록 폴더의 쓰기 권한을 확인하십시오.";
+
+        private static int? LoadPosition(string port)
+        {
+            // 파일이 없거나 손상됐거나 다른 포트의 기록이면 위치 불명으로 시작해 운영자 확인을 받는다.
+            try
+            {
+                string[] lines = File.ReadAllLines(PositionFile);
+                int value;
+                if (lines.Length == 2 && string.Equals(lines[0], port, StringComparison.OrdinalIgnoreCase)
+                    && int.TryParse(lines[1], NumberStyles.None, CultureInfo.InvariantCulture, out value) && value <= 1000)
+                {
+                    return value;
+                }
+            }
+            catch (Exception error) when (Recoverable(error))
+            {
+            }
+            return null;
+        }
+
+        private bool SavePosition(int? value)
+        {
+            // 메모리는 항상 갱신하고, 파일 저장 성공 여부를 돌려준다. SDK 진입 전 저장이 실패하면 호출자가 중단한다.
+            Positions[port] = value;
+            string temp = PositionFile + ".tmp";
+            try
+            {
+                Directory.CreateDirectory(Path.GetDirectoryName(PositionFile));
+                File.WriteAllText(temp, port + "\r\n" + (value.HasValue ? value.Value.ToString(CultureInfo.InvariantCulture) : "unknown"));
+                // 임시 파일로 교체해 쓰는 도중 중단돼도 이전 기록이 깨지지 않게 한다.
+                if (File.Exists(PositionFile))
+                {
+                    File.Replace(temp, PositionFile, null);
+                }
+                else
+                {
+                    File.Move(temp, PositionFile);
+                }
+                return true;
+            }
+            catch (Exception error) when (Recoverable(error))
+            {
+                return false;
+            }
         }
 
         private static PrinterResult Success(string message = "SDK 주 작업이 정상적으로 끝났습니다.")
