@@ -99,6 +99,15 @@ namespace U2BIO.BT003PROLabelPrinting.Validation
             var scalar = BtplTemplate.Parse("^W070\n^S05\n^H019\n^L\nE");
             Check(scalar.WithSetting(new BtplSetting("^W", "70"))
                 .WithSetting(new BtplSetting("^S", "5")).WithSetting(new BtplSetting("^H", "19")).ToBtpl() == scalar.ToBtpl(), "unchanged scalar settings keep literals");
+            // 일반 Q 수정에서도 실제로 바뀐 인수만 교체하고 나머지 원문 표기를 유지한다.
+            var q = BtplTemplate.Parse("^Q040,005,07.50+\r\n^L\r\nE");
+            Check(q.WithSetting(new BtplSetting("^Q", "40,5,7.5+")).ToBtpl() == q.ToBtpl(), "unchanged Q keeps every literal");
+            Check(q.WithSetting(new BtplSetting("^Q", "45,5,7.5+")).ToBtpl() == q.ToBtpl().Replace("040", "45"), "Q length keeps gap and offset literals");
+            Check(q.WithSetting(new BtplSetting("^Q", "40,6,7.5+")).ToBtpl() == q.ToBtpl().Replace("005", "6"), "Q gap keeps other literals");
+            Check(q.WithSetting(new BtplSetting("^Q", "40,5,7.5-")).ToBtpl() == q.ToBtpl().Replace("07.50+", "7.5-"), "Q direction is an actual change");
+            Check(q.WithSetting(new BtplSetting("^Q", "40,5")).ToBtpl() == "^Q040,005\r\n^L\r\nE", "Q optional offset removal");
+            var qWithoutOffset = BtplTemplate.Parse("^Q040,005\n^L\nE");
+            Check(qWithoutOffset.WithSetting(new BtplSetting("^Q", "40,5,7.5+")).ToBtpl() == "^Q040,005,7.5+\n^L\nE", "Q optional offset insertion");
             Format("MissingSetting", () => minimal.WithLabelLength(40m));
             Format("UnsupportedCommand", () => new BtplSetting("^E", "15"));
             Format("InvalidArguments", () => new BtplSetting("^S", "9"));
@@ -166,6 +175,19 @@ namespace U2BIO.BT003PROLabelPrinting.Validation
                 File.Delete(copyPath);
                 Throws<BtplSaveConflictException>(() => overwritten.Save());
                 Check(!File.Exists(copyPath), "deleted source not recreated");
+
+                // 원본 폴더까지 사라진 Save는 충돌이며, 새 SaveAs의 없는 폴더는 일반 파일 오류다.
+                string removedDirectory = Path.Combine(directory, "removed-parent");
+                Directory.CreateDirectory(removedDirectory);
+                string removedPath = Path.Combine(removedDirectory, "source.txt");
+                var removedSource = unsaved.SaveAs(removedPath);
+                File.Delete(removedPath);
+                Directory.Delete(removedDirectory);
+                try { removedSource.Save(); throw new InvalidOperationException("Expected SourceChanged"); }
+                catch (BtplSaveConflictException error) { Check(error.Code == "SourceChanged", "deleted parent reports source conflict"); }
+                Check(!Directory.Exists(removedDirectory) && removedSource.FilePath == removedPath && removedSource.ToBtpl() == Raw, "deleted parent and edit remain unchanged");
+                Throws<DirectoryNotFoundException>(() => unsaved.SaveAs(removedPath));
+                Check(!Directory.Exists(removedDirectory) && Directory.GetFiles(directory, "*.tmp").Length == 0, "missing SaveAs parent is not created");
 
                 string utf8Path = Path.Combine(directory, "utf8.txt");
                 byte[] utf8Bytes = new UTF8Encoding(true).GetPreamble().Concat(Encoding.UTF8.GetBytes(Raw)).ToArray();
