@@ -41,7 +41,10 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
             }
             finally
             {
-                if (Directory.Exists(directory)) Directory.Delete(directory, true);
+                // 정리 실패가 결과 줄 대신 처리되지 않은 예외 창을 띄우지 않게 한다.
+                try { if (Directory.Exists(directory)) Directory.Delete(directory, true); }
+                catch (IOException) { }
+                catch (UnauthorizedAccessException) { }
             }
         }
 
@@ -103,6 +106,11 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
             settings.AddRecent(recent);
             Check(settings.RecentFiles.Count == 1 && settings.RecentFiles[0] == recent);
             Check(File.ReadAllBytes(path).SequenceEqual(original));
+            // 설정 화면에서 확인을 누르면 경고를 풀고 메모리의 최근 목록까지 함께 저장한다.
+            settings.Update("2", 30, "");
+            var saved = TesterSettings.Load(path);
+            Check(settings.LoadWarning == null && saved.LoadWarning == null && saved.Port == "2"
+                && saved.PresentationDistanceMm == 30 && saved.RecentFiles.SequenceEqual(new[] { recent }));
         }
 
         private static void CheckDocument(string directory)
@@ -116,9 +124,13 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
             document.Open(path);
             Check(document.Template != null && document.Template.FilePath == path && document.DisplayPath == path
                 && !document.IsDirty && document.LastLoadedOrSaved != null);
+            var opened = document.Template;
+            DateTime? openedAt = document.LastLoadedOrSaved;
+            Expect<IOException>(() => document.Open(Path.Combine(directory, "missing.txt")));
+            Check(ReferenceEquals(document.Template, opened) && document.DisplayPath == path && !document.IsDirty
+                && document.LastLoadedOrSaved == openedAt);
 
             step = "document-apply";
-            var opened = document.Template;
             document.Apply(t => t.WithLabelWidth(70m));
             Check(ReferenceEquals(document.Template, opened) && !document.IsDirty);
             Expect<BtplFormatException>(() => document.Apply(t => t.WithText(0, t.TextElements[0].WithPosition(0, 120))));
@@ -167,6 +179,12 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
             step = "document-reload";
             document.Reload();
             Check(!document.IsDirty && document.Template.ToBtpl() == external && document.DisplayPath == copy);
+
+            step = "document-overwrite";
+            Edit(document, "덮어쓰기");
+            document.SaveAs(other, true);
+            Check(!document.IsDirty && document.DisplayPath == other && ReadText(other) == document.Template.ToBtpl()
+                && ReadText(copy) == external);
         }
 
         // 블랙마크 반영은 Q와 W를 한 번에 바꾼다. W가 모호하면 Q도 바뀌지 않아야 한다.
@@ -198,6 +216,11 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
             Check(TemplateDocument.HasGapLabelSetting(BtplTemplate.Parse(SampleText.Replace("^Q35,5,9+", "^Q35,5"))));
             Check(TemplateDocument.HasGapLabelSetting(BtplTemplate.Parse(SampleText.Replace("^Q35,5,9+", " ^Q35,5,9+"))));
             Check(TemplateDocument.HasGapLabelSetting(BtplTemplate.Parse(SampleText.Replace("^Q35,5,9+", "^Q35,5,9+,1"))));
+            // 줄 번호는 CRLF·LF·CR 어느 줄끝이든 DLL의 TemplateLine과 같은 기준이어야 한다.
+            Check(TemplateDocument.HasGapLabelSetting(BtplTemplate.Parse("^XX1\n ^Q35,5,9+\n^W70\n^L\nE\n")));
+            Check(TemplateDocument.HasGapLabelSetting(BtplTemplate.Parse("^XX1\r ^Q35,5,9+\r^W70\r^L\rE\r")));
+            Check(TemplateDocument.HasGapLabelSetting(BtplTemplate.Parse("^XX1\r\n^W70\r\n^Q35,5,9+,1\r\n^L\r\nE\r\n")));
+            Check(!TemplateDocument.HasGapLabelSetting(BtplTemplate.Parse("^XX1\n^Q35,5,9+\n^W70\n^L\nE\n")));
             Check(!TemplateDocument.HasGapLabelSetting(BtplTemplate.Parse(SampleText)));
             Check(!TemplateDocument.HasGapLabelSetting(BtplTemplate.Parse(SampleText.Replace("^H19", "^H19\r\n^XX1"))));
         }
