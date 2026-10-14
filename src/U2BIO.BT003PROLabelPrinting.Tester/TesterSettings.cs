@@ -74,6 +74,8 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
 
         internal void AddRecent(string fullPath)
         {
+            // 빈 항목이 저장되면 다음 실행에서 설정 전체가 손상으로 처리된다.
+            if (string.IsNullOrWhiteSpace(fullPath)) throw new ArgumentException("최근 파일 경로가 비어 있습니다.");
             recentFiles = new[] { fullPath }
                 .Concat(recentFiles.Where(file => !string.Equals(file, fullPath, StringComparison.OrdinalIgnoreCase)))
                 .Take(MaxRecentFiles).ToList();
@@ -81,11 +83,7 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
             if (LoadWarning == null) Write(Port, PresentationDistanceMm, TemplateFolder, recentFiles);
         }
 
-        private void CreateDefault()
-        {
-            Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(FilePath)));
-            Write(Port, PresentationDistanceMm, TemplateFolder, recentFiles);
-        }
+        private void CreateDefault() => Write(Port, PresentationDistanceMm, TemplateFolder, recentFiles);
 
         private void Read()
         {
@@ -118,6 +116,8 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
                 new XElement("TemplateFolder", folder),
                 new XElement("RecentFiles", files.Select(file => new XElement("File", file)))));
             string target = Path.GetFullPath(FilePath);
+            // 실행 중 설정 폴더가 지워져도 다음 저장에서 다시 만든다.
+            Directory.CreateDirectory(Path.GetDirectoryName(target));
             string temp = Path.Combine(Path.GetDirectoryName(target), Path.GetFileName(target) + "." + Guid.NewGuid().ToString("N") + ".tmp");
             try
             {
