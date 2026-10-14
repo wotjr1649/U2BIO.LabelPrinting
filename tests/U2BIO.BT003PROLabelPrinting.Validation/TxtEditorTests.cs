@@ -105,8 +105,12 @@ namespace U2BIO.BT003PROLabelPrinting.Validation
             Check(q.WithSetting(new BtplSetting("^Q", "45,5,7.5+")).ToBtpl() == q.ToBtpl().Replace("040", "45"), "Q length keeps gap and offset literals");
             Check(q.WithSetting(new BtplSetting("^Q", "40,6,7.5+")).ToBtpl() == q.ToBtpl().Replace("005", "6"), "Q gap keeps other literals");
             Check(q.WithSetting(new BtplSetting("^Q", "40,5,7.5-")).ToBtpl() == q.ToBtpl().Replace("07.50+", "7.5-"), "Q direction is an actual change");
-            Check(q.WithSetting(new BtplSetting("^Q", "40,5")).ToBtpl() == "^Q040,005\r\n^L\r\nE", "Q optional offset removal");
+            // 두 인수 Q는 프린터 라벨 유형을 Gap으로 바꾸므로 편집으로 만들거나 저장하지 않는다. 기존 원문은 읽고 세 인수로 고칠 수 있다.
+            Format("GapLabelSetting", () => new BtplSetting("^Q", "40,5"));
+            Format("GapLabelSetting", () => minimal.WithRawText("^Q40,5\n^L\nE"));
             var qWithoutOffset = BtplTemplate.Parse("^Q040,005\n^L\nE");
+            Check(qWithoutOffset.Settings.Count == 1 && qWithoutOffset.ToBtpl() == "^Q040,005\n^L\nE", "legacy two-argument Q is readable");
+            Format("GapLabelSetting", () => qWithoutOffset.WithLabelLength(45m));
             Check(qWithoutOffset.WithSetting(new BtplSetting("^Q", "40,5,7.5+")).ToBtpl() == "^Q040,005,7.5+\n^L\nE", "Q optional offset insertion");
             Format("MissingSetting", () => minimal.WithLabelLength(40m));
             Format("UnsupportedCommand", () => new BtplSetting("^E", "15"));
@@ -202,6 +206,10 @@ namespace U2BIO.BT003PROLabelPrinting.Validation
                 string unencodablePath = Path.Combine(directory, "unencodable.txt");
                 Format("InvalidEncoding", () => BtplTemplate.Parse("PRIVATE😀").SaveAs(unencodablePath));
                 Check(!File.Exists(unencodablePath) && Directory.GetFiles(directory, "*.tmp").Length == 0, "encoding fails before publication");
+                // 두 인수 Q가 남은 서식은 저장 전에 거부되어 파일을 만들지 않는다.
+                string gapPath = Path.Combine(directory, "gap.txt");
+                Format("GapLabelSetting", () => BtplTemplate.Parse("^Q40,5\r\n^L\r\nE").SaveAs(gapPath));
+                Check(!File.Exists(gapPath) && Directory.GetFiles(directory, "*.tmp").Length == 0, "two-argument Q is not saved");
                 string largePath = Path.Combine(directory, "large.txt");
                 using (var large = new FileStream(largePath, FileMode.CreateNew, FileAccess.Write)) large.SetLength(4 * 1024 * 1024 + 1);
                 Format("TemplateTooLarge", () => BtplTemplate.Load(largePath));
