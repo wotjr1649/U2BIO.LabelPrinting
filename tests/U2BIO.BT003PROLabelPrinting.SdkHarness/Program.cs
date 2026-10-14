@@ -104,12 +104,14 @@ internal static class Program
                 // 변수 등록 실패와 정리 실패가 겹쳐도 파일은 정리 중 잠기고 반환 후 해제된다.
                 Fake.ThrowAt = null; Fake.FailAt = "SetPrintFormVariableData"; Fake.CleanupThrows = true;
                 Fake.ResetCount = 0;
+                bool lockedDuringCleanup = false;
                 Fake.BeforeCleanup = () => {
                     try { using (File.Open(path, FileMode.Open, FileAccess.Write, FileShare.ReadWrite)) { } }
-                    catch (IOException) { return; }
-                    throw new InvalidOperationException("Variable failure released file before cleanup.");
+                    catch (IOException) { lockedDuringCleanup = true; }
                 };
                 Fake.Calls.Clear(); failed = printer.PrintFile(path, data);
+                // 제품이 정리 예외를 잡아도 잠금 위반은 이 바깥 assertion에서 실패해야 한다.
+                Check(lockedDuringCleanup, "Variable failure released file before cleanup.");
                 Check(!failed.IsSuccess && failed.NativeCode == 205 && !failed.PrintInvoked && failed.PrintCode == null
                     && failed.Message.Contains("SetPrintFormVariableData") && failed.Message.Contains("ResetForm")
                     && !Fake.Calls.Contains("StartLabelPrint"), "Variable and cleanup evidence lost.");
@@ -196,8 +198,12 @@ internal static class Program
                     catch (IOException) { return; }
                     throw new InvalidOperationException("File lease ended early.");
                 };
-                Fake.BeforePrint = locked; Fake.BeforeCleanup = locked; Fake.CleanupThrows = true;
+                bool lockedDuringCleanup = false;
+                Fake.BeforePrint = locked;
+                Fake.BeforeCleanup = () => { locked(); lockedDuringCleanup = true; };
+                Fake.CleanupThrows = true;
                 Check(printer.PrintFile(file).PrintCode == 0, "File print differs.");
+                Check(lockedDuringCleanup, "File lease ended before cleanup.");
                 Check(Fake.LastForm == Literal.Replace("\n", "\r\n") && Fake.Calls.Contains("SetPrintFormString")
                     && !Fake.Calls.Contains("SetPrintFormFile") && Fake.Calls.Count(call => call == "StartLabelPrint") == 1, "File snapshot or registration path differs.");
                 using (File.Open(file, FileMode.Open, FileAccess.Write, FileShare.ReadWrite)) {}
