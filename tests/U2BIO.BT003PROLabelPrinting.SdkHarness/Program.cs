@@ -76,6 +76,9 @@ internal static class Program
                 var result = printer.Print(Literal);
                 Check(!result.IsSuccess && !result.PrintInvoked && !Fake.Calls.Contains("^B15\r\n") && !Fake.Calls.Contains("StartLabelPrint"), "Unwritable file allowed movement.");
                 Check(!printer.ConfirmPrintPosition().IsSuccess, "Unwritable confirm succeeded.");
+                // SDK를 호출하지 않았으므로 파일이 복구되면 재확인 없이 저장된 15mm 복귀부터 진행한다.
+                Bt003Printer.PositionFile = file; Fake.Calls.Clear();
+                Check(printer.Print(Literal).IsSuccess && Fake.Calls.Contains("^B15\r\n"), "Transient file failure required reconfirmation.");
             }
         } finally { Bt003Printer.PositionFile = file; }
     }
