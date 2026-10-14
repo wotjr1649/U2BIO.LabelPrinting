@@ -309,9 +309,14 @@ namespace U2BIO.BT003PROLabelPrinting
             // AW X=0은 SDK StartLabelPrint 예외를 낸다. 읽기는 허용하되 편집 결과와 저장에서는 거부한다.
             var zeroX = TextElements.FirstOrDefault(text => text.X < 1);
             if (zeroX != null) throw new BtplFormatException("InvalidArguments", zeroX.TemplateLine);
-            // 펌웨어가 공백·빈 인수를 어떻게 읽는지 모르므로 세 인수로 해석된 Q 줄만 남긴다.
+            // 펌웨어가 공백·빈 인수를 어떻게 읽는지 모르므로 세 인수로 해석된 Q 줄만 남기고,
+            // 해석하지 못한 AW 줄도 X가 1 이상 정수로 읽히는 경우만 남긴다.
             for (int index = 0; index < lines.Length; index++)
             {
+                string[] aw = lines[index].Text.TrimStart().Split(',');
+                int x;
+                if (aw.Length > 1 && aw[0] == "AW" && !(int.TryParse(aw[1].Trim(), NumberStyles.AllowLeadingSign, CultureInfo.InvariantCulture, out x) && x >= 1))
+                    throw new BtplFormatException("InvalidArguments", index + 1);
                 if (!lines[index].Text.TrimStart().StartsWith("^Q", StringComparison.Ordinal)) continue;
                 bool blackMark = Settings.Any(setting => setting.TemplateLine == index + 1 && setting.Command == "^Q"
                     && setting.Parameters.Split(',').Length == 3);

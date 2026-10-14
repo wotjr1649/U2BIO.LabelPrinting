@@ -251,7 +251,7 @@ namespace U2BIO.BT003PROLabelPrinting
             // 라벨은 받침지 가운데 기준에서 실측 가로 보정만큼, 원점에서 실측 세로 보정만큼 떨어져 놓인다.
             decimal left = (linerWidthMm - labelWidthMm) / 2 + horizontalOffsetMm;
             decimal top = verticalOffsetMm;
-            if (left < 0 || top < 0)
+            if (left < 0 || top < 0 || left + labelWidthMm > linerWidthMm)
             {
                 throw new BtplFormatException("InvalidArguments");
             }

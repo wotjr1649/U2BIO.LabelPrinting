@@ -53,7 +53,7 @@ PrinterResult의 공개 속성은 IsSuccess(bool), Message(string), NativeCode(i
 
 관리 DLL은 .NET Framework 4.6.1/AnyCPU다. 실행 프로그램 비트수에 맞는 BlackfishNfcLib.dll과 HFModule.dll을 함께 배포한다. SDK·장치 실행, 인쇄·배출 실기는 이번 작업에서 하지 않는다.
 
-제조사 원본 선언은 Validation, 배포 파일은 verify-build의 고정 해시로 정적 확인한다. 관리 동작은 제품 두 소스를 같은 형태로 컴파일한 작은 SDK 대체 호출 harness에서 연결·호출 순서·등록 실패·응답·배출 실패·정리·잠금 수명을 확인한다. 제품 DLL의 실제 P/Invoke 성공과 혼동하지 않는다. 선택 TXT 편집 관리 검사와 역사 SDK 진단을 기본 인쇄 계약과 구분한다. 이전 JSON/XML/바인딩 검사는 새 편집 범위로 이행한다.
+제조사 원본 선언은 Validation, 배포 파일은 verify-build의 고정 해시로 정적 확인한다. 관리 동작은 제품 두 소스를 같은 형태로 컴파일한 작은 SDK 대체 호출 harness에서 연결·호출 순서·등록 실패·응답·배출 실패·정리·잠금 수명을 확인한다. 제품 DLL의 실제 P/Invoke 성공과 혼동하지 않는다. 선택 TXT 편집 관리 검사는 기본 인쇄 계약과 구분한다. 이전 native 진단 코드와 JSON/XML/바인딩 검사는 제거했다.
 
 harness는 제품 두 파일을 프로젝트 Link로 컴파일하며 수정한 사본을 사용하지 않는다. fake ResetForm은 변수 저장소를 지우지 않는 사례를 포함한다. 별도로 실제 제품 DLL의 공개 계약/원본 선언/검색 제한을 확인한다. x86/x64 각각 Bt003NativePlatform 배포 빌드를 수행하고 실행 출력의 제조사 두 파일을 저장소 고정 해시·원본과 대조한다. 기본 관리 빌드만으로 배포 검사를 완료했다고 표시하지 않는다.
 
