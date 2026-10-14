@@ -18,10 +18,12 @@ internal static class Program
         Check(printer.SetPrintingOptions(4, 12).IsSuccess, "Options failed.");
         return printer;
     }
-    private static void Invalid(Action action)
+    private static void Invalid(Action action, string code = null)
     {
         try { action(); } catch (ArgumentException error) {
-            Check(error.InnerException == null && !error.Message.Contains("PRIVATE-MARKER"), "Input leaked."); return;
+            Check(error.InnerException == null && !error.Message.Contains("PRIVATE-MARKER"), "Input leaked.");
+            if (code != null) Check(error.Message == code, "Input error code differs.");
+            return;
         }
         throw new InvalidOperationException("Invalid input accepted.");
     }
@@ -29,8 +31,8 @@ internal static class Program
     {
         Fake.Clear();
         using (var printer = Connected("SYNTH-FORMS")) {
-            string[] values = { "FIRST", "SECOND" };
-            Fake.BeforePrint = () => values[0] = "MUTATED";
+            string values = "FIRST!!SECOND";
+            Fake.BeforePrint = () => values = "MUTATED";
             var result = printer.Print("^L\nAW,10,10,10,1,0,0,^V00\nE\n", values);
             Check(result.IsSuccess && result.PrintInvoked && result.PrintCode == 0, "Print evidence differs.");
             Check(Fake.Variables == "FIRST!!SECOND" && !Fake.LastForm.Replace("\r\n", "").Contains("\n"), "Snapshot/CRLF differs.");
@@ -39,7 +41,7 @@ internal static class Program
             Fake.BeforePrint = null; Fake.Calls.Clear();
             Check(printer.Print(Literal).IsSuccess && !Fake.Calls.Contains("SetPrintFormVariableData"), "Literal call contract differs.");
             Check(Fake.Variables == "FIRST!!SECOND", "Fake hid variable retention.");
-            foreach (string value in new[] { "", "A!!B", "A!", "!B", "A\0B" }) {
+            foreach (string value in new[] { "", "   ", "A\0B", "A\nB", "A\tB", "A😀B" }) {
                 Fake.Calls.Clear(); Invalid(() => printer.Print(Literal, value));
                 Check(Fake.Calls.Count == 0, "Invalid value reached SDK.");
             }
@@ -49,6 +51,74 @@ internal static class Program
             result = printer.Print(Literal);
             Check(!result.IsSuccess && !result.PrintInvoked && !Fake.Calls.Contains("StartLabelPrint"), "Registration failure printed.");
         }
+    }
+    private static void RawVariableData()
+    {
+        // SDK 치환을 모방하지 않고, 두 공개 경로의 원문 전달과 실패 중단을 확인한다.
+        const string form = "^L\nAW,10,10,10,1,0,0,^V00\nAW,10,20,10,1,0,0,^V02\nAW,10,30,10,1,0,0,^V01\nE\n";
+        const string data = "홍길동!!1122334455!!20120201!!Blackfish BT-003";
+        string path = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "raw-variable-" + Guid.NewGuid().ToString("N") + ".txt");
+        File.WriteAllText(path, form, Encoding.GetEncoding(949));
+        Fake.Clear();
+        try {
+            using (var printer = Connected("SYNTH-RAW-VARIABLE")) {
+                Fake.Calls.Clear();
+                Check(printer.Print(form, data).IsSuccess && Fake.Variables == data, "Manufacturer string changed.");
+                Check(Fake.LastForm == form.Replace("\n", "\r\n"), "Variable form changed.");
+                Fake.Calls.Clear();
+                Check(printer.PrintFile(path, data).IsSuccess && Fake.Variables == data, "File variable string changed.");
+                Check(Fake.Calls.IndexOf("SetPrintFormString") < Fake.Calls.IndexOf("SetPrintFormVariableData")
+                    && Fake.Calls.IndexOf("SetPrintFormVariableData") < Fake.Calls.IndexOf("StartLabelPrint")
+                    && Fake.Calls.Count(call => call == "StartLabelPrint") == 1, "File variable sequence differs.");
+
+                // 공백·단일 !·빈 항목 구분자를 고치지 않는다. 이는 SDK의 빈 항목 지원 검증이 아니다.
+                foreach (string raw in new[] { " !FIRST!!SECOND! ", "!!A!!!!B!!" }) {
+                    Check(printer.Print(form, raw).IsSuccess && Fake.Variables == raw, "Raw delimiters or spaces changed.");
+                }
+                string retained = Fake.Variables;
+                Fake.Calls.Clear();
+                Check(printer.Print(Literal, (string)null).IsSuccess
+                    && !Fake.Calls.Contains("SetPrintFormVariableData"), "Explicit null registered variables.");
+                Check(Fake.Variables == retained, "Null request pretended to clear retained SDK data.");
+                File.WriteAllText(path, Literal, Encoding.GetEncoding(949));
+                Fake.Calls.Clear();
+                Check(printer.PrintFile(path, (string)null).IsSuccess
+                    && !Fake.Calls.Contains("SetPrintFormVariableData"), "File null registered variables.");
+                File.WriteAllText(path, form, Encoding.GetEncoding(949));
+
+                foreach (string bad in new[] { "", " ", "A\0B", "A\r\nB", "A😀B", new string('A', 4 * 1024 * 1024 + 1) }) {
+                    Fake.Calls.Clear(); Invalid(() => printer.PrintFile(path, bad), "InvalidVariables");
+                    Check(Fake.Calls.Count == 0, "Invalid file variable data reached SDK.");
+                }
+                Fake.FailAt = "SetPrintFormVariableData"; Fake.FailCode = 205; Fake.Calls.Clear();
+                var failed = printer.PrintFile(path, data);
+                Check(!failed.IsSuccess && failed.NativeCode == 205 && !failed.PrintInvoked && failed.PrintCode == null
+                    && failed.Message.Contains("SetPrintFormVariableData") && !failed.Message.Contains("홍길동")
+                    && !Fake.Calls.Contains("StartLabelPrint"), "File variable failure printed or leaked input.");
+                using (File.Open(path, FileMode.Open, FileAccess.Write, FileShare.ReadWrite)) { }
+                // 등록 예외도 인쇄에 도달하지 않고 이전 응답을 NativeCode에 남기지 않는다.
+                Fake.FailAt = null; Fake.ThrowAt = "SetPrintFormVariableData"; Fake.Calls.Clear();
+                failed = printer.PrintFile(path, data);
+                Check(!failed.IsSuccess && failed.NativeCode == null && !failed.PrintInvoked && failed.PrintCode == null
+                    && !Fake.Calls.Contains("StartLabelPrint"), "Variable exception reached print or kept stale code.");
+                // 변수 등록 실패와 정리 실패가 겹쳐도 파일은 정리 중 잠기고 반환 후 해제된다.
+                Fake.ThrowAt = null; Fake.FailAt = "SetPrintFormVariableData"; Fake.CleanupThrows = true;
+                Fake.BeforeCleanup = () => {
+                    try { using (File.Open(path, FileMode.Open, FileAccess.Write, FileShare.ReadWrite)) { } }
+                    catch (IOException) { return; }
+                    throw new InvalidOperationException("Variable failure released file before cleanup.");
+                };
+                Fake.Calls.Clear(); failed = printer.PrintFile(path, data);
+                Check(!failed.IsSuccess && failed.NativeCode == 205 && !failed.PrintInvoked && failed.PrintCode == null
+                    && failed.Message.Contains("SetPrintFormVariableData") && failed.Message.Contains("ResetForm")
+                    && !Fake.Calls.Contains("StartLabelPrint"), "Variable and cleanup evidence lost.");
+                using (File.Open(path, FileMode.Open, FileAccess.Write, FileShare.ReadWrite)) { }
+                Fake.Calls.Clear();
+                Check(!printer.Print(Literal).IsSuccess && !printer.SetPrintingOptions(4, 12).IsSuccess
+                    && Fake.Calls.Count == 0, "Variable cleanup fault allowed reuse.");
+                Fake.BeforeCleanup = null; Fake.CleanupThrows = false;
+            }
+        } finally { File.Delete(path); }
     }
     private static void UncertainResponseAndCleanup()
     {
@@ -210,8 +280,21 @@ internal static class Program
         Fake.Clear();
         using (var printer = Connected("SYNTH-VARIABLE-TOTAL")) {
             Fake.Calls.Clear(); string part = new string('A', 1024 * 1024);
-            Invalid(() => printer.Print(Literal, part, part, part, part));
+            Invalid(() => printer.Print(Literal, string.Join("!!", new[] { part, part, part, part })));
             Check(Fake.Calls.Count == 0, "Oversized variable total reached SDK.");
+        }
+    }
+    private static void RawVariableByteBoundary()
+    {
+        Fake.Clear();
+        using (var printer = Connected("SYNTH-RAW-BYTES")) {
+            // 전체 CP949 바이트 수로 경계를 검사한다. 구분자도 제한 안에 포함된다.
+            foreach (string boundary in new[] { new string('A', 4 * 1024 * 1024), new string('가', 2 * 1024 * 1024) }) {
+                Fake.Calls.Clear();
+                Check(printer.Print(Literal, boundary).IsSuccess && Fake.Variables == boundary, "Exact byte boundary rejected.");
+                Fake.Calls.Clear(); Invalid(() => printer.Print(Literal, boundary + "A"));
+                Check(Fake.Calls.Count == 0, "One byte above limit reached SDK.");
+            }
         }
     }
     private static void MessageAndFailureEvidence()
@@ -281,7 +364,7 @@ internal static class Program
     private static int Main()
     {
         try {
-            FormsAndFailures(); UncertainResponseAndCleanup(); Movement(); FileLifetime(); Ownership(); ReviewRegressions(); MessageAndFailureEvidence();
+            FormsAndFailures(); RawVariableData(); UncertainResponseAndCleanup(); Movement(); FileLifetime(); Ownership(); ReviewRegressions(); RawVariableByteBoundary(); MessageAndFailureEvidence();
             Console.WriteLine("PASS: linked product bool results, SDK sequencing, input snapshots, uncertain response/cleanup, movement, file lifetime and ownership; managed SDK substitute only");
             return 0;
         } catch (Exception error) { Console.Error.WriteLine("FAIL: managed SDK harness (" + error.GetType().Name + "): " + error.Message); return 1; }

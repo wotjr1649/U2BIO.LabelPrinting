@@ -21,6 +21,16 @@ namespace U2BIO.BT003PROLabelPrinting.Validation
                 throw new InvalidOperationException("Unexpected public printer API.");
             foreach (var method in actual.Where(method => method.Name != "Dispose"))
                 if (method.ReturnType != result) throw new InvalidOperationException("PrinterResult contract missing.");
+            // 실제 DLL은 SDK 가변데이터 문자열 하나만 받는다. 배열/params와 혼용하지 않는다.
+            foreach (string name in new[] { "Print", "PrintFile" }) {
+                var method = printer.GetMethod(name, new[] { typeof(string), typeof(string) });
+                if (method == null || printer.GetMethod(name, new[] { typeof(string), typeof(string[]) }) != null)
+                    throw new InvalidOperationException("Raw SDK variable string API missing.");
+                var parameter = method.GetParameters()[1];
+                if (parameter.Name != "variableData" || !parameter.IsOptional || parameter.DefaultValue != null
+                    || parameter.GetCustomAttribute<ParamArrayAttribute>() != null)
+                    throw new InvalidOperationException("Variable data must be optional string with null default.");
+            }
             // 결과를 해석하는 공개 항목은 정확히 다섯 개여야 하며 제거한 속성이 남아도 실패한다.
             string[] names = { "IsSuccess", "Message", "NativeCode", "PrintInvoked", "PrintCode" };
             Type[] types = { typeof(bool), typeof(string), typeof(int?), typeof(bool), typeof(int?) };
