@@ -526,13 +526,13 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
             // rowQ
             //
             this.rowQ.Name = "rowQ";
-            this.rowQ.Properties.Caption = "^Q 블랙마크(길이,마크 폭,위치±)";
+            this.rowQ.Properties.Caption = "^Q 블랙마크(마크 사이 길이,마크 길이,위치±)";
             this.rowQ.Properties.RowEdit = this.repositorySetting;
             //
             // rowW
             //
             this.rowW.Name = "rowW";
-            this.rowW.Properties.Caption = "^W 용지 폭(mm)";
+            this.rowW.Properties.Caption = "^W 용지 너비(mm)";
             this.rowW.Properties.RowEdit = this.repositorySetting;
             //
             // categoryPrint
@@ -604,42 +604,48 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
             // rowLinerWidth
             //
             this.rowLinerWidth.Name = "rowLinerWidth";
-            this.rowLinerWidth.Properties.Caption = "받침지 폭(mm)";
+            this.rowLinerWidth.Properties.Caption = "받침지 너비(mm)";
+            this.rowLinerWidth.Properties.ToolTip = "뒷종이 전체의 가로 치수입니다. ^W 값이 됩니다.";
             this.rowLinerWidth.Properties.RowEdit = this.repositoryBlackMark;
             this.rowLinerWidth.Properties.Value = "70";
             //
             // rowSegment
             //
             this.rowSegment.Name = "rowSegment";
-            this.rowSegment.Properties.Caption = "마크 제외 길이(mm)";
+            this.rowSegment.Properties.Caption = "마크 사이 길이(mm)";
+            this.rowSegment.Properties.ToolTip = "한 마크의 끝부터 다음 마크의 시작까지입니다. 피치(마크 포함)가 아닙니다. 예: 피치 40 − 마크 5 = 35";
             this.rowSegment.Properties.RowEdit = this.repositoryBlackMark;
             this.rowSegment.Properties.Value = "35";
             //
             // rowMarkWidth
             //
             this.rowMarkWidth.Name = "rowMarkWidth";
-            this.rowMarkWidth.Properties.Caption = "마크 폭(mm)";
+            this.rowMarkWidth.Properties.Caption = "마크 길이(mm)";
+            this.rowMarkWidth.Properties.ToolTip = "블랙마크 하나의 급지 방향 길이입니다. 받침지 뒷면에서 잽니다.";
             this.rowMarkWidth.Properties.RowEdit = this.repositoryBlackMark;
             this.rowMarkWidth.Properties.Value = "5";
             //
             // rowMarkToLabel
             //
             this.rowMarkToLabel.Name = "rowMarkToLabel";
-            this.rowMarkToLabel.Properties.Caption = "흰 부분(mm)";
+            this.rowMarkToLabel.Properties.Caption = "마크~라벨 간격(mm)";
+            this.rowMarkToLabel.Properties.ToolTip = "마크의 라벨 쪽 끝부터 흰 라벨 위쪽 끝까지의 받침지 길이입니다. 마크 길이는 넣지 않습니다.";
             this.rowMarkToLabel.Properties.RowEdit = this.repositoryBlackMark;
             this.rowMarkToLabel.Properties.Value = "7.5";
             //
             // rowLabelWidth
             //
             this.rowLabelWidth.Name = "rowLabelWidth";
-            this.rowLabelWidth.Properties.Caption = "라벨 폭(mm)";
+            this.rowLabelWidth.Properties.Caption = "라벨 너비(mm)";
+            this.rowLabelWidth.Properties.ToolTip = "흰 라벨(스티커)의 가로 치수입니다.";
             this.rowLabelWidth.Properties.RowEdit = this.repositoryBlackMark;
             this.rowLabelWidth.Properties.Value = "60";
             //
             // rowLabelHeight
             //
             this.rowLabelHeight.Name = "rowLabelHeight";
-            this.rowLabelHeight.Properties.Caption = "라벨 높이(mm)";
+            this.rowLabelHeight.Properties.Caption = "라벨 길이(mm)";
+            this.rowLabelHeight.Properties.ToolTip = "흰 라벨의 급지 방향 치수입니다.";
             this.rowLabelHeight.Properties.RowEdit = this.repositoryBlackMark;
             this.rowLabelHeight.Properties.Value = "20";
             //
@@ -663,6 +669,7 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
             //
             this.rowSensor.Name = "rowSensor";
             this.rowSensor.Properties.Caption = "센서 보정(mm)";
+            this.rowSensor.Properties.ToolTip = "자로 잰 마크~라벨 간격과 프린터가 쓰는 위치 값(^Q 셋째 인수)의 차이입니다.";
             this.rowSensor.Properties.RowEdit = this.repositoryBlackMark;
             this.rowSensor.Properties.Value = "1.5";
             //
@@ -670,6 +677,7 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
             //
             this.rowVertical.Name = "rowVertical";
             this.rowVertical.Properties.Caption = "세로 보정(mm)";
+            this.rowVertical.Properties.ToolTip = "서식 원점(Y0)부터 흰 라벨 위쪽 끝까지의 거리입니다.";
             this.rowVertical.Properties.RowEdit = this.repositoryBlackMark;
             this.rowVertical.Properties.Value = "3.6";
             //
@@ -677,6 +685,7 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
             //
             this.rowHorizontal.Name = "rowHorizontal";
             this.rowHorizontal.Properties.Caption = "가로 보정(mm)";
+            this.rowHorizontal.Properties.ToolTip = "가운데 정렬 위치에서 흰 라벨 왼쪽 끝까지의 거리입니다. +는 오른쪽, −는 왼쪽입니다.";
             this.rowHorizontal.Properties.RowEdit = this.repositoryBlackMark;
             this.rowHorizontal.Properties.Value = "-1.0";
             //
