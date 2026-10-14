@@ -173,4 +173,84 @@ namespace U2BIO.BT003PROLabelPrinting
             if (payload.Any(char.IsControl)) throw new BtplFormatException("InvalidText");
         }
     }
+
+    /// <summary>서식 좌표(dot)의 직사각형 범위다. Right·Bottom은 범위 끝 좌표다.</summary>
+    public sealed class BtplArea
+    {
+        public int Left { get; }
+        public int Top { get; }
+        public int Right { get; }
+        public int Bottom { get; }
+
+        internal BtplArea(int left, int top, int right, int bottom)
+        {
+            Left = left;
+            Top = top;
+            Right = right;
+            Bottom = bottom;
+        }
+    }
+
+    /// <summary>블랙마크 용지를 자로 잰 값(mm)으로 ^Q·^W 설정과 흰 라벨 인쇄 영역을 계산합니다.</summary>
+    /// <remarks>
+    /// z = 흰 부분(마크의 라벨 쪽 경계 → 흰 라벨 상단) + 센서 보정 상수이며 0.5 mm 단위로 반올림합니다.
+    /// 기본 보정 상수 1.5 mm와 원점이 흰 라벨 상단에 오는 결과는 BT-003 Pro 실기(용지 1종)에서 확인한 값입니다.
+    /// 새 용지는 계산값으로 시작하고 눈금 라벨 한 장으로 확인합니다. 인쇄 후 배출 거리와 글자 높이는 계산하지 않습니다.
+    /// </remarks>
+    public sealed class BtplBlackMarkMedia
+    {
+        // 미리보기·배치 검사용 여유다. 라벨 위치 편차와 치수 측정 오차(실측 약 2 mm)를 흡수한다.
+        private const decimal SafeMarginMm = 2m;
+
+        /// <param name="linerWidthMm">받침지 폭이며 ^W 값입니다.</param>
+        /// <param name="segmentLengthMm">마크를 뺀 마크 사이 길이이며 ^Q의 첫 인수입니다.</param>
+        /// <param name="markWidthMm">블랙마크 폭이며 ^Q의 둘째 인수입니다.</param>
+        /// <param name="markToLabelMm">마크의 라벨 쪽 경계에서 흰 라벨 상단까지의 거리입니다.</param>
+        /// <param name="labelWidthMm">흰 라벨 폭입니다. 받침지 가운데에 있다고 가정합니다.</param>
+        /// <param name="labelHeightMm">흰 라벨 높이입니다.</param>
+        /// <param name="dpi">프린터 헤드 해상도입니다. 203 또는 300만 허용합니다.</param>
+        /// <param name="sensorOffsetMm">자로 잰 흰 부분과 실제 z의 차이입니다. 기본값은 이 프린터의 실측값 1.5 mm입니다.</param>
+        /// <exception cref="BtplFormatException">값이 범위를 벗어나거나 라벨이 받침지·마크 사이 길이에 들어가지 않으면 InvalidArguments입니다.</exception>
+        public BtplBlackMarkMedia(decimal linerWidthMm, decimal segmentLengthMm, decimal markWidthMm, decimal markToLabelMm,
+            decimal labelWidthMm, decimal labelHeightMm, int dpi = 300, decimal sensorOffsetMm = 1.5m)
+        {
+            decimal z = Math.Round((markToLabelMm + sensorOffsetMm) * 2, MidpointRounding.AwayFromZero) / 2;
+            if (linerWidthMm <= 0 || segmentLengthMm <= 0 || markWidthMm <= 0 || markToLabelMm < 0 || labelWidthMm <= 0 || labelHeightMm <= 0
+                || (dpi != 203 && dpi != 300) || z < 0
+                || labelWidthMm > linerWidthMm || markToLabelMm + labelHeightMm > segmentLengthMm
+                || labelWidthMm <= SafeMarginMm * 2 || labelHeightMm <= SafeMarginMm * 2)
+            {
+                throw new BtplFormatException("InvalidArguments");
+            }
+
+            LabelSetting = new BtplSetting("^Q", Mm(segmentLengthMm) + "," + Mm(markWidthMm) + "," + Mm(z) + "+");
+            WidthSetting = new BtplSetting("^W", Mm(linerWidthMm));
+            // 원점이 흰 라벨 상단에 오는 Q에서 라벨은 받침지 가운데에 놓인다.
+            decimal left = (linerWidthMm - labelWidthMm) / 2;
+            LabelArea = Area(dpi, left, 0, left + labelWidthMm, labelHeightMm);
+            SafeArea = Area(dpi, left + SafeMarginMm, SafeMarginMm, left + labelWidthMm - SafeMarginMm, labelHeightMm - SafeMarginMm);
+        }
+
+        /// <summary>계산한 ^Q 설정이며 BtplTemplate.WithSetting에 그대로 쓸 수 있습니다.</summary>
+        public BtplSetting LabelSetting { get; }
+
+        /// <summary>계산한 ^W 설정입니다.</summary>
+        public BtplSetting WidthSetting { get; }
+
+        /// <summary>흰 라벨 전체의 서식 좌표 범위(dot)입니다.</summary>
+        public BtplArea LabelArea { get; }
+
+        /// <summary>흰 라벨에서 2 mm 안쪽의 권장 배치 범위(dot)입니다.</summary>
+        public BtplArea SafeArea { get; }
+
+        private static string Mm(decimal value) => value.ToString("0.###", CultureInfo.InvariantCulture);
+
+        private static BtplArea Area(int dpi, decimal left, decimal top, decimal right, decimal bottom)
+        {
+            decimal dotsPerMm = dpi / 25.4m;
+            return new BtplArea(Dots(left * dotsPerMm), Dots(top * dotsPerMm), Dots(right * dotsPerMm), Dots(bottom * dotsPerMm));
+        }
+
+        private static int Dots(decimal value) => (int)Math.Round(value, MidpointRounding.AwayFromZero);
+    }
 }

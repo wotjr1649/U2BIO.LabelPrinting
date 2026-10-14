@@ -38,7 +38,7 @@ template = template.WithSetting(new BtplSetting("^S", "5"));
 template = template.WithSetting(new BtplSetting("^H", "19"));
 ```
 
-^Q는 `길이,마크 폭,위치±` 세 인수(Black-Mark)만 편집 결과로 허용한다. 두 인수 ^Q(Gap)는 프린터 라벨 유형까지 간격 라벨로 바꾸므로 `new BtplSetting`, WithRawText, Save/SaveAs가 `GapLabelSetting`으로 거부한다. 기존 파일의 두 인수 ^Q는 Load/Parse로 읽을 수 있으며 WithSetting으로 세 인수를 지정해 고친 뒤 저장한다. 없는 Q/W를 추가하려면 전체 인수를 WithSetting으로 명시한다. 같은 설정 명령이 여러 개면 편의 수정은 거부하며 원문에서 위치를 정한다. 읽은 숫자 표기는 바꾸는 필드 외에는 보존한다. Size는 SDK 크기 값이며 화면 pt/mm의 동일성을 보장하지 않는다.
+^Q는 `길이,마크 폭,위치±` 세 인수(Black-Mark)만 편집 결과로 허용한다. 두 인수 ^Q(Gap)는 프린터 라벨 유형까지 간격 라벨로 바꾸므로 `new BtplSetting`, WithRawText, Save/SaveAs가 `GapLabelSetting`으로 거부한다. 기존 파일의 두 인수 ^Q는 Load/Parse로 읽을 수 있으며 WithSetting으로 세 인수를 지정해 고친 뒤 저장한다. 없는 Q/W를 추가하려면 전체 인수를 WithSetting으로 명시한다. 블랙마크 용지는 `BtplBlackMarkMedia(받침지 폭, 마크 제외 길이, 마크 폭, 흰 부분, 라벨 폭, 라벨 높이, dpi = 300, 보정 = 1.5)`로 자로 잰 값(mm)에서 `LabelSetting`(^Q, z = 흰 부분 + 보정을 0.5 mm 단위 반올림)과 `WidthSetting`(^W), 흰 라벨 `LabelArea`와 2 mm 안쪽 `SafeArea`(dot)를 계산한다. 보정 1.5 mm는 BT-003 Pro 실측값이며 새 용지는 눈금 라벨 한 장으로 확인한다. 배출 거리와 글자 높이는 계산하지 않는다. 같은 설정 명령이 여러 개면 편의 수정은 거부하며 원문에서 위치를 정한다. 읽은 숫자 표기는 바꾸는 필드 외에는 보존한다. Size는 SDK 크기 값이며 화면 pt/mm의 동일성을 보장하지 않는다.
 
 ## 저장과 다른 이름으로 저장
 
