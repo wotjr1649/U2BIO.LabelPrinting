@@ -39,6 +39,7 @@ namespace U2BIO.BT003PROLabelPrinting.Validation
             FramesAndSettings();
             Files();
             RemovedApi();
+            BlackMarkMedia();
             Console.WriteLine("PASS: TXT source/field preservation, named AW edits, frame limits, file origin and Save/SaveAs; nativeSDK=not-loaded");
         }
 
@@ -222,6 +223,32 @@ namespace U2BIO.BT003PROLabelPrinting.Validation
                 Format("TemplateTooLarge", () => BtplTemplate.Load(largePath));
             }
             finally { Directory.Delete(directory, true); }
+        }
+
+        private static bool Area(BtplArea area, int left, int top, int right, int bottom)
+            => area.Left == left && area.Top == top && area.Right == right && area.Bottom == bottom;
+
+        private static void BlackMarkMedia()
+        {
+            // 2026-10-14 실기 용지: 받침지 70, 마크 제외 35, 마크 5, 흰 부분 7.5, 흰 라벨 60×20 mm, 300dpi.
+            var media = new BtplBlackMarkMedia(70m, 35m, 5m, 7.5m, 60m, 20m);
+            Check(media.LabelSetting.Command == "^Q" && media.LabelSetting.Parameters == "35,5,9+", "black-mark Q from ruler values");
+            Check(media.WidthSetting.Command == "^W" && media.WidthSetting.Parameters == "70", "W from liner width");
+            Check(Area(media.LabelArea, 59, 0, 768, 236), "label area dots");
+            Check(Area(media.SafeArea, 83, 24, 744, 213), "2 mm safe area dots");
+            // z는 0.5 mm 단위로 반올림하고 센서 보정 상수를 바꿀 수 있다.
+            Check(new BtplBlackMarkMedia(70m, 35m, 5m, 7.3m, 60m, 20m).LabelSetting.Parameters == "35,5,9+", "z rounds up to 0.5 mm");
+            Check(new BtplBlackMarkMedia(70m, 35m, 5m, 7.1m, 60m, 20m).LabelSetting.Parameters == "35,5,8.5+", "z rounds down to 0.5 mm");
+            Check(new BtplBlackMarkMedia(70m, 35m, 5m, 7.5m, 60m, 20m, 300, 0m).LabelSetting.Parameters == "35,5,7.5+", "sensor offset argument");
+            Check(Area(new BtplBlackMarkMedia(70m, 35m, 5m, 7.5m, 60m, 20m, 203).LabelArea, 40, 0, 519, 160), "203 dpi area");
+            // 계산한 Q는 기존 2인수 서식을 세 인수로 고치는 편집에 그대로 쓴다.
+            Check(BtplTemplate.Parse("^Q40,5\n^L\nE").WithSetting(media.LabelSetting).ToBtpl() == "^Q35,5,9+\n^L\nE", "apply calculated Q");
+            Format("InvalidArguments", () => new BtplBlackMarkMedia(70m, 35m, 5m, 7.5m, 60m, 20m, 250));
+            Format("InvalidArguments", () => new BtplBlackMarkMedia(70m, 35m, 5m, 7.5m, 71m, 20m));
+            Format("InvalidArguments", () => new BtplBlackMarkMedia(70m, 35m, 5m, 16m, 60m, 20m));
+            Format("InvalidArguments", () => new BtplBlackMarkMedia(70m, 0m, 5m, 7.5m, 60m, 20m));
+            Format("InvalidArguments", () => new BtplBlackMarkMedia(70m, 35m, 5m, -1m, 60m, 20m));
+            Format("InvalidArguments", () => new BtplBlackMarkMedia(70m, 35m, 5m, 7.5m, 3m, 20m));
         }
 
         private static void RemovedApi()
