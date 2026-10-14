@@ -31,12 +31,9 @@
   <ItemGroup>
     <Reference Include="System" />
     <Reference Include="System.Core" />
-    <Reference Include="System.Data" />
     <Compile Include="Program.cs" />
     <Compile Include="SyncMvpContractTests.cs" />
-    <Compile Include="BtplTemplateTests.cs" />
-    <Compile Include="TemplateFormatTests.cs" />
-    <Compile Include="BindingTests.cs" />
+    <Compile Include="TxtEditorTests.cs" />
     <Compile Include="LegacySdk\NativeApi.cs" />
     <Compile Include="LegacySdk\NativeSdk.cs" />
     <Compile Include="LegacySdk\NativeConnectionOptions.cs" />

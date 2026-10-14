@@ -86,11 +86,8 @@ namespace U2BIO.BT003PROLabelPrinting.Validation
                 Require(library.GetName().Name == "U2BIO.BT003PROLabelPrinting", "Library assembly name differs.");
                 CheckFramework(library);
                 CheckFramework(Assembly.GetExecutingAssembly());
-                BtplTemplateTests.Run();
-                if (!txtOnly) {
-                    TemplateFormatTests.Run();
-                    BindingTests.Run();
-                } else Console.WriteLine("SCOPE: TXT and common printer contracts; JSON/XML template validation DEFERRED");
+                TxtEditorTests.Run();
+                if (txtOnly) Console.WriteLine("SCOPE: TXT editor and common printer contracts; JSON/XML APIs removed");
                 SyncMvpContractTests.Run(library);
                 NativeTests.Run(library);
 
