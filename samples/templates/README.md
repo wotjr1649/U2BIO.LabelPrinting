@@ -2,14 +2,14 @@
 
 현재 API의 예제는 checkup-two-lines.txt(CP949)다. 같은 이름의 JSON/XML 파일은 이전 형식의 참고 자료이며 현재 BtplTemplate.Load에서는 지원하지 않는다. 가상 데이터만 사용하며 회색 RFID 그림은 기존 용지에 있으므로 요소에 포함하지 않는다.
 
-용지는 시험용 흰 라벨 60×20 mm·마크 제외 길이 35 mm·검은 마크 5 mm·뒷종이 폭 70 mm이며 `^Q35,5,9+`로 서식 원점을 흰 라벨 상단에 맞춘다(300dpi). X80/Y52과 X80/Y92(이전 `^Q40,5,7.5+`의 Y120·Y160과 같은 인쇄 위치), AW10/1/0/0을 사용한다. 공통 기본값이 아니며 실제 두 줄 배치·반복 정렬은 미검증이다.
+용지는 시험용 흰 라벨 60×20 mm·마크 제외 길이 35 mm·검은 마크 5 mm·뒷종이 폭 70 mm이며 `^Q35,5,9+`를 쓴다(300dpi, 흰 라벨 상단은 서식 원점보다 약 3.6 mm 아래). X80/Y94와 X80/Y134(이전 `^Q40,5,7.5+`의 Y120·Y160과 같은 인쇄 위치), AW10/1/0/0을 사용한다. 공통 기본값이 아니며 실제 두 줄 배치·반복 정렬은 미검증이다.
 
 ```csharp
 var template = BtplTemplate.Load("samples/templates/checkup-two-lines.txt");
 // 선택 Templates로 TXT를 읽고 편집한 뒤 변수 표식이 남은 원문을 전달한다.
 using (var printer = new Bt003Printer())
 {
-    if (!printer.ConnectUsb(selectedUsbPort, 21).IsSuccess) return;
+    if (!printer.ConnectUsb(selectedUsbPort, 15).IsSuccess) return;
     var result = printer.Print(template.ToBtpl());
     // 성공 여부는 IsSuccess로 확인한다. 실패 시 Message와 SDK 호출 증거를 확인한다.
     // 실패에도 일부 인쇄가 있었을 수 있으므로 자동으로 다시 인쇄하지 않는다.
@@ -18,6 +18,6 @@ using (var printer = new Bt003Printer())
 
 TXT 파일을 기본 SDK 경로로 등록하려면 PrintFile(txtPath)를 사용한다. SDK 변수 서식이면 V00부터 최고 참조 번호까지 값을 매번 raw 가변데이터 문자열로 제공한다. 예를 들어 PrintFile(txtPath, "홍길동!!1122334455!!20120201")처럼 호출한다. 이 고정 문구 서식에는 별도 변수가 없다. 편집과 Save/SaveAs는 [TXT API 안내](../../docs/BTPL_TEMPLATE_API.ko.md)를 따른다.
 
-배출 거리는 ConnectUsb 인수로 지정한다. 예시 21 mm는 이 용지와 `^Q35,5,9+`에서 확인한 인출 거리이며 기본값은 0이다. 서식의 E 설정은 별개 SDK 설정으로 유지하며 배출 완료를 보장하지 않는다. M/B는 서식에 추가하지 않는다. 다음 인쇄는 이전 배출 거리를 복귀하고, 해제 자체는 후진하지 않는다.
+배출 거리는 ConnectUsb 인수로 지정한다. 예시 15 mm는 이 용지와 `^Q35,5,9+`에서 블랙마크가 출구 끝에 멈춘 인출 거리이며 기본값은 0이다. 서식의 E 설정은 별개 SDK 설정으로 유지하며 배출 완료를 보장하지 않는다. M/B는 서식에 추가하지 않는다. 다음 인쇄는 이전 배출 거리를 복귀하고, 해제 자체는 후진하지 않는다.
 
 [새 API](../../docs/PRINTER_API.ko.md), [스펙](../../docs/specs/SYNC_USB_MVP.md), [배출·복귀](../../docs/PRINT_PRESENTATION.ko.md)를 따른다. 실제 두 줄 출력과 배출은 [보류 실기](../../docs/HARDWARE_VALIDATION.ko.md)에서 확인한다. SDK 0은 물리 완료 증거가 아니다.
