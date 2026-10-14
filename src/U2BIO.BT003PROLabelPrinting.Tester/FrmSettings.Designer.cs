@@ -34,10 +34,11 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
             this.tabSettings = new DevExpress.XtraTab.XtraTabControl();
             this.pageConnection = new DevExpress.XtraTab.XtraTabPage();
             this.gridConnection = new DevExpress.XtraVerticalGrid.VGridControl();
-            this.repositoryPort = new DevExpress.XtraEditors.Repository.RepositoryItemTextEdit();
+            this.repositoryPort = new DevExpress.XtraEditors.Repository.RepositoryItemImageComboBox();
             this.repositoryDistance = new DevExpress.XtraEditors.Repository.RepositoryItemSpinEdit();
             this.categoryConnection = new DevExpress.XtraVerticalGrid.Rows.CategoryRow();
             this.rowPort = new DevExpress.XtraVerticalGrid.Rows.EditorRow();
+            this.rowDetected = new DevExpress.XtraVerticalGrid.Rows.EditorRow();
             this.rowDistance = new DevExpress.XtraVerticalGrid.Rows.EditorRow();
             this.pageTemplate = new DevExpress.XtraTab.XtraTabPage();
             this.gridTemplate = new DevExpress.XtraVerticalGrid.VGridControl();
@@ -140,7 +141,11 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
             // repositoryPort
             //
             this.repositoryPort.AutoHeight = false;
+            this.repositoryPort.Buttons.AddRange(new DevExpress.XtraEditors.Controls.EditorButton[] {
+            new DevExpress.XtraEditors.Controls.EditorButton(DevExpress.XtraEditors.Controls.ButtonPredefines.Combo),
+            new DevExpress.XtraEditors.Controls.EditorButton(DevExpress.XtraEditors.Controls.ButtonPredefines.Redo) { ToolTip = "다시 감지" }});
             this.repositoryPort.Name = "repositoryPort";
+            this.repositoryPort.ButtonClick += new DevExpress.XtraEditors.Controls.ButtonPressedEventHandler(this.repositoryPort_ButtonClick);
             //
             // repositoryDistance
             //
@@ -154,6 +159,7 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
             //
             this.categoryConnection.ChildRows.AddRange(new DevExpress.XtraVerticalGrid.Rows.BaseRow[] {
             this.rowPort,
+            this.rowDetected,
             this.rowDistance});
             this.categoryConnection.Name = "categoryConnection";
             this.categoryConnection.Properties.Caption = "USB 연결";
@@ -163,6 +169,12 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
             this.rowPort.Name = "rowPort";
             this.rowPort.Properties.Caption = "포트";
             this.rowPort.Properties.RowEdit = this.repositoryPort;
+            //
+            // rowDetected
+            //
+            this.rowDetected.Name = "rowDetected";
+            this.rowDetected.Properties.Caption = "감지 상태";
+            this.rowDetected.Properties.ReadOnly = true;
             //
             // rowDistance
             //
@@ -348,10 +360,11 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
         private DevExpress.XtraTab.XtraTabControl tabSettings;
         private DevExpress.XtraTab.XtraTabPage pageConnection;
         private DevExpress.XtraVerticalGrid.VGridControl gridConnection;
-        private DevExpress.XtraEditors.Repository.RepositoryItemTextEdit repositoryPort;
+        private DevExpress.XtraEditors.Repository.RepositoryItemImageComboBox repositoryPort;
         private DevExpress.XtraEditors.Repository.RepositoryItemSpinEdit repositoryDistance;
         private DevExpress.XtraVerticalGrid.Rows.CategoryRow categoryConnection;
         private DevExpress.XtraVerticalGrid.Rows.EditorRow rowPort;
+        private DevExpress.XtraVerticalGrid.Rows.EditorRow rowDetected;
         private DevExpress.XtraVerticalGrid.Rows.EditorRow rowDistance;
         private DevExpress.XtraTab.XtraTabPage pageTemplate;
         private DevExpress.XtraVerticalGrid.VGridControl gridTemplate;

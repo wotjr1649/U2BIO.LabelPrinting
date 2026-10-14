@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
@@ -29,9 +30,10 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
                 CheckDocument(directory);
                 CheckPreview();
                 CheckGapLabel();
+                CheckUsbPorts();
                 CheckNoNativeOrUi();
                 Console.WriteLine("PASS: tester self-check " + (expect64 ? "x64" : "x86")
-                    + " settings/document/preview/gap-label; nativeSDK=not-loaded; no UI/device");
+                    + " settings/document/preview/gap-label/usb-list; nativeSDK=not-loaded; no UI/device");
                 return 0;
             }
             catch (Exception error)
@@ -233,6 +235,23 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
         }
 
         // 실행 폴더에는 같은 비트수 SDK 한 쌍이 있지만 이 검사는 로드하지 않고 화면도 만들지 않는다.
+        // 레지스트리 대신 합성 목록으로 번호·이름·저장 포트 처리만 확인한다.
+        private static void CheckUsbPorts()
+        {
+            step = "usb-list";
+            Func<string, string> names = instance => instance == "noname" ? null : "  " + instance + " ";
+            IReadOnlyList<UsbPrinterPort> none = UsbPrinterList.Build(new string[0], names, "0");
+            Check(none.Count == 1 && none[0].Port == "0" && !none[0].Detected && none[0].Name == UsbPrinterList.NotDetected
+                && UsbPrinterList.Summary(none) == "USB 프린터가 감지되지 않았습니다.");
+            IReadOnlyList<UsbPrinterPort> one = UsbPrinterList.Build(new[] { "BT-003 Pro" }, names, "0");
+            Check(one.Count == 1 && one[0].Port == "0" && one[0].Detected && one[0].Display == "0 — BT-003 Pro"
+                && UsbPrinterList.Summary(one) == "USB 프린터 1대 감지");
+            IReadOnlyList<UsbPrinterPort> two = UsbPrinterList.Build(new[] { null, "A", "noname" }, names, "0");
+            Check(two.Count == 3 && two[0].Port == "0" && !two[0].Detected && two[1].Port == "1" && two[1].Name == "A"
+                && two[2].Port == "2" && two[2].Name == "이름 없음" && UsbPrinterList.Summary(two).Contains("미검증"));
+            Check(UsbPrinterList.Build(new[] { "A" }, names, "").Count == 1);
+        }
+
         private static void CheckNoNativeOrUi()
         {
             step = "native";

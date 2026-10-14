@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Windows.Forms;
 using DevExpress.XtraEditors;
@@ -18,6 +19,7 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
         {
             InitializeComponent();
             this.settings = settings ?? throw new ArgumentNullException(nameof(settings));
+            FillPorts(settings.Port, repositoryPort.Items);
             rowPort.Properties.Value = settings.Port;
             rowDistance.Properties.Value = settings.PresentationDistanceMm;
             rowFolder.Properties.Value = settings.TemplateFolder;
@@ -40,6 +42,36 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
             if (error == null) return;
             e.Valid = false;
             e.ErrorText = error;
+        }
+
+        // 저장 값은 목록 번호 문자열이고 화면에는 번호와 장치 이름을 함께 보인다.
+        private void FillPorts(string currentPort, params ImageComboBoxItemCollection[] targets)
+        {
+            IReadOnlyList<UsbPrinterPort> ports = UsbPrinterList.Detect(currentPort, out string summary);
+            foreach (ImageComboBoxItemCollection items in targets)
+            {
+                items.BeginUpdate();
+                try
+                {
+                    items.Clear();
+                    foreach (UsbPrinterPort port in ports) items.Add(new ImageComboBoxItem(port.Display, port.Port));
+                }
+                finally
+                {
+                    items.EndUpdate();
+                }
+            }
+            rowDetected.Properties.Value = summary;
+        }
+
+        private void repositoryPort_ButtonClick(object sender, ButtonPressedEventArgs e)
+        {
+            if (e.Button.Kind != ButtonPredefines.Redo) return;
+            var edit = (ImageComboBoxEdit)sender;
+            string current = Convert.ToString(edit.EditValue);
+            // 셀 편집기는 저장소 항목의 복사본을 쓰므로 둘 다 다시 채운다.
+            FillPorts(current, repositoryPort.Items, edit.Properties.Items);
+            edit.EditValue = current;
         }
 
         private void repositoryFolder_ButtonClick(object sender, ButtonPressedEventArgs e)

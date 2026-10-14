@@ -31,10 +31,11 @@ verify-build는 기존 검사를 그대로 두고 플랫폼마다 다음을 추�
 | FrmMain(.Designer).cs | 편집·미리보기·연결·인쇄 화면. Bt003Printer 하나와 TemplateDocument 하나를 가진다. |
 | FrmSettings(.Designer).cs | phase2 환경설정 모양의 설정 화면 |
 | TesterSettings.cs | 설정 값과 XML 읽기·쓰기. 파일 경로는 인수로 받는다. |
+| UsbPrinterList.cs | Windows USB 프린터 드라이버(usbprint) 장치 목록을 읽어 포트 번호와 장치 이름을 만든다. SDK를 쓰지 않는다. |
 | TemplateDocument.cs | 열린 서식의 상태(현재 BtplTemplate, 경로, 수정 여부, 마지막 열기·저장 시각)와 저장 규칙. 미리보기용 변수 치환 함수도 둔다. |
 | SelfCheck.cs | 장치 없는 검사 |
 
-화면 파일은 Visual Studio 디자이너로 열 수 있는 Designer 형식으로 만든다. 화면 밖에서 검사해야 하는 규칙은 TesterSettings와 TemplateDocument에만 둔다.
+화면 파일은 Visual Studio 디자이너로 열 수 있는 Designer 형식으로 만든다. 화면 밖에서 검사해야 하는 규칙은 TesterSettings, TemplateDocument, UsbPrinterList에만 둔다.
 
 ## 설정
 
@@ -126,7 +127,8 @@ phase2 FrmSettings의 모양을 따른다.
   - 행 구성: CategoryRow + EditorRow
   - 크기: 행 이름 280, 값 200, 최소 행 높이 20
   - 분류 글꼴: 굴림 9 굵게
-- **입력 편집기**: 포트는 TextEdit, 배출 거리는 SpinEdit(정수 0~1000), 서식 폴더는 ButtonEdit + 폴더 선택이다.
+- **포트 감지**: SDK에는 USB 장치 조회 API가 없다. 레지스트리 `HKLM\SYSTEM\CurrentControlSet\Services\usbprint\Enum`의 번호(`0`, `1`, …)를 포트 값으로, 각 장치의 `FriendlyName`(없으면 `DeviceDesc`)을 이름으로 읽는다. SDK의 `SetPrinterPort`도 이 목록에서 장치를 찾지만, 번호와 SDK 포트 값의 대응은 프린터 1대·포트 `0`에서만 실기로 확인했다. 장치 인스턴스 ID는 화면·설정·기록에 남기지 않는다.
+- **입력 편집기**: 포트는 ImageComboBox(목록 선택만, 표시 `번호 — 이름`, 저장 값은 번호)와 [다시 감지] 버튼이다. 설정 화면을 열 때 목록을 읽고, 저장된 포트가 목록에 없으면 `번호 — 감지 안 됨`으로 남긴다. 아래 읽기 전용 "감지 상태" 행에 감지 대수를 보인다. 0대면 감지되지 않았다고, 2대 이상이면 운영 기준은 1대이고 번호와 장치 대응은 미검증이라고 표시한다. 배출 거리는 SpinEdit(정수 0~1000), 서식 폴더는 ButtonEdit + 폴더 선택이다.
 - **검증과 저장**: 잘못된 값은 `e.ErrorText`로 표시하고 확인을 막는다. 확인을 누르면 TesterSettings로 저장한다.
 - **제외**: phase2의 검색 기능은 넣지 않는다.
 
@@ -139,6 +141,7 @@ phase2 FrmSettings의 모양을 따른다.
 3. 서식: 합성 CP949 TXT를 열어 편집하면 수정됨이 된다. Save 뒤 파일과 `ToBtpl()`이 같고, 연속 Save도 된다. SaveAs 뒤 다음 Save는 새 경로에만 쓰고 원래 파일은 바뀌지 않는다.
 4. 실패 보존: 외부에서 파일을 바꾼 뒤 Save하면 SourceChanged가 나고, 편집본·수정 표시·외부 내용이 그대로다. 기존 다른 파일로 SaveAs(덮어쓰기 거절)하면 그 파일과 편집본이 그대로다. 손상된 설정으로 시작한 뒤 최근 파일을 갱신해도 원본 설정 파일이 바뀌지 않는다.
 5. 미리보기 치환: OfflineSmoke와 같은 사례로 확인한다(빈 항목 유지, 없는 번호는 표식 유지, 값 안의 표식은 다시 치환하지 않음).
-6. 실행 폴더에 SDK 두 파일이 있지만 프로세스에 로드되지 않았고, 화면을 만들지 않았다.
+6. USB 목록: 합성 목록으로 번호·이름 정리, 빈 번호 건너뛰기, 저장 포트의 감지 안 됨 표시, 감지 대수 안내를 확인한다. 실제 레지스트리는 읽지 않는다.
+7. 실행 폴더에 SDK 두 파일이 있지만 프로세스에 로드되지 않았고, 화면을 만들지 않았다.
 
 임시 폴더만 쓰며 실제 사용자 설정과 운영 서식은 건드리지 않는다. 화면 배치, F12/ESC, 오류 표시, 저장 확인은 장치 없이 실제 화면에서 따로 확인한다. 물리 출력은 사용자 승인과 직접 관측으로만 확인한다.

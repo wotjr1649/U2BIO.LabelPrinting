@@ -63,6 +63,7 @@
     <Compile Include="SelfCheck.cs" />
     <Compile Include="TemplateDocument.cs" />
     <Compile Include="TesterSettings.cs" />
+    <Compile Include="UsbPrinterList.cs" />
     <EmbeddedResource Include="Properties\licenses.licx" />
     <None Include="..\U2BIO.BT003PROLabelPrinting\Sdk\$(Platform)\BlackfishNfcLib.dll;..\U2BIO.BT003PROLabelPrinting\Sdk\$(Platform)\HFModule.dll">
       <Link>%(Filename)%(Extension)</Link>
