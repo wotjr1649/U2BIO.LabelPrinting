@@ -78,6 +78,10 @@ namespace U2BIO.BT003PROLabelPrinting.Validation
             Format("InvalidArguments", () => text.WithPosition(0, 120));
             Check(new BtplTextElement(1, 0, 10, 1, "x").X == 1 && text.WithPosition(1, 0).Y == 0, "X one and Y zero allowed");
             Format("InvalidArguments", () => original.WithRawText("^L\nAW,0,10,10,1,0,0,x\nE"));
+            // 숫자로 해석하지 못한 AW 줄도 펌웨어가 X를 0으로 읽을 수 있으므로 X가 1 이상 정수가 아니면 거부한다.
+            Format("InvalidArguments", () => original.WithRawText("^L\nAW, 0,10,10,1,0,0,x\nE"));
+            Format("InvalidArguments", () => original.WithRawText("^L\nAW,x,10,10,1,0,0,x\nE"));
+            Check(original.WithRawText("^L\nAW, 1,10,10,1,0,0,x\nE").UnsupportedLineNumbers.Contains(2), "unparsed AW with X one stays raw");
             var protectedText = BtplTemplate.Parse("^L\nAW,1,2,10,1,1,3,x\nE");
             Format("LockedTextArguments", () => protectedText.WithText(0, new BtplTextElement(1, 2, 10, 1, "changed")));
             Check(protectedText.WithText(0, protectedText.TextElements[0].WithSize(12)).ToBtpl().Contains(",12,1,1,3,x"), "direction survives edits");
@@ -225,6 +229,7 @@ namespace U2BIO.BT003PROLabelPrinting.Validation
                 Check(!File.Exists(gapPath) && Directory.GetFiles(directory, "*.tmp").Length == 0, "two-argument Q is not saved");
                 string zeroPath = Path.Combine(directory, "zero-x.txt");
                 Format("InvalidArguments", () => BtplTemplate.Parse("^L\r\nAW,0,10,10,1,0,0,x\r\nE").SaveAs(zeroPath));
+                Format("InvalidArguments", () => BtplTemplate.Parse("^L\r\nAW, 0,10,10,1,0,0,x\r\nE").SaveAs(zeroPath));
                 Check(!File.Exists(zeroPath) && BtplTemplate.Parse("^L\r\nAW,0,10,10,1,0,0,x\r\nE").TextElements[0].X == 0, "zero X is readable but not saved");
                 string largePath = Path.Combine(directory, "large.txt");
                 using (var large = new FileStream(largePath, FileMode.CreateNew, FileAccess.Write)) large.SetLength(4 * 1024 * 1024 + 1);
@@ -248,6 +253,9 @@ namespace U2BIO.BT003PROLabelPrinting.Validation
             var centred = new BtplBlackMarkMedia(70m, 35m, 5m, 7.5m, 60m, 20m, 300, 1.5m, 0m, 0m);
             Check(Area(centred.LabelArea, 59, 0, 768, 236) && Area(centred.SafeArea, 83, 24, 744, 213), "offset arguments");
             Format("InvalidArguments", () => new BtplBlackMarkMedia(70m, 35m, 5m, 7.5m, 60m, 20m, 300, 1.5m, 3.6m, -6m));
+            // 가로 보정이 라벨을 받침지 오른쪽 밖으로 밀면 거부하고, 오른쪽 끝에 딱 맞으면 허용한다.
+            Format("InvalidArguments", () => new BtplBlackMarkMedia(70m, 35m, 5m, 7.5m, 60m, 20m, 300, 1.5m, 3.6m, 6m));
+            Check(new BtplBlackMarkMedia(70m, 35m, 5m, 7.5m, 60m, 20m, 300, 1.5m, 3.6m, 5m).LabelArea.Right == 827, "label may end at the liner edge");
             Format("InvalidArguments", () => new BtplBlackMarkMedia(70m, 35m, 5m, 7.5m, 60m, 20m, 300, 1.5m, -1m, -1m));
             // z는 0.5 mm 단위로 반올림하고 센서 보정 상수를 바꿀 수 있다.
             Check(new BtplBlackMarkMedia(70m, 35m, 5m, 7.3m, 60m, 20m).LabelSetting.Parameters == "35,5,9+", "z rounds up to 0.5 mm");
