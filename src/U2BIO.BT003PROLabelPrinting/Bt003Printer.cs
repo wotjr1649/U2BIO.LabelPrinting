@@ -485,7 +485,8 @@ namespace U2BIO.BT003PROLabelPrinting
                 // 5. 정상 인쇄 응답에서만 추가 배출한다. 배출 결과와 관계없이 PrintCode는 인쇄 응답을 보존한다.
                 if (result.PrintCode == 0)
                 {
-                    // 이 쓰기가 실패해도 파일에는 unknown이 남으므로 재실행 시 운영자 확인을 받는다.
+                    // SDK 정상 응답이므로 메모리는 갱신한다. 파일 저장이 실패해도 파일에는 unknown이 남아 재실행 시 확인을 받는다.
+                    Positions[port] = 0;
                     SavePosition(0);
                     result.Message = "인쇄 SDK 응답은 정상입니다. StartLabelPrint 응답 코드: 0.";
                     if (presentationDistance > 0)
@@ -552,7 +553,9 @@ namespace U2BIO.BT003PROLabelPrinting
                     Fail(result, printMessage + movement + "에 실패했습니다. SendData 응답: " + result.NativeCode + ".");
                     return false;
                 }
-                SavePosition(command == "^B" ? 0 : distance);
+                // 이동 정상 응답이므로 메모리는 갱신하고, 파일 저장 실패 시에는 파일의 unknown을 남긴다.
+                Positions[port] = command == "^B" ? 0 : distance;
+                SavePosition(Positions[port]);
                 result.Message = command == "^B"
                     ? "인쇄 전 복귀 명령의 SDK 응답은 정상입니다. SendData 응답: 0."
                     : result.Message + " 인쇄 후 배출 명령의 SDK 응답도 정상입니다. SendData 응답: 0.";
@@ -693,8 +696,7 @@ namespace U2BIO.BT003PROLabelPrinting
 
         private bool SavePosition(int? value)
         {
-            // 메모리는 항상 갱신하고, 파일 저장 성공 여부를 돌려준다. SDK 진입 전 저장이 실패하면 호출자가 중단한다.
-            Positions[port] = value;
+            // 파일 저장에 성공했을 때만 메모리를 바꾼다. SDK 진입 전 저장이 실패하면 호출자가 중단하므로 기존 기록이 그대로 맞다.
             string temp = PositionFile + ".tmp";
             try
             {
@@ -709,6 +711,7 @@ namespace U2BIO.BT003PROLabelPrinting
                 {
                     File.Move(temp, PositionFile);
                 }
+                Positions[port] = value;
                 return true;
             }
             catch (Exception error) when (Recoverable(error))
