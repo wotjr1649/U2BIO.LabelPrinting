@@ -168,7 +168,8 @@ namespace U2BIO.BT003PROLabelPrinting
             return index < 0 ? this : Copy(lines.Where((line, position) => position != index).ToArray());
         }
 
-        /// <summary>기존 Q 길이만 수정한다. gap·blackmark 인수나 누락 설정을 자동 생성하지 않는다.</summary>
+        /// <summary>기존 ^Q의 첫 인수만 수정한다. 블랙마크 용지는 피치가 아니라 마크를 뺀 길이(피치 − 마크 폭)다.</summary>
+        /// <remarks>마크 폭·위치 인수는 보존하고 누락 설정을 만들지 않는다. 두 인수 ^Q가 남은 서식은 GapLabelSetting으로 거부한다.</remarks>
         public BtplTemplate WithLabelLength(decimal millimetres)
         {
             CheckMillimetres(millimetres);

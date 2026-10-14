@@ -31,8 +31,8 @@ TextElements는 AW 편집 목록이다. 비AW 명령과 숫자로 읽을 수 없
 새 요소 추가는 단일 ^L/E frame의 E 직전으로 제한한다. 여러 frame도 원문 읽기·저장은 가능하지만 모호한 삽입은 원문 화면에서 지정한다. Q/W/S/H 없는 제조사 예제를 허용하며 기본 설정을 자동 추가하지 않는다.
 
 ```csharp
-// 길이만 바꾸며 ^Q의 gap/blackmark 인수는 그대로 둔다.
-template = template.WithLabelLength(40m);
+// ^Q 첫 인수(마크를 뺀 길이, 피치 − 마크 폭)만 바꾸며 마크 폭·위치 인수는 그대로 둔다. 두 인수 ^Q는 GapLabelSetting으로 거부한다.
+template = template.WithLabelLength(35m);
 template = template.WithLabelWidth(70m);
 template = template.WithSetting(new BtplSetting("^S", "5"));
 template = template.WithSetting(new BtplSetting("^H", "19"));

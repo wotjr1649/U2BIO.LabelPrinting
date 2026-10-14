@@ -58,7 +58,7 @@ AddText와 복사, 누락 설정의 새 삽입은 정확히 식별되는 ^L 하�
 
 Settings는 편의 편집 대상 Q/W/S/H다. 같은 명령이 중복되면 WithSetting과 RemoveSetting은 추측하여 첫 행을 바꾸지 않고 거부한다. 필수 설정은 없다.
 
-WithLabelLength는 기존 ^Q의 첫 길이 값만, WithLabelWidth는 기존 ^W의 너비 값만 수정한다. gap/blackmark 뒤 인수는 보존한다. Q/W가 없으면 호출자가 WithSetting으로 전체 설정 인수를 지정해야 한다. 간격·센서 값을 자동 추정하지 않는다. 속도와 농도는 WithSetting으로 수정하며 ^S는2..7, ^H는0..19의 기존 입력 범위를 사용한다. 용지 길이·너비는 양의 mm 수치다.
+WithLabelLength는 기존 ^Q의 첫 인수(블랙마크 용지는 마크를 뺀 길이, 피치 − 마크 폭)만, WithLabelWidth는 기존 ^W의 너비 값만 수정한다. 마크 폭·위치 인수는 보존한다. 두 인수 ^Q가 남은 서식은 GapLabelSetting으로 거부하므로 WithSetting으로 세 인수를 먼저 지정한다. Q/W가 없으면 호출자가 WithSetting으로 전체 설정 인수를 지정해야 한다. 간격·센서 값을 자동 추정하지 않는다. 속도와 농도는 WithSetting으로 수정하며 ^S는2..7, ^H는0..19의 기존 입력 범위를 사용한다. 용지 길이·너비는 양의 mm 수치다.
 
 ## 공개 API와 오류
 
