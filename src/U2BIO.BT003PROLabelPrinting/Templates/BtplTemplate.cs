@@ -95,8 +95,8 @@ namespace U2BIO.BT003PROLabelPrinting
         {
             if (text == null) throw new ArgumentNullException(nameof(text));
             var changed = Copy(SplitLines(text));
-            // 원문 편집으로 두 인수 Q 차단을 우회하지 못하게 한다.
-            changed.CheckNoGapSetting();
+            // 원문 편집으로 두 인수 Q와 AW X 0 이하 차단을 우회하지 못하게 한다.
+            changed.CheckPrintable();
             return changed;
         }
 
@@ -206,8 +206,8 @@ namespace U2BIO.BT003PROLabelPrinting
 
         private BtplTemplate Store(string target, bool overwrite, bool checkSource)
         {
-            // 읽어 온 두 인수 Q를 그대로 다시 저장하지 않는다. 세 인수로 고친 뒤 저장한다.
-            CheckNoGapSetting();
+            // 읽어 온 두 인수 Q나 AW X 0 이하를 그대로 다시 저장하지 않는다. 고친 뒤 저장한다.
+            CheckPrintable();
             byte[] bytes;
             try { bytes = StrictEncoding(CodePage).GetBytes(ToBtpl()); }
             catch (EncoderFallbackException) { throw new BtplFormatException("InvalidEncoding"); }
@@ -304,8 +304,11 @@ namespace U2BIO.BT003PROLabelPrinting
             return matches[0];
         }
 
-        private void CheckNoGapSetting()
+        private void CheckPrintable()
         {
+            // AW X=0은 SDK StartLabelPrint 예외를 낸다. 읽기는 허용하되 편집 결과와 저장에서는 거부한다.
+            var zeroX = TextElements.FirstOrDefault(text => text.X < 1);
+            if (zeroX != null) throw new BtplFormatException("InvalidArguments", zeroX.TemplateLine);
             // 펌웨어가 공백·빈 인수를 어떻게 읽는지 모르므로 세 인수로 해석된 Q 줄만 남긴다.
             for (int index = 0; index < lines.Length; index++)
             {

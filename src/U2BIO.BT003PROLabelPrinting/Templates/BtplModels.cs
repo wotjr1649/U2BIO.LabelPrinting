@@ -81,7 +81,7 @@ namespace U2BIO.BT003PROLabelPrinting
         /// <summary>예제의 정렬/방향 0/0으로 새 AW를 만든다. 크기와 굵기는 호출자가 명시한다.</summary>
         public BtplTextElement(int x, int y, int size, int weight, string payload)
         {
-            CheckCoordinate(x);
+            CheckX(x);
             CheckCoordinate(y);
             CheckSize(size);
             CheckWeight(weight);
@@ -110,7 +110,7 @@ namespace U2BIO.BT003PROLabelPrinting
         /// <summary>X/Y 중 실제로 바뀐 값만 검사·교체한다. 같은 값의 선행0과 부호는 유지한다.</summary>
         public BtplTextElement WithPosition(int x, int y)
         {
-            if (x != X) CheckCoordinate(x);
+            if (x != X) CheckX(x);
             if (y != Y) CheckCoordinate(y);
             var next = Change(1, x, X);
             return next.Change(2, y, Y);
@@ -161,6 +161,8 @@ namespace U2BIO.BT003PROLabelPrinting
         }
 
         private static void CheckCoordinate(int value) { if (value < 0) throw new BtplFormatException("InvalidArguments"); }
+        // 실기에서 AW X=0은 SDK StartLabelPrint 예외를 냈다(X=1부터 정상). Y=0은 정상이므로 X만 1 이상으로 제한한다.
+        internal static void CheckX(int value) { if (value < 1) throw new BtplFormatException("InvalidArguments"); }
         private static void CheckSize(int value)
         {
             // 제공 SDK의 size * 340 계산이 넘치지 않게 한다. 실제 글꼴/장치의 지원 범위 보장은 아니다.

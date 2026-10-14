@@ -26,7 +26,7 @@ template = template.WithRawText(editedText);
 PrinterResult result = printer.Print(template.ToBtpl(), rawVariableData);
 ```
 
-TextElements는 AW 편집 목록이다. 비AW 명령과 숫자로 읽을 수 없는 AW는 원문과 UnsupportedLineNumbers로 확인한다. 목록 인덱스는 해당 객체의 스냅샷이며 삭제/추가/원문 수정 후 새 목록에서 다시 선택한다. 정렬/방향은 원문으로 수정한다.
+TextElements는 AW 편집 목록이다. AW의 X는 1 이상이어야 한다(실기에서 X=0은 SDK 인쇄 예외를 냈다). 새로 만들거나 바꾸는 X, WithRawText와 Save/SaveAs에서 X 0 이하를 InvalidArguments로 거부하며, 기존 파일은 읽어서 고칠 수 있다. 비AW 명령과 숫자로 읽을 수 없는 AW는 원문과 UnsupportedLineNumbers로 확인한다. 목록 인덱스는 해당 객체의 스냅샷이며 삭제/추가/원문 수정 후 새 목록에서 다시 선택한다. 정렬/방향은 원문으로 수정한다.
 
 새 요소 추가는 단일 ^L/E frame의 E 직전으로 제한한다. 여러 frame도 원문 읽기·저장은 가능하지만 모호한 삽입은 원문 화면에서 지정한다. Q/W/S/H 없는 제조사 예제를 허용하며 기본 설정을 자동 추가하지 않는다.
 
