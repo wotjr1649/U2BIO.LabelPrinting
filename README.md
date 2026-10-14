@@ -4,7 +4,7 @@ BT-003 Pro의 텍스트 라벨 인쇄용 .NET Framework 4.6.1 DLL입니다. 현�
 
 기본 사용은 ConnectUsb → SetPrintingOptions → Print/PrintFile → Disconnect입니다. 제품 코드는 Bt003Printer.cs와 PrinterModels.cs 두 파일이며 제조사 원본 BT003CtrlWrapper의 39개 선언을 직접 사용합니다. StartLabelPrint도 샘플의 StringBuilder 방식입니다. 자체 로더·실행 시 SDK 해시 검사·포인터 bridge·worker·취소·일괄 처리 체계는 제거했습니다.
 
-[확정 스펙](docs/specs/SYNC_USB_MVP.md), [공개 API와 이행 예제](docs/PRINTER_API.ko.md), [설계](docs/DESIGN.md), [계획](docs/IMPLEMENTATION_PLAN.md)을 참고합니다. 기능 명세는 제조사 Programming Manual v1.3이며 선언·마샬링은 원본 Wrapper를 따릅니다. BTPL 해석과 변수 치환은 SDK가 수행합니다. 선택 편집 기능은 [TXT 편집 계약](docs/specs/TXT_TEMPLATE_EDITOR.md)에 따라 원문 보존·AW 편집·Save/SaveAs로 축소합니다. 미리보기 화면과 데이터 구성은 호출 프로그램 책임입니다.
+[확정 스펙](docs/specs/SYNC_USB_MVP.md), [공개 API와 이행 예제](docs/PRINTER_API.ko.md), [용지·^Q·배출 운영 기준](docs/PRINT_PRESENTATION.ko.md#운영-기준), [설계](docs/DESIGN.md), [계획](docs/IMPLEMENTATION_PLAN.md)을 참고합니다. 기능 명세는 제조사 Programming Manual v1.3이며 선언·마샬링은 원본 Wrapper를 따릅니다. BTPL 해석과 변수 치환은 SDK가 수행합니다. 선택 편집 기능은 [TXT 편집 계약](docs/specs/TXT_TEMPLATE_EDITOR.md)에 따라 원문 보존·AW 편집·Save/SaveAs로 축소합니다. 미리보기 화면과 데이터 구성은 호출 프로그램 책임입니다.
 
 한 프로그램에서만 같은 프린터를 사용하며, DLL은 프로세스 안의 단일 연결과 전체 호출 직렬화를 관리합니다. API는 SDK 반환까지 기다립니다. UI의 백그라운드 실행은 호출 프로그램 책임입니다. ANSI 코드 페이지 949 환경에서만 지원합니다. 파일은 CP949이며 경로·크기·읽기와 FileStream 읽기 잠금을 확인합니다.
 
