@@ -43,6 +43,12 @@
     <Reference Include="DevExpress.BonusSkins.v20.2, Version=20.2.6.0, Culture=neutral, PublicKeyToken=b88d1754d700e49a"><Private>True</Private></Reference>
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="FrmSettings.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="FrmSettings.Designer.cs">
+      <DependentUpon>FrmSettings.cs</DependentUpon>
+    </Compile>
     <Compile Include="Program.cs" />
     <Compile Include="SelfCheck.cs" />
     <Compile Include="TemplateDocument.cs" />
