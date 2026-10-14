@@ -96,6 +96,9 @@ namespace U2BIO.BT003PROLabelPrinting.Validation
             var resized = settings.WithLabelLength(45m).WithLabelWidth(60m);
             Check(resized.ToBtpl().Contains("^Q45,5,7.5+\n") && resized.ToBtpl().Contains("^W60\n"), "gap/blackmark preserved");
             Check(resized.RemoveSetting("^W").Settings.Count == 3, "setting deletion");
+            var scalar = BtplTemplate.Parse("^W070\n^S05\n^H019\n^L\nE");
+            Check(scalar.WithSetting(new BtplSetting("^W", "70"))
+                .WithSetting(new BtplSetting("^S", "5")).WithSetting(new BtplSetting("^H", "19")).ToBtpl() == scalar.ToBtpl(), "unchanged scalar settings keep literals");
             Format("MissingSetting", () => minimal.WithLabelLength(40m));
             Format("UnsupportedCommand", () => new BtplSetting("^E", "15"));
             Format("InvalidArguments", () => new BtplSetting("^S", "9"));
@@ -142,7 +145,7 @@ namespace U2BIO.BT003PROLabelPrinting.Validation
                 string sourceBeforeCopy = File.ReadAllText(originalPath, Encoding.GetEncoding(949));
                 var copy = saved.SaveAs(copyPath);
                 Check(copy.FilePath == Path.GetFullPath(copyPath), "new current file");
-                copy = copy.WithRawText(copy.ToBtpl().Replace("修", "수정").Replace("수정", "사본")).Save();
+                copy = copy.WithRawText(copy.ToBtpl().Replace("수정", "사본")).Save();
                 Check(File.ReadAllText(originalPath, Encoding.GetEncoding(949)) == sourceBeforeCopy, "Save after SaveAs leaves first source");
                 Check(File.ReadAllText(copyPath, Encoding.GetEncoding(949)) == copy.ToBtpl(), "copy Save uses copy origin");
                 Throws<IOException>(() => saved.SaveAs(copyPath));
