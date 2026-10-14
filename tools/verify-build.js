@@ -12,7 +12,7 @@ const txtOnly = cli.length >= 2 && cli[cli.length - 2] === '--scope' && cli[cli.
 if (txtOnly) cli.splice(-2);
 const configuration = cli.length === 0 ? 'Release'
     : cli.length === 2 && cli[0] === '--configuration' ? cli[1] : '';
-const evidence = { configuration, scope: txtOnly ? 'txt-and-printer' : 'full', deferredFormats: txtOnly ? ['JSON', 'XML'] : [], commands: [], artifacts: [] };
+const evidence = { configuration, scope: txtOnly ? 'txt-and-printer' : 'full', deferredFormats: [], commands: [], artifacts: [] };
 let logRoot;
 let childEnv, taskkill;
 

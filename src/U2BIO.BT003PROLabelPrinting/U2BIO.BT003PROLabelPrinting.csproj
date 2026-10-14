@@ -31,14 +31,9 @@
   <ItemGroup>
     <Reference Include="System" />
     <Reference Include="System.Core" />
-    <Reference Include="System.Data" />
-    <Reference Include="System.Xml" />
-    <Reference Include="System.Runtime.Serialization" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Templates\BtplModels.cs" />
     <Compile Include="Templates\BtplTemplate.cs" />
-    <Compile Include="Templates\BtplTemplate.Formats.cs" />
-    <Compile Include="Templates\BtplProcessor.cs" />
     <Compile Include="PrinterModels.cs" />
     <Compile Include="Sdk\Interop\BT003CtrlWrapper.cs" />
     <Compile Include="Bt003Printer.cs" />
