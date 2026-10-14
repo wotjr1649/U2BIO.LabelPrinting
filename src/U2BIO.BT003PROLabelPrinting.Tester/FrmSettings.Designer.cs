@@ -148,11 +148,6 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
             this.repositoryDistance.Buttons.AddRange(new DevExpress.XtraEditors.Controls.EditorButton[] {
             new DevExpress.XtraEditors.Controls.EditorButton(DevExpress.XtraEditors.Controls.ButtonPredefines.Combo)});
             this.repositoryDistance.IsFloatValue = false;
-            this.repositoryDistance.MaxValue = new decimal(new int[] {
-            1000,
-            0,
-            0,
-            0});
             this.repositoryDistance.Name = "repositoryDistance";
             //
             // categoryConnection
@@ -225,7 +220,6 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
             //
             // btnOK
             //
-            this.btnOK.DialogResult = System.Windows.Forms.DialogResult.OK;
             this.btnOK.Location = new System.Drawing.Point(436, 333);
             this.btnOK.Name = "btnOK";
             this.btnOK.Size = new System.Drawing.Size(96, 23);

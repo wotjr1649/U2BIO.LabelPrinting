@@ -47,14 +47,15 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
             var edit = (ButtonEdit)sender;
             using (var dialog = new FolderBrowserDialog { SelectedPath = edit.Text })
             {
-                if (dialog.ShowDialog(this) == DialogResult.OK) edit.EditValue = dialog.SelectedPath;
+                if (dialog.ShowDialog(this) != DialogResult.OK) return;
+                edit.EditValue = dialog.SelectedPath;
+                // 코드로 넣은 값은 수정으로 표시되지 않아 PostEditor가 행 값에 옮기지 않는다.
+                edit.IsModified = true;
             }
         }
 
         private void btnOK_Click(object sender, EventArgs e)
         {
-            // 버튼이 DialogResult.OK를 먼저 넣으므로 실패 경로마다 None으로 되돌려 창을 유지한다.
-            DialogResult = DialogResult.None;
             if (!gridConnection.PostEditor() || !gridTemplate.PostEditor()) return;
             gridConnection.CloseEditor();
             gridTemplate.CloseEditor();
@@ -64,6 +65,7 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
             {
                 settings.Update(Convert.ToString(rowPort.Properties.Value), ReadDistance(rowDistance.Properties.Value),
                     Convert.ToString(rowFolder.Properties.Value));
+                // 버튼에 DialogResult를 두지 않고 저장이 성공했을 때만 닫는다.
                 DialogResult = DialogResult.OK;
             }
             catch (ArgumentException error)
@@ -96,7 +98,8 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
             return null;
         }
 
-        // 스핀 편집기는 decimal을 주므로 정수가 아니거나 int 범위 밖이면 범위 오류 값(-1)으로 바꾼다.
+        // 스핀 편집기에 범위를 두면 1001이 1000으로 바뀌어 오류 없이 저장되므로 범위는 여기서만 검사한다.
+        // 정수가 아니거나 int 범위 밖·빈 값은 범위 오류 값(-1)으로 바꾼다.
         private static int ReadDistance(object value)
         {
             if (!(value is int || value is decimal)) return -1;
