@@ -2,7 +2,7 @@
 
 확인일: 2026-10-08 KST. 대상 저장소: [wotjr1649/U2BIO.LabelPrinting](https://github.com/wotjr1649/U2BIO.LabelPrinting).
 
-문서 기준은 **v0.1.1-design**, 기준 커밋은 `5c8c85b3e463d6eeb5314d22a1e85589dda4ed8b`다. 원격 main과 기준 태그를 최초 push하고 실제 ref를 확인했다. 저장소 템플릿의 통합 커밋은 `fed6a62fb2aadc3530b1f7a6ae997b9d2de36e16`이며 기준 태그는 변경하지 않았다. 작업 범위와 총 61개 완료 조건은 [IMPLEMENTATION_PLAN.md](IMPLEMENTATION_PLAN.md)에 있다.
+문서 기준은 **v0.1.1-design**, 기준 커밋은 `5c8c85b3e463d6eeb5314d22a1e85589dda4ed8b`다. 원격 main과 기준 태그를 최초 push하고 실제 ref를 확인했다. 저장소 템플릿의 통합 커밋은 `fed6a62fb2aadc3530b1f7a6ae997b9d2de36e16`이며 기준 태그는 변경하지 않았다. 작업 범위와 총 61개 완료 조건은 [IMPLEMENTATION_PLAN.md](../IMPLEMENTATION_PLAN.md)에 있다.
 
 ## 등록 결과
 
@@ -26,7 +26,7 @@
 
 ## 초기 실패와 후속 확인
 
-2026-10-12 사용자 확정에 따른 [서식 확장 #12](https://github.com/wotjr1649/U2BIO.LabelPrinting/issues/12)은 TXT/BTPL·JSON·XML을 같은 BtplTemplate으로 읽고 저장하는 작업이다. TASK-03/04 모델·검증·저장을 재사용하고 실기/연결 수명 보완은 분리한다. [서식 계약](specs/TXT_TEMPLATE_EDITOR.md)을 따른다. 실제 진행 상태는 원격 이슈를 기준으로 한다.
+2026-10-12 사용자 확정에 따른 [서식 확장 #12](https://github.com/wotjr1649/U2BIO.LabelPrinting/issues/12)은 TXT/BTPL·JSON·XML을 같은 BtplTemplate으로 읽고 저장하는 작업이다. TASK-03/04 모델·검증·저장을 재사용하고 실기/연결 수명 보완은 분리한다. [서식 계약](../specs/TXT_TEMPLATE_EDITOR.md)을 따른다. 실제 진행 상태는 원격 이슈를 기준으로 한다.
 
 1. `gh issue create`의 GraphQL 생성 요청이 서버 오류로 실패했다.
 2. REST 생성 요청도 실패했다. JSON 입력을 로컬에서 검증한 뒤 별도 입력 방식으로 확인한 응답은 `HTTP/2.0 500 Internal Server Error`이며 CLI는 `unexpected end of JSON input`을 반환했다.
@@ -39,7 +39,7 @@
 
 [배출 통합 #13](https://github.com/wotjr1649/U2BIO.LabelPrinting/issues/13)은 #10의 배출/복귀 후속 소프트웨어 작업이다. 공개 Print의 호출자 지정 거리·일괄 마지막 전진·다음 요청 복귀·불명 위치 차단과 샘플 사용 계약을 구현하며 실제 새 장치 검증은 #11에 남긴다. #10 전체 미검증 범위를 이 작업 하나로 완료하지 않는다.
 
-devflow-doctor, 추적 파일만 있는 별도 체크아웃, 잘못된 인수 ID 거부, 제외 규칙과 기준 해시 검사를 수행했다. SDK 원본·로컬 참고 자료는 보존했다. 후속 TASK-01에서 솔루션·AnyCPU DLL·x86/x64 검증 실행 파일을 구성하고 네 Debug/Release 빌드·실행을 확인했다. 명령과 완료 범위는 [DEVELOPMENT.md](DEVELOPMENT.md)에 기록한다. BTPL·SDK API·Tester와 실제 장치 시험은 후속 작업이다. 이슈의 실제 체크·종료 상태는 원격 이슈를 기준으로 한다.
+devflow-doctor, 추적 파일만 있는 별도 체크아웃, 잘못된 인수 ID 거부, 제외 규칙과 기준 해시 검사를 수행했다. SDK 원본·로컬 참고 자료는 보존했다. 후속 TASK-01에서 솔루션·AnyCPU DLL·x86/x64 검증 실행 파일을 구성하고 네 Debug/Release 빌드·실행을 확인했다. 명령과 완료 범위는 [DEVELOPMENT.md](../DEVELOPMENT.md)에 기록한다. BTPL·SDK API·Tester와 실제 장치 시험은 후속 작업이다. 이슈의 실제 체크·종료 상태는 원격 이슈를 기준으로 한다.
 
 ## USB Wrapper MVP 간소화
 
@@ -49,4 +49,4 @@ devflow-doctor, 추적 파일만 있는 별도 체크아웃, 잘못된 인수 ID
 
 ## 동기 USB 두 파일 재설계
 
-사용자 결정에 따라 [#16](https://github.com/wotjr1649/U2BIO.LabelPrinting/issues/16)을 별도로 등록했다. [스펙](specs/SYNC_USB_MVP.md)은 #15의 고급 API 호환·출력 bridge 유지 조건을 이번 작업에서 대체한다. 브랜치는 feature/16-sync-usb-sdk-mvp이며 기존 wrapper-mvp worktree를 사용한다. 원본 StringBuilder·DllImport 로딩·Validation 배포 해시·파일 읽기 잠금·동기 작은 결과·SDK 서식 해석을 따른다. 오른쪽 Codex의 설계 및 코드 적대적 검토와 별도 문맥 실행 검증을 수행한다. 장치 실행·push·merge는 포함하지 않는다. 실제 상태와 수용 체크는 원격 이슈 #16이 기준이다.
+사용자 결정에 따라 [#16](https://github.com/wotjr1649/U2BIO.LabelPrinting/issues/16)을 별도로 등록했다. [스펙](../specs/SYNC_USB_MVP.md)은 #15의 고급 API 호환·출력 bridge 유지 조건을 이번 작업에서 대체한다. 브랜치는 feature/16-sync-usb-sdk-mvp이며 기존 wrapper-mvp worktree를 사용한다. 원본 StringBuilder·DllImport 로딩·Validation 배포 해시·파일 읽기 잠금·동기 작은 결과·SDK 서식 해석을 따른다. 오른쪽 Codex의 설계 및 코드 적대적 검토와 별도 문맥 실행 검증을 수행한다. 장치 실행·push·merge는 포함하지 않는다. 실제 상태와 수용 체크는 원격 이슈 #16이 기준이다.

@@ -20,4 +20,4 @@ TXT 파일을 기본 SDK 경로로 등록하려면 PrintFile(txtPath)를 사용�
 
 배출 거리는 ConnectUsb 인수로 지정한다. 예시 15 mm는 이 용지와 `^Q35,5,9+`에서 블랙마크가 출구 끝에 멈춘 인출 거리이며 기본값은 0이다. 서식의 E 설정은 별개 SDK 설정으로 유지하며 배출 완료를 보장하지 않는다. M/B는 서식에 추가하지 않는다. 다음 인쇄는 이전 배출 거리를 복귀하고, 해제 자체는 후진하지 않는다.
 
-[새 API](../../docs/PRINTER_API.ko.md), [스펙](../../docs/specs/SYNC_USB_MVP.md), [배출·복귀](../../docs/PRINT_PRESENTATION.ko.md)를 따른다. 실제 두 줄 출력과 배출은 [보류 실기](../../docs/HARDWARE_VALIDATION.ko.md)에서 확인한다. SDK 0은 물리 완료 증거가 아니다.
+[새 API](../../docs/PRINTER_API.ko.md), [스펙](../../docs/specs/SYNC_USB_MVP.md), [배출·복귀](../../docs/PRINT_PRESENTATION.ko.md)를 따른다. 실제 두 줄 출력과 배출은 [보류 실기](../../docs/history/HARDWARE_VALIDATION.ko.md)에서 확인한다. SDK 0은 물리 완료 증거가 아니다.
