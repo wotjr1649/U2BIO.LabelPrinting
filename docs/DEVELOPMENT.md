@@ -14,8 +14,9 @@
 | .github/ISSUE_TEMPLATE/intent.md | devflow Issue의 의도·수용 기준·현재 상태 |
 | .github/PULL_REQUEST_TEMPLATE.md | 변경 범위·검증·제한 기록 |
 | tools/verify-repository.js | 설치된 devflow doctor 및 설계 기준·인수 ID 검사 |
-| U2BIO.LabelPrinting.sln | Debug/Release × Any CPU/x86/x64 구성. DLL은 AnyCPU, 검증 exe는 x86/x64이며 Any CPU solution은 검증 exe를 x86으로 매핑 |
+| U2BIO.LabelPrinting.sln | Debug/Release × Any CPU/x86/x64 구성. DLL은 AnyCPU, 검증 exe와 Tester는 x86/x64이며 Any CPU solution은 둘을 x86으로 매핑 |
 | src/U2BIO.BT003PROLabelPrinting | 공통 DLL 프로젝트, internal SDK 선언·배포 검사·로더 구현 중 |
+| src/U2BIO.BT003PROLabelPrinting.Tester | DevExpress 서식 Tester(이슈 #8, [설계](specs/DEVEXPRESS_TESTER.md)). 출력 `bin/<x86 또는 x64>/<Configuration>/`에 같은 비트수 SDK 한 쌍과 DevExpress DLL을 복사한다 |
 | tests/U2BIO.BT003PROLabelPrinting.Validation | DLL 독립 로드·framework·PE·실행 비트 수 검사 |
 | tools/verify-build.js | 실제 재빌드·실행, 평가된 설정과 산출물 증거 기록 |
 
@@ -54,7 +55,7 @@ node tools/verify-build.js --configuration Debug
 node tools/verify-build.js --scope txt
 ```
 
-첫 명령은 Release의 x86/x64 두 구성을 재빌드하고 각각의 검증 실행 파일을 실행한다. 두 번째 명령은 Debug에 같은 검사를 적용한다. MSBuild를 vswhere로 설치된 Visual Studio에서 찾고 .NET Framework 4.6.1 targeting pack 존재 여부를 검사한다. 이번 구성에서 사용한 MSBuild는 16.11.6.22506, C# compiler는 3.11.0-4.26426.1이다. C# 언어 기준은 7.3이며 외부 NuGet 패키지·restore·DevExpress·DB 접속 설정을 추가하지 않았다.
+첫 명령은 Release의 x86/x64 두 구성을 재빌드하고 각각의 검증 실행 파일을 실행한다. 두 번째 명령은 Debug에 같은 검사를 적용한다. MSBuild를 vswhere로 설치된 Visual Studio에서 찾고 .NET Framework 4.6.1 targeting pack 존재 여부를 검사한다. 이번 구성에서 사용한 MSBuild는 16.11.6.22506, C# compiler는 3.11.0-4.26426.1이다. C# 언어 기준은 7.3이며 외부 NuGet 패키지·restore·DB 접속 설정을 추가하지 않았다. 제품 DLL에는 DevExpress가 없고 Tester만 DevExpress 20.2.6을 GAC 참조로 사용하므로, 솔루션 빌드와 verify-build에는 DevExpress 20.2.6이 설치된 개발 PC가 필요하다. 각 플랫폼 끝에서 Tester의 빌드 설정을 확인하고 `--self-check --expect-x86|x64`(화면·SDK 없이 설정·서식 규칙 검사)를 실행하며, 실행 폴더의 제품 DLL과 SDK 두 파일 해시를 검사한다.
 
 실제 MSBuild 호출 인수는 다음과 같다. 설치된 MSBuild 실행 파일에 전달하며 호스트별 절대 경로는 공개 문서에 저장하지 않는다.
 
@@ -74,3 +75,7 @@ MSBuild가 평가한 TargetFrameworkVersion·PlatformTarget·Prefer32Bit를 확�
 DLL을 만들기 전 같은 Program.cs를 .NET Framework 4.6.1 참조로 standalone x86 exe로 컴파일·실행하여 `MANAGED_LIBRARY_MISSING` 및 종료 코드 3을 확인했다. 시험 소스를 커밋하고 devflow 시험 잠금을 적용한 뒤 DLL을 추가했다. Release/Debug × x86/x64의 네 실제 빌드·실행이 통과했다. DLL은 현재 공개 인쇄 API가 없는 기반 어셈블리이며 실제 출력·RFID 보존·ABI 검증은 TASK-02 이후에 수행한다. 문서 기준 태그는 그대로 보존한다.
 
 `--scope txt`는 TXT 파싱/저장과 공통 연결·인쇄·배출/복귀 계약을 x86/x64로 검사한다. TXT 전용 재설계 후 JSON/XML·바인딩 API는 제거되며 미뤄 둔 검사로 기록하지 않는다. 기본 전체 검사와 --scope txt는 모두 현재 TXT/프린터 범위를 검사한다. 범위 인수는 마지막에 지정하고 Debug와 함께 사용하려면 `node tools/verify-build.js --configuration Debug --scope txt`를 사용한다. 검증 exe에는 `--expect-x86 --txt-only` 또는 `--expect-x64 --txt-only`를 전달한다. 관리 검사는 실제 SDK/장치 인쇄를 실행하지 않는다.
+
+## 서식 Tester 실행
+
+빌드 출력 폴더의 `U2BIO.BT003PROLabelPrinting.Tester.exe`를 실행한다. 설정은 사용자 로컬 앱 데이터 폴더의 `U2BIO/BT003Tester/settings.xml` 하나에 저장하며 x86/x64가 함께 쓴다. 한 번에 하나만 실행된다. 연결·인쇄·위치 확인 버튼은 SDK를 로드하고 장치를 움직이므로 실기 승인과 직접 관측이 있을 때만 사용한다. 화면 구성과 동작은 [설계](specs/DEVEXPRESS_TESTER.md)를 따른다.
