@@ -49,6 +49,7 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
         private bool connectAttempted;
         private string connectionState = "미연결";
         private string connectionTarget = "";
+        private string pendingTarget = "";
         private string positionState = "미확인";
 
         internal FrmMain()
@@ -404,14 +405,17 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
             {
                 case ActionConnect:
                 case ActionStatus:
-                    connectionState = failure == null ? "열림" : "닫힘·" + failure;
+                    // 실패가 닫힘을 뜻하지는 않는다(이미 연결됨, 조회 예외 등). Message를 해석하지 않고 불명으로 둔다.
+                    connectionState = failure == null ? "열림" : "불명·" + failure;
+                    // 실제 연결에 쓴 값만 표시하도록 연결 성공 때만 포트·배출 거리를 바꾼다.
+                    if (failure == null && row.Action == ActionConnect) connectionTarget = pendingTarget;
                     break;
                 case ActionDisconnect:
-                    connectionState = failure == null ? "닫힘" : "닫힘·" + failure;
+                    connectionState = failure == null ? "닫힘" : "불명·" + failure;
                     break;
                 case ActionConfirm:
                 case ActionFeed:
-                    positionState = failure ?? "확인됨 (" + row.Time + ")";
+                    positionState = row.Action + " " + (failure ?? "성공 (" + row.Time + ")");
                     break;
             }
         }
@@ -422,7 +426,7 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
             string port = settings.Port;
             int distance = settings.PresentationDistanceMm;
             connectAttempted = true;
-            connectionTarget = " · 포트 " + port + " · 배출 " + distance.ToString(CultureInfo.InvariantCulture) + " mm";
+            pendingTarget = " · 포트 " + port + " · 배출 " + distance.ToString(CultureInfo.InvariantCulture) + " mm";
             await RunDevice(ActionConnect, () => printer.ConnectUsb(port, distance));
         }
 
