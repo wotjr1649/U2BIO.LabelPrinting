@@ -30,6 +30,7 @@ namespace U2BIO.BT003PROLabelPrinting
                 case "UnsupportedCommand": return "전용 편집을 지원하지 않는 명령입니다. 원문 편집을 사용하세요.";
                 case "LockedTextArguments": return "정렬과 방향은 전용 편집에서 바꾸지 않습니다. 원문 편집을 사용하세요.";
                 case "SameSavePath": return "현재 파일과 같은 경로입니다. 다른 이름 저장 대신 Save를 사용하세요.";
+                case "GapLabelSetting": return "^Q는 길이,마크 폭,위치± 세 인수로 지정하세요. 두 인수 ^Q는 프린터 라벨 유형을 간격 라벨로 바꿉니다.";
                 default: return "편집값이 허용된 범위나 형식에 맞지 않습니다.";
             }
         }

@@ -94,7 +94,10 @@ namespace U2BIO.BT003PROLabelPrinting
         public BtplTemplate WithRawText(string text)
         {
             if (text == null) throw new ArgumentNullException(nameof(text));
-            return Copy(SplitLines(text));
+            var changed = Copy(SplitLines(text));
+            // 원문 편집으로 두 인수 Q 차단을 우회하지 못하게 한다.
+            changed.CheckNoGapSetting();
+            return changed;
         }
 
         /// <summary>편집하지 않은 내용은 줄끝까지 그대로 반환한다. SDK용 정규화는 프린터 API가 한다.</summary>
@@ -200,6 +203,8 @@ namespace U2BIO.BT003PROLabelPrinting
 
         private BtplTemplate Store(string target, bool overwrite, bool checkSource)
         {
+            // 읽어 온 두 인수 Q를 그대로 다시 저장하지 않는다. 세 인수로 고친 뒤 저장한다.
+            CheckNoGapSetting();
             byte[] bytes;
             try { bytes = StrictEncoding(CodePage).GetBytes(ToBtpl()); }
             catch (EncoderFallbackException) { throw new BtplFormatException("InvalidEncoding"); }
@@ -296,6 +301,12 @@ namespace U2BIO.BT003PROLabelPrinting
             return matches[0];
         }
 
+        private void CheckNoGapSetting()
+        {
+            var gap = Settings.FirstOrDefault(setting => setting.Command == "^Q" && setting.Parameters.Split(',').Length == 2);
+            if (gap != null) throw new BtplFormatException("GapLabelSetting", gap.TemplateLine);
+        }
+
         private BtplSetting ExistingSetting(string command)
         {
             int index = SettingIndex(command);
@@ -337,6 +348,8 @@ namespace U2BIO.BT003PROLabelPrinting
             {
                 string[] parts = value.Split(',');
                 if (parts.Length < 2 || parts.Length > 3) throw new BtplFormatException("InvalidArguments", setting.TemplateLine);
+                // 두 인수 Q는 프린터 라벨 유형을 Gap으로 바꾼다. 편집으로 새로 만들지 않고, 기존 원문 읽기(행 번호 있음)만 허용한다.
+                if (parts.Length == 2 && setting.TemplateLine == null) throw new BtplFormatException("GapLabelSetting");
                 ReadMillimetres(parts[0], true);
                 ReadMillimetres(parts[1], false);
                 if (parts.Length == 3)
