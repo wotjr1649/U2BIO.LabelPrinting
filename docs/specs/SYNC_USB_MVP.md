@@ -12,14 +12,14 @@
 - StartLabelPrint는 제조사 원본 StringBuilder 선언을 사용한다. 자체 출력 메모리·가드 페이지·중간 버퍼 지우기 보장은 MVP에서 제외한다. 기존 보호와 동등하다고 주장하지 않는다.
 - 로딩은 DllImport에 맡긴다. 기존 ApplicationDirectory/System32 검색 제한은 유지한다. 실행 시 고정 해시, 자체 로더, 모듈 충돌·시스템 모듈 검사는 제외한다. Validation이 배포 파일의 비트수와 원본 해시를 대조한다.
 - 파일은 절대경로, 읽기 가능 여부와 제한된 크기·엄격한 CP949 인코딩을 확인한다. FileStream의 FileShare.Read 잠금은 실제 SDK 작업 종료까지 유지한다. 부모 디렉터리 잠금·최종 경로 검사는 제외한다.
-- BTPL의 명령·좌표·서식 해석과 변수 치환은 SDK가 맡는다. BtplTemplate/BtplProcessor는 기본 인쇄 경로에서 사용하지 않는다. 입력 크기·빈 값·인코딩·변수 구분자 충돌 검사는 우리 책임이다.
-- 원본 ANSI 전달과 CP949 파일 계약을 맞추기 위해 .NET Framework의 Encoding.Default.CodePage가 949인 환경만 지원한다. 포트·서식·변수·파일 경로를 SDK 호출 전에 엄격한 CP949 왕복 가능 문자열로 검사하며 NUL/구분자 충돌을 거부한다. 다른 코드 페이지를 조용히 변환해서 출력하지 않는다.
-- 문자열 서식과 파일에서 읽은 서식은 CRLF로 줄끝을 정규화하고 마지막 CRLF를 붙인다. 정규화 전후 서식과 합친 변수 문자열은 각각 CP949 4 MiB 이내다. 변수 배열은 호출 시작 시 복제하며 null/빈 값/제어문자/!!/선행·후행 !를 거부한다. 기본 검사는 명령·좌표·변수 번호를 해석하는 자체 서식 파서가 아니다.
+- BTPL의 명령·좌표·서식 해석과 변수 치환은 SDK가 맡는다. BtplTemplate/BtplProcessor는 기본 인쇄 경로에서 사용하지 않는다. 입력 크기·빈 전체 문자열·인코딩·NUL·제어문자 검사는 우리 책임이다. SDK 가변데이터 구분자 !!와 변수 번호는 자체 해석하지 않는다.
+- 원본 ANSI 전달과 CP949 파일 계약을 맞추기 위해 .NET Framework의 Encoding.Default.CodePage가 949인 환경만 지원한다. 포트·서식·변수·파일 경로를 SDK 호출 전에 엄격한 CP949 왕복 가능 문자열로 검사하며 NUL을 거부하고 가변데이터의 제어문자도 SDK 진입 전에 거부한다. 다른 코드 페이지를 조용히 변환해서 출력하지 않는다.
+- 문자열 서식과 파일에서 읽은 서식은 CRLF로 줄끝을 정규화하고 마지막 CRLF를 붙인다. 정규화 전후 서식과 가변데이터 원문은 각각 CP949 4 MiB 이내다. variableData=null은 변수 등록 생략이며 빈 전체 문자열·공백만인 문자열·제어문자는 거부한다. !!·단일 !·항목 공백은 원문 그대로 전달하고 split/join/trim하지 않는다. 빈 항목·부족 데이터의 SDK 의미와 변수 초기화는 보장하지 않는다. 기본 검사는 명령·좌표·변수 번호를 해석하는 자체 서식 파서가 아니다.
 - 우리 코드는 한글 주석으로 SDK 호출 순서와 실패 중단·자원 수명의 이유를 설명한다. 공개 API는 한 파일에서 찾을 수 있게 하고 일반 실행 프레임워크나 delegate 카탈로그는 만들지 않는다.
 
 ## 공개 API
 
-Bt003Printer는 IDisposable인 sealed 클래스다. ConnectUsb(string port, int presentationDistanceMm = 0), GetConnectionStatus(), SetPrintingOptions(ushort speed, ushort darkness), Print(string btpl, params string[] values), PrintFile(string path, params string[] values), ConfirmPrintPosition(), Disconnect()를 동기 PrinterResult로 제공한다.
+Bt003Printer는 IDisposable인 sealed 클래스다. ConnectUsb(string port, int presentationDistanceMm = 0), GetConnectionStatus(), SetPrintingOptions(ushort speed, ushort darkness), Print(string btpl, string variableData = null), PrintFile(string path, string variableData = null), ConfirmPrintPosition(), Disconnect()를 동기 PrinterResult로 제공한다.
 
 ConnectUsb는 SetPrinterPort(1, port, "") → DeviceConnect → CheckPrtConnection 순서다. 속도는 양수, 농도는 1..19, 배출 거리는 0..1000 mm다. 옵션은 성공한 경우에 보존하며 각 인쇄 준비 시 재적용한다. 서식의 ^S/^H 우선순위는 SDK 계약을 따른다.
 
@@ -29,7 +29,7 @@ GetConnectionStatus의 1은 포트 Open, 0은 Closed다. 포트 상태와 물리
 
 ## 인쇄 순서와 실패
 
-1. 인수를 SDK 호출 전에 검사한다. 변수 값은 서식이 참조하는 최고 번호까지 V00부터 누락 없이 매 요청 제공하며 !!로 연결한다. 변수 등록 생략은 변수 참조가 없는 서식에서만 허용되는 호출자 계약이다. 이전 값이 ResetForm 또는 빈 문자열 등록으로 지워진다고 가정하지 않는다. 기본 DLL은 변수 번호/좌표를 해석하는 자체 서식 파서를 두지 않으며 불완전한 변수 입력을 안전하게 처리한다고 보장하지 않는다. 값이 있는 각 요청은 반드시 SetPrintFormVariableData를 다시 호출하고 성공을 확인한다.
+1. 인수를 SDK 호출 전에 검사한다. 호출자는 서식이 참조하는 최고 번호까지 V00부터 누락 없이 매 요청 데이터를 제공한다. !!로 구분된 문자열은 검사 후 SDK에 그대로 전달하며 번호 매핑과 미사용 추가 데이터 처리는 SDK에 맡긴다. 변수 등록 생략은 변수 참조가 없는 서식에서만 허용되는 호출자 계약이다. 이전 값이 ResetForm 또는 빈 문자열 등록으로 지워진다고 가정하지 않는다. 기본 DLL은 변수 번호/좌표를 해석하는 자체 서식 파서를 두지 않으며 불완전한 변수 입력을 안전하게 처리한다고 보장하지 않는다. 값이 있는 각 요청은 반드시 SetPrintFormVariableData를 다시 호출하고 성공을 확인한다.
 2. 연결 상태를 확인한다. 이전 정상 배출이 있으면 ^B로 그 거리만 복귀한다.
 3. ResetForm → 선택 SetPrintingOption → SetPrintFormString → 선택 SetPrintFormVariableData를 호출한다. PrintFile도 검증한 파일 내용을 문자열로 등록한다. 등록 실패 뒤 인쇄하지 않는다. 발행 실패 뒤 다른 등록 방식으로 자동 재인쇄하지 않는다.
 4. new StringBuilder(100)으로 StartLabelPrint(1, response)를 호출한다. 내부 문법 검사로 숫자 코드만 추출하고 UID 원문은 결과·로그에 남기지 않는다.

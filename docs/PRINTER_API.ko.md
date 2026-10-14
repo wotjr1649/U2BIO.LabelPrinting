@@ -4,7 +4,7 @@
 
 서식 명령, 좌표, AW 글꼴 처리와 변수 치환은 SDK가 담당한다. DLL은 입력을 검사하고 연결·등록·인쇄·배출·정리의 순서를 관리한다. 기존 비동기·취소·일괄 API는 제공하지 않으며, 선택 Templates 기능으로 렌더링한 문자열은 `Print`에 넘길 수 있다.
 
-바이트 그대로 보존한 제조사 Wrapper 안의 과거 DLL 호출 예제는 이전 결과 속성을 사용한다. 현재 DLL 호출에는 이 문서의 IsSuccess·Message 예제를 사용한다.
+바이트 그대로 보존한 제조사 Wrapper의 실제 SDK 선언·원문 변수 매핑 예제는 유효하다. 추가 제품 사용 예제와 일부 주의 주석은 이전 배열 인수·결과 속성 계약을 설명한다. 현재 DLL 호출은 이 문서의 variableData 문자열과 IsSuccess·Message 예제를 따른다.
 
 ## 공개 함수
 
@@ -13,8 +13,8 @@
 | ConnectUsb(string port, int presentationDistanceMm = 0) | USB 포트 지정·연결·Open 확인, 배출 0..1000 mm |
 | GetConnectionStatus() | 소유 연결 확인; NativeCode 1=Open, 0=Closed |
 | SetPrintingOptions(ushort speed, ushort darkness) | 양의 속도·농도 1..19; 정상 설정을 각 인쇄에 재적용 |
-| Print(string btpl, params string[] values) | 문자열 서식을 CRLF로 정규화하고 선택 변수와 함께 등록하여 한 장 인쇄 |
-| PrintFile(string path, params string[] values) | CP949 파일 내용을 CRLF로 정규화해 SetPrintFormString으로 등록하여 한 장 인쇄; 잠금은 정리까지 유지 |
+| Print(string btpl, string variableData = null) | 문자열 서식을 CRLF로 정규화하고 선택 변수와 함께 등록하여 한 장 인쇄 |
+| PrintFile(string path, string variableData = null) | CP949 파일 내용을 CRLF로 정규화해 SetPrintFormString으로 등록하여 한 장 인쇄; 잠금은 정리까지 유지 |
 | ConfirmPrintPosition() | 호출자가 실제 용지를 정렬한 뒤 위치 기록을 0으로 확인 |
 | Disconnect() | SDK 해제·Closed 확인; 실패 결과를 반환하고 명시적 재시도 허용 |
 | Dispose() | 진행 중인 작업·정리를 기다린 뒤 연결 해제; 해제 실패는 예외로 전달 |
@@ -49,7 +49,7 @@ using (var printer = new Bt003Printer())
     }
 
     // 서식이 V00/V01을 참조하면 모든 값을 요청마다 제공한다.
-    var result = printer.PrintFile(formPath, "FIRST LINE", "SECOND LINE");
+    var result = printer.PrintFile(formPath, "FIRST LINE!!SECOND LINE");
     if (!result.IsSuccess)
     {
         Console.WriteLine(result.Message);
@@ -83,16 +83,31 @@ var result = printer.PrintFile(formPath);
 
 ```csharp
 // V00, V01을 사용하는 파일 서식
-var result = printer.PrintFile(formPath, "FIRST LINE", "SECOND LINE");
+var result = printer.PrintFile(formPath, "FIRST LINE!!SECOND LINE");
 ```
 
-각 예는 사용할 서식에 맞춰 선택하는 별도 호출이다. 변수 값은 배열의 첫 항목부터 V00, V01 순서로 대응한다. 최고 참조 번호까지 누락 없이 매 요청 제공해야 하며, 빈 값·제어문자·`!!`·양 끝의 `!`는 허용하지 않는다. `ResetForm`이 이전 변수를 지운다고 가정하지 않으므로 값이 있는 요청마다 다시 등록한다. 변수 등록 생략은 변수 없는 서식에서만 사용한다. DLL이 슬롯 번호를 해석하지 않으므로 참조 번호에 맞는 값을 준비하는 것은 호출자 책임이다.
+각 예는 사용할 서식에 맞춰 선택하는 별도 호출이다. `variableData`는 SDK 항목 구분자 `!!`로 연결한 원문 문자열이다. SDK는 첫 항목부터 V00, V01 순서로 번호에 매핑하며 출력 요소 등장 순서와 무관하다. 사용하지 않는 추가 데이터는 SDK가 생략한다. DLL은 분리·재조합·trim·번호 해석을 하지 않는다. 최고 참조 번호까지 필요한 데이터를 매 요청 모두 제공하는 것은 호출자 책임이다. `ResetForm`이 이전 변수를 지운다고 가정하지 않으므로 non-null 요청마다 다시 등록한다.
 
-ANSI 코드 페이지 949 환경만 지원한다. 포트·경로·문자열·변수는 엄격한 CP949 왕복과 NUL 검사를 거친다. 서식, 합친 변수와 파일은 각각 4 MiB 이내여야 한다. `Print`와 `PrintFile`은 줄끝을 CRLF로 정규화하고 마지막 CRLF를 붙인 뒤 크기를 다시 검사한다.
+인수 생략 또는 명시적 `null`은 `SetPrintFormVariableData` 등록 생략이다. 변수 참조가 없는 서식에서만 사용한다. 빈 전체 문자열·공백만인 문자열·NUL·제어문자는 `InvalidVariables` 예외이며 null로 바꾸지 않는다. 앞뒤 공백·단일 `!`·앞뒤/연속 `!!`는 기본 검사에 맞으면 원문 전달하지만 빈 항목·부족 데이터의 native 의미와 출력 성공은 보장하지 않는다.
+
+ANSI 코드 페이지 949 환경만 지원한다. 포트·경로·문자열·변수는 엄격한 CP949 왕복과 NUL 검사를 거친다. 서식, 구분자를 포함한 가변데이터와 파일은 각각 4 MiB 이내여야 한다. `Print`와 `PrintFile`은 줄끝을 CRLF로 정규화하고 마지막 CRLF를 붙인 뒤 크기를 다시 검사한다.
 
 `PrintFile`은 상대경로를 현재 작업 디렉터리 기준으로 절대경로화한다. 같은 `FileStream`으로 크기를 확인하고 내용을 읽으며, `FileShare.Read`로 열어 쓰기·삭제 공유를 허용하지 않는다. 파일 핸들은 SDK 인쇄와 마지막 서식 정리가 끝날 때까지 보유한다. 파일 오류, SDK 실패 또는 서식 정리 실패로 반환해도 핸들을 닫는다.
 
 SDK에는 파일 경로 대신 검사한 내용을 `SetPrintFormString`으로 등록한다. SDK가 파일을 다시 여는 경로를 사용하지 않으며 AW 처리는 계속 SDK가 담당한다. 실패 뒤 다른 등록 방식으로 자동 재인쇄하지 않는다.
+
+## 제조사 방식의 가변데이터와 이행
+
+```csharp
+string variableData = "홍길동!!1122334455!!20120201!!Blackfish BT-003";
+var result = printer.PrintFile(formPath, variableData);
+```
+
+SDK는 V00=홍길동, V01=1122334455, V02=20120201, V03=Blackfish BT-003으로 매핑한다. TXT가 V00/V02/V01 순서이면 그 번호에 해당하는 값을 사용하고 제4항목을 사용하지 않는다. V03만 있는 다른 TXT에도 같은 데이터를 제공할 수 있다. 실제 치환·장치 출력은 SDK가 수행하며 이 예제는 관리 검증의 물리 관측을 뜻하지 않는다.
+
+기존 여러 인수 호출은 하나의 문자열로 바꾼다. 기존 string[] 호출은 호출 프로그램에서 `string.Join("!!", values)` 등으로 데이터를 준비한다. 값 자체에 `!!`가 있을 때의 이스케이프 규칙은 이 API가 제공하지 않는다. 과거 배열 overload는 남기지 않는다.
+
+모든 기존 호출 앱은 새 DLL 참조로 재빌드해야 한다. 변수 없는 `Print(btpl)`·`PrintFile(path)`의 소스 표현은 같아도 과거 바이너리는 `(string, string[])` 메서드를 참조하므로 DLL만 교체할 수 없다. 기존 명시적 null은 입력 오류에서 등록 생략으로 변경된다.
 
 ## SDK 호출 흐름
 

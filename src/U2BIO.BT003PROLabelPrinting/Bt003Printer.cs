@@ -213,18 +213,20 @@ namespace U2BIO.BT003PROLabelPrinting
 
         /// <summary>BTPL 문자열과 선택 변수를 SDK에 등록하여 한 장을 인쇄합니다.</summary>
         /// <param name="btpl">빈 값이 아닌 CP949로 표현 가능한 서식입니다. 줄끝과 마지막 줄끝은 CRLF로 정규화합니다.</param>
-        /// <param name="values">V00부터 순서대로 제공할 변수 값입니다. 변수 없는 서식이면 생략합니다.</param>
+        /// <param name="variableData">SDK 항목 구분자 !!로 연결한 가변데이터 원문입니다. 변수 없는 서식이면 생략하거나 null을 전달합니다.</param>
         /// <returns>인쇄·이동·서식 정리를 포함한 결과입니다. 인쇄 응답은 PrintCode에 별도로 보존합니다.</returns>
         /// <remarks>
-        /// 변수 서식이면 V00부터 최고 참조 번호까지 모든 값을 요청마다 제공해야 합니다. DLL은 변수 번호와 AW를 해석하지 않습니다.
-        /// 서식과 합친 변수는 각각 CP949 4 MiB 이내여야 합니다. SDK 응답이 불명이면 자동으로 다시 인쇄하지 않습니다.
+        /// 변수 서식이면 V00부터 최고 참조 번호까지 모든 값을 요청마다 제공해야 합니다. 번호 매핑과 미사용 추가 데이터 처리는 SDK가 담당합니다.
+        /// 가변데이터는 분리·재조합·공백 제거 없이 전달합니다. null은 등록 생략이며 빈 전체 문자열·제어문자는 입력 오류입니다.
+        /// 빈 항목·부족한 데이터·이전 변수 초기화의 SDK 동작은 보장하지 않습니다. 서식과 가변데이터는 각각 CP949 4 MiB 이내여야 합니다.
+        /// SDK 응답이 불명이면 자동으로 다시 인쇄하지 않습니다.
         /// </remarks>
         /// <exception cref="ArgumentException">서식 또는 변수 입력이 유효하지 않습니다.</exception>
         /// <exception cref="NotSupportedException">현재 ANSI 코드 페이지가 949가 아닙니다.</exception>
         /// <exception cref="ObjectDisposedException">이미 Dispose를 완료한 객체입니다.</exception>
-        public PrinterResult Print(string btpl, params string[] values)
+        public PrinterResult Print(string btpl, string variableData = null)
         {
-            string variables = PrepareVariables(values);
+            string variables = PrepareVariables(variableData);
             btpl = PrepareForm(btpl, "InvalidForm");
             lock (Gate)
             {
@@ -235,19 +237,20 @@ namespace U2BIO.BT003PROLabelPrinting
 
         /// <summary>CP949 서식 파일을 읽고 검사한 내용을 SDK에 문자열로 등록하여 한 장을 인쇄합니다.</summary>
         /// <param name="path">읽을 수 있는 서식 파일 경로입니다. 상대경로는 현재 작업 디렉터리 기준으로 절대경로화합니다.</param>
-        /// <param name="values">V00부터 최고 참조 번호까지 순서대로 제공할 변수 값입니다. 변수 없는 서식이면 생략합니다.</param>
+        /// <param name="variableData">SDK 항목 구분자 !!로 연결한 가변데이터 원문입니다. 변수 없는 서식이면 생략하거나 null을 전달합니다.</param>
         /// <returns>Print와 같은 인쇄 결과입니다. 파일 읽기·검증 오류는 SDK 호출 전에 예외로 전달합니다.</returns>
         /// <remarks>
         /// 파일은 비어 있지 않아야 하며 4 MiB 이내여야 합니다. 엄격한 CP949로 읽고 CRLF 정규화 후 크기를 다시 검사합니다.
         /// 파일은 읽기 공유만 허용하여 열고, SDK 인쇄와 서식 정리가 끝날 때까지 유지한 뒤 닫습니다.
         /// SDK에는 경로 대신 읽은 내용을 넘깁니다. AW 해석은 SDK가 담당하며, 실패 후 다른 방식으로 자동 재인쇄하지 않습니다.
+        /// 가변데이터 원문은 Print와 같은 규칙으로 전달합니다. 변수 서식의 필요한 값은 매 요청 모두 제공하며 SDK 변수 초기화를 가정하지 않습니다.
         /// </remarks>
         /// <exception cref="ArgumentException">파일 경로·내용·읽기 또는 변수 입력이 유효하지 않습니다.</exception>
         /// <exception cref="NotSupportedException">현재 ANSI 코드 페이지가 949가 아닙니다.</exception>
         /// <exception cref="ObjectDisposedException">이미 Dispose를 완료한 객체입니다.</exception>
-        public PrinterResult PrintFile(string path, params string[] values)
+        public PrinterResult PrintFile(string path, string variableData = null)
         {
-            string variables = PrepareVariables(values);
+            string variables = PrepareVariables(variableData);
             CheckText(path, "InvalidFile");
             lock (Gate)
             {
@@ -576,36 +579,20 @@ namespace U2BIO.BT003PROLabelPrinting
                 code == 102 || code == 103 || code == 104 || code == 105 || code == 205;
         }
 
-        private static string PrepareVariables(string[] values)
+        private static string PrepareVariables(string variableData)
         {
-            if (values == null)
-            {
-                throw InputError("InvalidVariables");
-            }
-
-            // 호출자의 배열 변경 영향을 피하고, 연결 전에 !! 구분자를 포함한 전체 바이트 수를 확인한다.
-            values = (string[])values.Clone();
-            long totalBytes = values.Length == 0 ? 0 : ((long)values.Length - 1) * 2;
-            foreach (string value in values)
-            {
-                CheckText(value, "InvalidVariables");
-                if (value.Any(char.IsControl) || value.Contains("!!") || value.StartsWith("!", StringComparison.Ordinal) || value.EndsWith("!", StringComparison.Ordinal))
-                {
-                    throw InputError("InvalidVariables");
-                }
-                totalBytes += Cp949.GetByteCount(value);
-                if (totalBytes > MaximumBytes)
-                {
-                    throw InputError("InvalidVariables");
-                }
-            }
-            if (values.Length == 0)
+            // null은 변수 없는 서식의 등록 생략이다. 빈 문자열을 null로 바꿔 이전 값이 지워졌다고 오해하게 하지 않는다.
+            if (variableData == null)
             {
                 return null;
             }
-            string joined = string.Join("!!", values);
-            CheckText(joined, "InvalidVariables");
-            return joined;
+            CheckText(variableData, "InvalidVariables");
+            if (variableData.Any(char.IsControl))
+            {
+                throw InputError("InvalidVariables");
+            }
+            // !!는 SDK의 구분자다. 항목을 해석하지 않고 공백·단일 !를 포함한 원문을 전달한다.
+            return variableData;
         }
 
         private static string PrepareForm(string form, string code)

@@ -24,3 +24,5 @@ Templates는 기존 공개 API와 기능을 유지하면서 8개 파일을 다�
 Templates의 파일 읽기 잠금은 내용을 복사하는 동안만 유지한다. 편집은 메모리에서 수행하고 저장 시 원본 변경을 검사한다. `Bt003Printer.PrintFile`의 잠금은 인쇄용으로, SDK 호출과 `PrintCore`의 정리가 끝난 뒤 해제한다. 두 잠금의 목적과 수명은 서로 다르다.
 
 배포는 U2BIO.BT003PROLabelPrinting.dll과 실제 프로세스 비트수에 맞는 BlackfishNfcLib.dll/HFModule.dll이다. [SDK 배포](SDK_DEPLOYMENT.ko.md)를 따른다. 실제 SDK·장치·인쇄·배출은 이번 관리 검사에서 실행하지 않았다. SDK 정상 응답은 물리 완료 증거가 아니다.
+
+Print/PrintFile의 선택 인수는 `string variableData = null`이다. 제조사 `!!` 가변데이터 문자열을 기본 검사 후 변경 없이 전달하며 변수 번호 해석은 SDK가 맡는다. 배열/params overload는 제거했고 기존 호출 앱은 새 DLL로 재빌드해야 한다. Templates는 이번 전환에서 변경하지 않는다.
