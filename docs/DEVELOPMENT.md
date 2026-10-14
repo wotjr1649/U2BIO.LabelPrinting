@@ -73,4 +73,4 @@ MSBuild가 평가한 TargetFrameworkVersion·PlatformTarget·Prefer32Bit를 확�
 
 DLL을 만들기 전 같은 Program.cs를 .NET Framework 4.6.1 참조로 standalone x86 exe로 컴파일·실행하여 `MANAGED_LIBRARY_MISSING` 및 종료 코드 3을 확인했다. 시험 소스를 커밋하고 devflow 시험 잠금을 적용한 뒤 DLL을 추가했다. Release/Debug × x86/x64의 네 실제 빌드·실행이 통과했다. DLL은 현재 공개 인쇄 API가 없는 기반 어셈블리이며 실제 출력·RFID 보존·ABI 검증은 TASK-02 이후에 수행한다. 문서 기준 태그는 그대로 보존한다.
 
-`--scope txt`는 TXT 파싱/저장과 공통 연결·인쇄·배출/복귀 계약을 x86/x64로 검사한다. JSON/XML 템플릿 및 전용 JSON 바인딩 검사 실행은 DEFERRED로 증거에 기록한다. 구현 파일은 함께 컴파일하며 기본 전체 검사 명령은 유지한다. 범위 인수는 마지막에 지정하고 Debug와 함께 사용하려면 `node tools/verify-build.js --configuration Debug --scope txt`를 사용한다. 검증 exe에는 `--expect-x86 --txt-only` 또는 `--expect-x64 --txt-only`를 전달한다. 관리 검사는 실제 SDK/장치 인쇄를 실행하지 않는다.
+`--scope txt`는 TXT 파싱/저장과 공통 연결·인쇄·배출/복귀 계약을 x86/x64로 검사한다. TXT 전용 재설계 후 JSON/XML·바인딩 API는 제거되며 미뤄 둔 검사로 기록하지 않는다. 기본 전체 검사와 --scope txt는 모두 현재 TXT/프린터 범위를 검사한다. 범위 인수는 마지막에 지정하고 Debug와 함께 사용하려면 `node tools/verify-build.js --configuration Debug --scope txt`를 사용한다. 검증 exe에는 `--expect-x86 --txt-only` 또는 `--expect-x64 --txt-only`를 전달한다. 관리 검사는 실제 SDK/장치 인쇄를 실행하지 않는다.

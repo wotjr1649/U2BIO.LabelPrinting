@@ -1,87 +1,68 @@
-# BTPL 템플릿 관리 API
+# TXT 서식 편집 API 사용 안내
 
-TASK-03의 프린터 없는 관리 API다. .NET Framework 4.6.1 공통 DLL만 참조한다. Parse/Load/편집/ToBtpl/Save/ExpandFixedLines는 native SDK 로드·장치 연결·출력을 하지 않는다. JSON 바인딩과 DataTable 렌더링은 TASK-04, 참고 미리보기와 수치 편집 화면은 TASK-08에서 이 모델을 사용한다.
+[TXT 편집 계약](specs/TXT_TEMPLATE_EDITOR.md)이 지원 범위와 저장 동작의 기준이다. 이슈 #16의 후속 재설계 안내이며, 새 API 적용 여부는 이슈 상태와 실행 검증으로 확인한다. 현재 구현을 이전 JSON/XML·바인딩 API와 혼동하지 않는다. 실제 인쇄는 [공개 프린터 API](PRINTER_API.ko.md)를 따른다.
 
-2026-10-12 확장: Load/Save는 .json/.xml 확장자에서 서식 JSON/XML을 선택하고 TXT/BTPL은 기존 경로를 유지한다. Parse(string)는 계속 BTPL이며 Parse(content, BtplTemplateFormat), 명시 Load/Save overload 및 ToJson/ToXml을 제공한다. [스키마·인코딩·동일 서식 예](TEMPLATE_FORMATS.ko.md)를 따른다. 이 서식 JSON은 TASK-04의 바인딩 JSON과 별개다.
+## 편집과 인쇄
 
-## 읽기와 편집
+다음 코드는 새 계약의 사용 예시다. Load/편집/저장 자체는 SDK를 로드하거나 프린터를 실행하지 않는다. printer는 호출 프로그램이 연결하고 관리한다.
 
 ```csharp
-using U2BIO.BT003PROLabelPrinting;
-
-var template = BtplTemplate.Load("label.btpl"); // 기본 CP949
+var template = BtplTemplate.Load("label.txt");
 var text = template.TextElements[0];
 template = template.WithText(0,
-    text.WithPosition(80, 120).WithPayload("검사번호 ^V03, 옷장 !!"));
-template = template.WithSetting(new BtplSetting("^H", "19"));
-string btpl = template.ToBtpl();
-template = template.Save("label.btpl"); // 반환 객체를 다음 편집/저장에 사용
+    text.WithPosition(80, 120)
+        .WithSize(12)
+        .WithWeight(2)
+        .WithPayload("검사번호 ^V00"));
+
+// 사용자가 제시한 AW 예제로 새 텍스트를 추가한다.
+template = template.AddText(new BtplTextElement(
+    x: 100, y: 200, size: 10, weight: 1, payload: "^V01"));
+
+// 화면 원문 편집 후에도 파일 경로와 저장 기준을 유지한다.
+template = template.WithRawText(editedText);
+
+// 인쇄에는 변수 표식이 남은 원문과 SDK 가변데이터를 전달한다.
+PrinterResult result = printer.Print(template.ToBtpl(), rawVariableData);
 ```
 
-경로 대신 문자열은 `BtplTemplate.Parse(btpl)`로 읽는다. UTF-8 파일은 Load/Save의 `codePage: 65001`을 명시한다. BOM은 지정 인코딩과 일치할 때만 읽으며 저장 파일에는 BOM을 추가하지 않는다. 해독/인코딩할 수 없는 문자를 대체 문자로 덮지 않는다.
+TextElements는 AW 편집 목록이다. 비AW 명령과 숫자로 읽을 수 없는 AW는 원문과 UnsupportedLineNumbers로 확인한다. 목록 인덱스는 해당 객체의 스냅샷이며 삭제/추가/원문 수정 후 새 목록에서 다시 선택한다. 정렬/방향은 원문으로 수정한다.
 
-`Settings`, `TextElements`, `Arguments`, `LineAdvances`는 읽기 전용 스냅샷이다. 편집 API는 새 객체를 반환하며 원본과 호출자가 전달한 배열을 변경하지 않는다.
-
-| 작업 | API / 규칙 |
-| --- | --- |
-| 좌표·문구 | `WithText(i, text.WithPosition(x,y).WithPayload(payload))` |
-| 일반 텍스트의 인수 | `WithArgument(index, value)`; 명령별 문법 검사 |
-| AW 인수 | 뒤 네 정수의 부호·선행0·원문 보존. 편집 잠금; 구문 해석은 장치 지원 확인을 뜻하지 않음 |
-| 추가 | `AddText(text)`; 마지막에 추가 |
-| 복사 | `AddText(template.TextElements[i])`; 기존 요소·인덱스 유지 |
-| 삭제 | `RemoveText(i)`; 해당 옵션도 `options.WithRemovedText(i)`로 제거·재매핑 |
-| 설정 | `WithSetting(new BtplSetting("^Q", "40,5,7.5+"))`; 기존 위치 교체 또는 ^L 직전 추가 |
-| 설정 삭제 | `RemoveSetting("^W")`; 필수 설정이 없는 중간 편집 상태는 가능하지만 ToBtpl/Save는 오류 |
-
-요소 개수·위치·용지 규격은 업무별로 입력한다. 예시 좌표·용지 수치는 DLL 기본값이 아니다. DPI 변환·넘침·겹침 검사·자동 줄바꿈을 하지 않는다.
-
-## 고정 줄바꿈 저장
+새 요소 추가는 단일 ^L/E frame의 E 직전으로 제한한다. 여러 frame도 원문 읽기·저장은 가능하지만 모호한 삽입은 원문 화면에서 지정한다. Q/W/S/H 없는 제조사 예제를 허용하며 기본 설정을 자동 추가하지 않는다.
 
 ```csharp
-template = template.WithText(0, template.TextElements[0]
-    .WithPayload("첫째\n\n둘째 ^V03"));
-var options = new BtplRenderOptions()
-    .WithLineAdvance(0, new BtplLineAdvance(0, 40));
-BtplRenderOptions remapped;
-template = template.ExpandFixedLines(options, out remapped);
-options = remapped;
-template = template.Save("label.btpl");
+// 길이만 바꾸며 ^Q의 gap/blackmark 인수는 그대로 둔다.
+template = template.WithLabelLength(40m);
+template = template.WithLabelWidth(70m);
+template = template.WithSetting(new BtplSetting("^S", "5"));
+template = template.WithSetting(new BtplSetting("^H", "19"));
 ```
 
-빈 중간 줄도 간격을 차지하고 변수 표식은 그대로 남긴다. 이후 요소와 옵션 인덱스를 함께 이동한다. 삭제는 위 표의 옵션 재매핑 API를 사용하고, 복사한 요소의 벡터는 호출자가 `WithLineAdvance(새인덱스, 기존벡터)`로 명시적으로 복사한다. WithText는 요소 인덱스를 유지한다.
+없는 Q/W를 추가하려면 전체 인수를 WithSetting으로 명시한다. 같은 설정 명령이 여러 개면 편의 수정은 거부하며 원문에서 위치를 정한다. 읽은 숫자 표기는 바꾸는 필드 외에는 보존한다. Size는 SDK 크기 값이며 화면 pt/mm의 동일성을 보장하지 않는다.
 
-여러 줄인데 간격이 없거나 벡터가 (0,0)이면 `MissingLineAdvance`, 좌표 산술 overflow면 `CoordinateOverflow`다. 실패 시 원본 템플릿·옵션은 보존된다. 펼치지 않은 리터럴 CR/LF는 ToBtpl/Save에서 `UnexpandedTextLines`다. DB 값의 가변 줄바꿈 간격은 후속 렌더 호출 옵션이며 BTPL/JSON에 자동 저장하지 않는다.
+## 저장과 다른 이름으로 저장
 
-## 구조 검사와 정규화
+```csharp
+// 현재 파일에 저장한다. 성공한 객체를 다음 편집 기준으로 받는다.
+template = template.Save();
 
-- 프레임은 설정 → ^L 하나 → 텍스트 → E 하나 → 끝이다. 빈 행은 보내지 않고 CRLF와 마지막 E의 CRLF를 보장한다.
-- 필수 설정은 Q/W/S/H다. 선택 기본값 P1/C1/R0/E0만 없는 경우 ^L 직전에 생성한다. 명시된 E15·기존 설정 순서·선택 인수는 보존한다. 없는 D/O를 추가하지 않는다.
-- 텍스트는 AW, AA~AH/AI/AK/AL/AZ1~AZ9, AT/ATA~ATZ, VA~VZ의 명령별 인수 개수를 적용한다. 남은 전체가 payload이므로 쉼표·앞뒤 공백·!!를 보존한다. Vt의239문자 등 언어 자체 상한만 검사한다.
-- payload에서 ^V00~^V99만 변수 표식으로 허용한다. 다른 ^/~/제어 문자는 오류다. RFID·미지원 명령은 오류이며 자동 삭제/명령 실행이 없다.
-- Parse/Load의 오류는 `BtplFormatException.Code/Issues`로 확인한다. TemplateLine은 원문 기준 1부터 시작하며 원문이 없는 편집 객체/필수 설정 누락은 null일 수 있다. 예외 메시지에는 입력 문구를 넣지 않는다. UI 원문 보기는 호출자가 보관한 원문으로 제공한다. 중복/금지 명령은 원문을 명시적으로 수정해 다시 Parse한다.
+// 원본을 유지하고 다른 TXT로 저장한다.
+template = template.SaveAs("label-reception.txt");
 
-## 저장 충돌과 실패
+// 프로그램에서 현재 파일과 다른 기존 대상의 덮어쓰기를 확인한 경우다.
+template = template.SaveAs("label-archive.txt", overwrite: true);
+```
 
-Load와 성공한 Save는 실제 원본 경로·바이트 SHA-256을 내부에 보관한다. 같은 경로로 저장할 때 교체 직전 현재 원본이 변경/삭제됐으면 `BtplSaveConflictException` (`IOException`, Code=`SourceChanged`)이다. 새 Parse 객체나 다른 이름 저장은 선택한 대상의 명시적 저장이다.
+파일 선택·취소·기존 대상 덮어쓰기 확인은 프로그램 책임이다. SaveAs 성공 후 반환 객체를 채택하면 새 파일이 이후 Save의 기준이 된다. 실패하면 대입하지 않고 기존 객체와 편집 내용을 유지한다. Parse로 새 서식을 만든 경우 첫 저장은 SaveAs다. FilePath/CodePage로 현재 기준을 읽는다.
 
-ToBtpl 검사와 strict 인코딩을 끝낸 뒤 같은 폴더에 고유 임시 파일을 만들고 닫는다. 기존 파일은 File.Replace, 새 파일은 File.Move로 확정한다. 교체 실패를 원본 truncate/삭제로 우회하지 않고 만든 임시 파일만 정리한다. 호출자는 성공한 Save 반환 객체를 채택해야 연속 저장을 자기 변경과 충돌시키지 않는다.
+SaveAs의 기본 동작은 기존 대상을 교체하지 않으며, 같은 원본 경로도 거부한다. 원본 변경/삭제는 Save에서 BtplSaveConflictException으로 알린다. Load/Save/SaveAs의 strict 인코딩과 파일 오류는 예외로 전달한다. BtplFormatException의 Code/TemplateLine을 확인하고 한글 설명을 표시할 수 있다.
 
-단일 파일 교체이며 BTPL/JSON 파일 쌍의 원자성을 보장하지 않는다. 해시 검사와 교체 사이까지 다른 프로그램을 잠그는 CAS나 프로세스 종료·모든 파일 시스템의 복구 보장도 아니다. JSON 저장 실패와 UI 미저장/출력 차단 상태는 TASK-04/08 검증 범위다.
+기본 Load는 CP949다. 명시한 읽기 인코딩은 저장에서도 유지하며 BOM 없는 TXT를 쓴다. UTF-8 파일을 CP949 전용 PrintFile에 그대로 넘기지 않는다. 현재 편집본은 Print(ToBtpl(), rawVariableData), 저장된 CP949 파일은 PrintFile(path, rawVariableData)를 사용한다.
 
-## 검증 범위
+## 호출 프로그램의 참고 미리보기
 
-Validation 프로젝트의 BtplTemplateTests가 C17/C18/C22/C23와 C24의 BTPL 관리 조건을 실행한다. CP949/UTF-8·BOM 불일치·잘못된 바이트·표현 불가 문자, 외부 변경/삭제, 잠긴 파일 교체 실패, 임시 파일 정리 및 연속 저장을 검사한다. 실제 출력과 새 SDK/글꼴 조합 검증을 대신하지 않는다. native 인쇄 차단은 유지한다.
+DLL은 그림이나 치환한 인쇄 서식을 반환하지 않는다. 프로그램이 TextElements의 X/Y·Payload·Size·Weight를 읽어 그린다. ^Vnn은 !!의 빈 항목/공백을 유지해 화면에서만 한 번 치환하고 없는 번호는 표식으로 남긴다. 이 표시값을 WithText/저장/Print에 다시 넣지 않는다.
 
+용지 설정이 없으면 화면용 크기를 별도로 지정하고 TXT에 자동 추가하지 않는다. UnsupportedLineNumbers가 있으면 그 행이 미리보기에 반영되지 않았음을 알린다. 실제 프린터 글꼴·문자 폭·물리 출력 일치는 이 화면의 보장 범위가 아니다.
 
-### TASK-03 실행 근거 (2026-10-08)
-
-최초 fb70301의 공개 템플릿 타입 부재로 build 실패를 관측해 시험을 잠갔다. 좌표 overflow 테스트의 잘못된 옵션 인덱스만 수정했고, 이후9397871의 부호 있는 AW 원문 보존 실패를 관측한 뒤 signed Int32 구문으로 수정했다. 최종 테스트 잠금은9397871이며 인덱스·overflow·실패 검사를 삭제하지 않았다.
-
-제품 구현 d9b85c9를 독립 verifier/reviewer가 Release/Debug × x86/x64로 빌드·실행했다. 두 CLI 검사·repository/doctor·diff도 exit0이다. 검사 로그는 nativeSDK=not-loaded 및 vendor code not executed를 확인한다. 직접 SDK probe·장치 연결·출력·Registry 접근을 하지 않았다. 원문 센서 ^G 허용을 명시한 설계·README 후속 커밋은 문서만 변경했다.
-
-| 구성 | 로컬 실행 근거 | DLL SHA-256 (x86/x64 공통) |
-| --- | --- | --- |
-| Release | `.work/foundation/Release-1791454980629/evidence.json` | `52e16dc049e31c319214cd9dffd9c100bafc791f2282ad736adcdad187c45c1f` |
-| Debug | `.work/foundation/Debug-1791454987621/evidence.json` | `195d541943b1038adc9225242a1948d049c88447751c0500146dfccb61e35e35` |
-
-근거의 gitCommit은 d9b85c9, workingTreeDirty=true다. 사용자 솔루션 metadata를 보존했으며 clean tree로 보고하지 않는다. root가 보존 산출물의 해시 일치를 재대조했다. JSON 저장/파일 쌍·DataTable·UI 미저장 상태는 후속 TASK-04/08이고 제품 연결/인쇄 API의 완료를 의미하지 않는다. 동시 writer에 대한 CAS·프로세스 종료 복구 보장도 검증 범위 밖이다.
+[오프라인 호출 예제](../examples/OfflineSmoke/Program.cs)는 UI/DB/SDK가 없는 호출부 이행과 관리 계약을 확인한다. 실제 UI 그리기나 장치 성공 증거는 아니다.

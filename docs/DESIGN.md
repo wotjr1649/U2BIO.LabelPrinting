@@ -14,4 +14,4 @@ PrintCore는 연결 확인 → 이전 배출 복귀 → ResetForm → 선택 옵
 
 검사 책임은 세 부분이다. 실제 제품 DLL은 공개 API·원본 선언·검색 제한을 검사한다. 제품 소스를 그대로 링크한 관리 harness는 실패 순서와 수명을 검사한다. Validation은 배포 PE와 고정 제조사 해시를 검사한다. 어느 것도 실제 SDK 인쇄 성공을 증명하지 않는다.
 
-Print/PrintFile의 선택 인수는 `string variableData = null`이다. 제조사 `!!` 가변데이터 문자열을 기본 검사 후 변경 없이 전달하며 변수 번호 해석은 SDK가 맡는다. 배열/params overload는 제거했고 기존 호출 앱은 새 DLL로 재빌드해야 한다. Templates는 이번 전환에서 변경하지 않는다.
+Print/PrintFile의 선택 인수는 `string variableData = null`이다. 제조사 `!!` 가변데이터 문자열을 기본 검사 후 변경 없이 전달하며 변수 번호 해석은 SDK가 맡는다. 배열/params overload는 제거했고 기존 호출 앱은 새 DLL로 재빌드해야 한다. 가변데이터 전환 당시 Templates는 유지했다. 이후 선택 기능은 [TXT 원문 편집과 저장 계약](specs/TXT_TEMPLATE_EDITOR.md)으로 재설계하며 기본 인쇄 경로는 유지한다.

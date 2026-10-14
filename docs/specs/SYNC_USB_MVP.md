@@ -7,7 +7,7 @@
 ## 사용자 결정과 책임
 
 - 기본 코드는 Bt003Printer.cs와 PrinterModels.cs 두 파일이다. 제조사 Wrapper와 바이너리는 변경하지 않는다.
-- 새 USB API로 이행한다. 기존 비동기·취소·시간 제한·일괄·사전검사 API와 큰 결과 타입은 제거한다. 선택 Templates 기능은 보존한다.
+- 새 USB API로 이행한다. 기존 비동기·취소·시간 제한·일괄·사전검사 API와 큰 결과 타입은 제거한다. 선택 Templates는 [TXT 편집 계약](TXT_TEMPLATE_EDITOR.md)으로 축소하며 기본 인쇄와 독립이다.
 - SDK 호출은 동기다. SDK 반환까지 기다리며 UI 백그라운드 실행은 호출 프로그램 책임이다. native 호출을 강제로 중단하거나 시간 초과를 성공으로 변환하지 않는다.
 - StartLabelPrint는 제조사 원본 StringBuilder 선언을 사용한다. 자체 출력 메모리·가드 페이지·중간 버퍼 지우기 보장은 MVP에서 제외한다. 기존 보호와 동등하다고 주장하지 않는다.
 - 로딩은 DllImport에 맡긴다. 기존 ApplicationDirectory/System32 검색 제한은 유지한다. 실행 시 고정 해시, 자체 로더, 모듈 충돌·시스템 모듈 검사는 제외한다. Validation이 배포 파일의 비트수와 원본 해시를 대조한다.
@@ -53,7 +53,7 @@ PrinterResult의 공개 속성은 IsSuccess(bool), Message(string), NativeCode(i
 
 관리 DLL은 .NET Framework 4.6.1/AnyCPU다. 실행 프로그램 비트수에 맞는 BlackfishNfcLib.dll과 HFModule.dll을 함께 배포한다. SDK·장치 실행, 인쇄·배출 실기는 이번 작업에서 하지 않는다.
 
-제조사 원본 선언·배포 파일은 Validation으로 정적 확인한다. 관리 동작은 제품 두 소스를 같은 형태로 컴파일한 작은 SDK 대체 호출 harness에서 연결·호출 순서·등록 실패·응답·배출 실패·정리·잠금 수명을 확인한다. 제품 DLL의 실제 P/Invoke 성공과 혼동하지 않는다. 기존 Templates 검사와 역사 SDK 진단은 보존하되 새 API와 구분한다.
+제조사 원본 선언·배포 파일은 Validation으로 정적 확인한다. 관리 동작은 제품 두 소스를 같은 형태로 컴파일한 작은 SDK 대체 호출 harness에서 연결·호출 순서·등록 실패·응답·배출 실패·정리·잠금 수명을 확인한다. 제품 DLL의 실제 P/Invoke 성공과 혼동하지 않는다. 선택 TXT 편집 관리 검사와 역사 SDK 진단을 기본 인쇄 계약과 구분한다. 이전 JSON/XML/바인딩 검사는 새 편집 범위로 이행한다.
 
 harness는 제품 두 파일을 프로젝트 Link로 컴파일하며 수정한 사본을 사용하지 않는다. fake ResetForm은 변수 저장소를 지우지 않는 사례를 포함한다. 별도로 실제 제품 DLL의 공개 계약/원본 선언/검색 제한을 확인한다. x86/x64 각각 Bt003NativePlatform 배포 빌드를 수행하고 실행 출력의 제조사 두 파일을 저장소 고정 해시·원본과 대조한다. 기본 관리 빌드만으로 배포 검사를 완료했다고 표시하지 않는다.
 

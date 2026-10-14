@@ -1,18 +1,13 @@
-# 동기 USB MVP 구현 계획
+# 이슈16 구현 계획
 
-이슈 #16의 [스펙](specs/SYNC_USB_MVP.md)과 [공개 API](PRINTER_API.ko.md)를 따른다. #15의 C01-C24/TASK-01..09는 [역사 계획](history/IMPLEMENTATION_PLAN_wrapper_issue15.md)에 보존한다.
+기본 인쇄는 [동기 USB MVP](specs/SYNC_USB_MVP.md), 선택 편집은 [TXT 편집 계약](specs/TXT_TEMPLATE_EDITOR.md)을 따른다. 구현 순서와 실제 파일/검사 경계는 비공개 작업 계획에 기록하고 완료 증거는 이슈 체크포인트에 남긴다.
 
-1. 사용자 결정을 스펙·설계 기록으로 작성하고 오른쪽 Codex의 적대적 검토에서 구현 차단 결함을 해결한다. 실제 제품 DLL의 새 계약 검사를 먼저 작성하여 기존 제품에서 실패를 확인한다.
-2. 제품을 두 파일로 구현하고 제조사 원본 Wrapper를 직접 호출한다. 관리 harness는 제품 두 소스를 Link로 컴파일하여 연결 소유권, 가변데이터 원문 전달, 등록 실패 중단, 불명 응답/정리 오류의 정보 보존, 이동 실패, 파일 잠금, Dispose 대기를 확인한다.
-3. 실제 Validation의 계약 검사와 Templates 검사를 연결하고 이전 보호/진단 검사는 LegacySdk로 분리한다. 오프라인 예제·현재 문서·배포 검사 경로를 이행한다.
-4. Release x86/x64 빌드와 관리 검사, Bt003NativePlatform 배포 빌드·PE·원본 해시, 문서·diff 검사를 수행한다. 별도 문맥 검증과 오른쪽 Codex 최종 검토를 받으며 발견된 결함은 수정 후 관련 검사를 다시 수행한다.
+기존 작업1~6은 동기 USB API, 다섯 속성 bool 결과, 제조사 Wrapper 유지, Templates 기능 보존 통합, raw 가변데이터 문자열 API 전환이다. 현재 후속 작업의 사용자 결정이 이전 Templates 기능/API 보존 조건을 대체한다. 기본 인쇄/파일 잠금/배출/복귀와 Wrapper·PrinterModels·Bt003Printer는 유지한다.
 
-2026-10-14 후속 작업은 다섯 속성의 정상 판단 기준을 bool IsSuccess로 통일하는 공개 계약 이행이다. 사용자가 승인한 모델은 right pane 설계 검토에서 READY다. IsSuccess/Message/NativeCode/PrintInvoked/PrintCode의 정확한 집합·자료형, Status와 PrinterResultStatus enum 제거, internal 생성자/setter, bool 기본값 false와 DebuggerDisplay를 검사한다. 새 계약 검사를 기존 제품에서 먼저 실패시키고 제품 두 파일을 수정한다. 기존 harness와 OfflineSmoke는 bool 분기로 이행한다. 정리 예외가 없는 불명 응답도 false인지 확인하고, 정상/실패/불명 인쇄 뒤 정리 오류, 배출 실패/예외, 연결 실패+해제 실패에서 숫자·설명·인쇄 증거·후속 호출 차단을 보존한다. README·현재 API/배출 문서와 tools/verify-repository.js의 필수 계약 문자열도 이행하며 과거 기록은 보존한다.
+## TXT 편집 후속 작업
 
-기존 전체 저장소 오류 18건은 참고 패키지의 작업 보관 위치 이동, Validation 작업 파일의 LF 정리와 제조사 Wrapper 예제 경로의 파일별 허용 설정으로 해소했다. 예제 경로는 현재 머신에 존재할 필요가 없는 참고 자료이며 제품 실행 입력과 구분한다. Wrapper 바이트와 제품 코드는 유지했고 전체 verify-build의 Release x86/x64 관리·배포 파일 검사와 저장소 검사가 통과했다. 판정 범위는 현재 제품이 사용하는 SDK 함수 10개와 bool 결과 계약이며 전체 SDK 기능의 실기 완료를 요구하지 않는다. SDK·장치 실행은 추가 수행하지 않는다.
+7. right pane 설계/문서 검토 후 Issue를 갱신한다. 원문 보존·AW 필드 편집·WithRawText·SaveAs의 새 계약을 baseline에서 실패시키고 관리 회귀를 잠근다.
+8. Templates를 두 파일로 재설계한다. 원문·줄끝·변경 필드만 보존하고 작은 AW/Q/W/S/H 모델을 제공한다. 저장 전에 모든 준비를 끝내고 임시 파일 후 명시적인 Move/Replace로 확정한다.
+9. JSON/XML·DataTable·렌더 결과와 관련 Compile/참조/활성 검사를 제거하고 예제·현재 문서를 이행한다. Release x86/x64 실제 관리 DLL·기존 SDK 대체 harness·OfflineSmoke·배포 PE/해시·저장소 검사를 실행한다. right pane 코드 리뷰와 새 문맥 실행 검증을 받고 최종 근거를 기록한다.
 
-후속 작업5는 Bt003Printer의 사용성·확장성과 인쇄·배출·복귀 흐름을 독립 점검하고 Templates를 기능 보존 방식으로 통합한다. 바인딩 JSON 끝 쉼표 허용을 기존 제품에서 재현하고 회귀 검사 커밋·잠금 후 수정한다. Templates 8개 파일을 4개로 통합하고 공통 JSON 검사·직접 명령 검사로 중복을 줄인다. 공개 API 전후 비교, 기존 Templates·파일 저장·스냅샷 검증과 x86/x64 전체 검사를 수행한 뒤 최종 독립 검토를 받는다. 기본 인쇄 경로의 SDK 해석과 Wrapper·PrinterModels는 유지한다.
-
-수용 기준은 이슈 #16의 열세 항목이다. 최신 제품의 SDK 실기·물리 출력·배출 정확성, 임의 raw BTPL 수량 명령과 copies=1의 우선순위, 외부 앱의 고급 API 이행, 여러 프로세스 제어는 이번 관리 검사 완료 근거에 포함하지 않는다. push·merge·배포는 수행하지 않는다.
-
-후속 작업6은 제조사 가변데이터 문자열 API 전환이다. right pane 설계 READY 이후 실제 공개 DLL의 두 optional string 인수·null 기본값·params 제거를 구제품에서 실패시키고 잠근다. 제품의 두 시그니처·입력 helper·한글 주석과 현재 문서를 이행한다. 제조사 원문 전달·생략/명시적 null·CP949 바이트 경계·등록 실패 및 정리 실패의 파일 수명을 기존 관리 harness에서 확인한다. frozen Wrapper·PrinterModels와 Templates 네 파일은 보존한다. 전체 Release x86/x64 검사, 최종 right pane 리뷰 및 새 문맥 실행 검증으로 완료 근거를 남기며 장치는 실행하지 않는다.
+가장 큰 위험은 원문 손실과 저장 실패 뒤 파일 기준 불일치다. 실제 임시 파일을 사용하는 관리 검사로 확인한다. 테스트는 실제 동작을 확인하며 기존 printer 행동 검사를 약화하지 않는다. UI 구현·SDK 로드·USB·물리 인쇄/배출·push/merge는 이번 범위에 없다. 한글 주석으로 원문·저장 수명과 실패 경계를 설명한다.
