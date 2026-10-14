@@ -249,6 +249,15 @@ namespace U2BIO.BT003PROLabelPrinting.Validation
             Format("InvalidArguments", () => new BtplBlackMarkMedia(70m, 0m, 5m, 7.5m, 60m, 20m));
             Format("InvalidArguments", () => new BtplBlackMarkMedia(70m, 35m, 5m, -1m, 60m, 20m));
             Format("InvalidArguments", () => new BtplBlackMarkMedia(70m, 35m, 5m, 7.5m, 3m, 20m));
+            // 반올림 경계는 0.5 mm 위로 올리고(8.75 → 9), 203dpi 안전 영역도 같은 식으로 계산한다.
+            Check(new BtplBlackMarkMedia(70m, 35m, 5m, 7.25m, 60m, 20m).LabelSetting.Parameters == "35,5,9+", "midpoint rounds away from zero");
+            Check(Area(new BtplBlackMarkMedia(70m, 35m, 5m, 7.5m, 60m, 20m, 203).SafeArea, 56, 16, 504, 144), "203 dpi safe area");
+            // 큰 값·표현할 수 없는 소수·음수 z도 다른 예외 없이 InvalidArguments다.
+            Format("InvalidArguments", () => new BtplBlackMarkMedia(70m, 35m, 5m, 7.5m, 60m, 20m, 300, -9m));
+            Format("InvalidArguments", () => new BtplBlackMarkMedia(70m, 35m, 0.0004m, 7.5m, 60m, 20m));
+            Format("InvalidArguments", () => new BtplBlackMarkMedia(decimal.MaxValue, 35m, 5m, 7.5m, 60m, 20m));
+            Format("InvalidArguments", () => new BtplBlackMarkMedia(70m, 35m, 5m, decimal.MaxValue, 60m, 20m));
+            Format("InvalidArguments", () => new BtplBlackMarkMedia(400000000m, 35m, 5m, 7.5m, 60m, 20m));
         }
 
         private static void RemovedApi()
