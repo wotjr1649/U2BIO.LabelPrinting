@@ -250,7 +250,15 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
             Check(!TemplateDocument.SameMedia(BtplTemplate.Parse(SampleText.Replace("^W70", "^W60")), media));
             Check(!TemplateDocument.SameMedia(BtplTemplate.Parse(SampleText.Replace("^W70\r\n", "")), media));
             Check(!TemplateDocument.SameMedia(BtplTemplate.Parse(SampleText.Replace("^Q35,5,9+", "^Q35,5")), media));
-            Expect<BtplFormatException>(() => TemplateDocument.SameMedia(BtplTemplate.Parse(SampleText.Replace("^W70\r\n", "^W70\r\n^W70\r\n")), media));
+            try
+            {
+                TemplateDocument.SameMedia(BtplTemplate.Parse(SampleText.Replace("^W70\r\n", "^W70\r\n^W70\r\n")), media);
+                Check(false);
+            }
+            catch (BtplFormatException error)
+            {
+                Check(error.Code == "AmbiguousSetting");
+            }
 
             step = "safe-area";
             BtplArea safe = media.SafeArea;
@@ -268,6 +276,13 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
                 .Replace("AW,80,160,10,1,0,0,", "AW,80,160,10,1,0,1,"));
             Check(TemplateDocument.CanJudge(sample.TextElements[0]) && !TemplateDocument.CanJudge(turned.TextElements[0])
                 && !TemplateDocument.CanJudge(turned.TextElements[1]));
+            // 정렬 줄(6)은 영역 밖 위치여도 제외 목록에만, 0/0 줄(7)은 영역 밖 목록에만 들어간다.
+            BtplTemplate mixed = BtplTemplate.Parse(SampleText.Replace("AW,80,120,10,1,0,0,", "AW,80,260,10,1,1,0,")
+                .Replace("AW,80,160,", "AW,80,260,"));
+            var outside = new List<string>();
+            var skipped = new List<string>();
+            TemplateDocument.CheckSafeArea(mixed, safe, text => 100, outside, skipped);
+            Check(outside.SequenceEqual(new[] { "줄 7(아래 52 dot)" }) && skipped.SequenceEqual(new[] { "줄 6" }));
         }
 
         private static void CheckGapLabel()

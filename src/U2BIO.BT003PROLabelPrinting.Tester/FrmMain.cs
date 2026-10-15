@@ -6,6 +6,7 @@ using System.Drawing.Drawing2D;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using DevExpress.Utils.Menu;
@@ -158,19 +159,18 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
                     string variable = VariableData();
                     var outsideLines = new List<string>();
                     var skipped = new List<string>();
-                    foreach (BtplTextElement text in template.TextElements)
+                    try
                     {
-                        string line = "줄 " + text.TemplateLine;
-                        if (!TemplateDocument.CanJudge(text)) skipped.Add(line);
-                        else
-                        {
-                            string where = TemplateDocument.OutsideSafeArea(text, media.SafeArea, MeasureDots(text, variable));
-                            if (where != null) outsideLines.Add(line + "(" + where + ")");
-                        }
+                        TemplateDocument.CheckSafeArea(template, media.SafeArea, text => MeasureDots(text, variable), outsideLines, skipped);
+                        outside = outsideLines.Count > 0;
+                        if (outside) notes.Add("안전 영역 밖: " + string.Join(", ", outsideLines));
+                        if (skipped.Count > 0) notes.Add("판정 제외(정렬·회전): " + string.Join(", ", skipped));
                     }
-                    outside = outsideLines.Count > 0;
-                    if (outside) notes.Add("안전 영역 밖: " + string.Join(", ", outsideLines));
-                    if (skipped.Count > 0) notes.Add("판정 제외(정렬·회전): " + string.Join(", ", skipped));
+                    // 글자 폭 측정이 실패해도 RefreshView가 끊겨 버튼 상태가 멈추지 않게 판정만 포기한다.
+                    catch (Exception failure) when (failure is ArgumentException || failure is ExternalException || failure is OutOfMemoryException)
+                    {
+                        notes.Add("영역 판정 실패: " + failure.Message);
+                    }
                 }
             }
             lblUnsupported.Text = string.Join(" · ", notes);
@@ -667,6 +667,8 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
 
         private void gridBlackMark_CellValueChanged(object sender, DevExpress.XtraVerticalGrid.Events.CellValueChangedEventArgs e)
         {
+            // 계산 결과 행은 RefreshMedia가 채우므로 그 변경으로 다시 갱신하지 않는다.
+            if (e.Row == rowResult || e.Row == rowCompare) return;
             RefreshMedia();
             UpdateEnabled();
         }

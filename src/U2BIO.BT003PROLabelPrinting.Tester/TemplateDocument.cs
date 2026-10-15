@@ -86,6 +86,23 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
             return parts.Count == 0 ? null : string.Join(", ", parts);
         }
 
+        // 경고 줄 목록을 만든다. 정렬·회전 줄은 skipped에만, 안전 영역 밖 줄은 outside에만 들어간다.
+        internal static void CheckSafeArea(BtplTemplate template, BtplArea safe, Func<BtplTextElement, long> widthOf,
+            List<string> outside, List<string> skipped)
+        {
+            foreach (BtplTextElement text in template.TextElements)
+            {
+                string line = "줄 " + text.TemplateLine;
+                if (!CanJudge(text))
+                {
+                    skipped.Add(line);
+                    continue;
+                }
+                string where = OutsideSafeArea(text, safe, widthOf(text));
+                if (where != null) outside.Add(line + "(" + where + ")");
+            }
+        }
+
         private BtplTemplate Current => Template ?? throw new InvalidOperationException("열린 서식이 없습니다.");
 
         private void Adopt(BtplTemplate template)
