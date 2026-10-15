@@ -217,6 +217,72 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
             Check(document.Template == null && !document.IsDirty && document.LastLoadedOrSaved == null && document.DisplayPath == "열린 서식 없음");
             document.Open(path);
             Check(document.Template != null && document.DisplayPath == path && !document.IsDirty);
+            CheckUndo(directory);
+        }
+
+        // 되돌리기 기록은 원문으로 두고 현재 객체의 WithRawText로 되살린다. 저장 뒤 되돌려도 다음 저장이 막히지 않아야 한다.
+        private static void CheckUndo(string directory)
+        {
+            step = "document-undo";
+            string path = WriteTemplate(directory, "undo.txt", SampleText);
+            var document = new TemplateDocument();
+            document.Open(path);
+            Check(!document.CanUndo && !document.CanRedo && !document.DiffersFromSaved && !document.DiffersFromOpened);
+            Edit(document, "하나");
+            string first = document.Template.ToBtpl();
+            Edit(document, "둘");
+            Check(document.CanUndo && document.IsDirty);
+            document.Undo();
+            Check(document.Template.ToBtpl() == first && document.CanRedo);
+            document.Undo();
+            Check(document.Template.ToBtpl() == SampleText && !document.IsDirty && !document.CanUndo);
+            document.Redo();
+            Check(document.Template.ToBtpl() == first && document.IsDirty);
+            // 새 편집은 다시 실행 기록을 비우고, 원문이 같은 편집은 기록하지 않는다.
+            Edit(document, "셋");
+            Check(!document.CanRedo);
+            int before = document.UndoCount;
+            document.Apply(t => t.WithRawText(t.ToBtpl()));
+            Check(document.UndoCount == before);
+
+            step = "document-undo-save";
+            document.Save();
+            Check(!document.IsDirty && document.CanUndo && document.DiffersFromOpened);
+            document.Undo();
+            Check(document.IsDirty);
+            document.Save();
+            Check(!document.IsDirty && ReadText(path) == document.Template.ToBtpl());
+            Edit(document, "넷");
+            document.RevertToSaved();
+            Check(!document.IsDirty && document.Template.ToBtpl() == ReadText(path));
+            document.Undo();
+            Check(document.Template.ToBtpl().Contains("넷"));
+            document.RevertToOpened();
+            Check(document.Template.ToBtpl() == SampleText && document.IsDirty && !document.DiffersFromOpened);
+            document.Save();
+            Check(!document.IsDirty && ReadText(path) == SampleText);
+
+            step = "document-undo-limit";
+            for (int index = 0; index < 101; index++) Edit(document, "반복 " + index);
+            Check(document.UndoCount == 100);
+            document.Close();
+            Check(!document.CanUndo && !document.CanRedo);
+            // 다시 열면 기록을 비우고 처음 연 원문을 새로 잡는다.
+            document.Open(path);
+            Edit(document, "다시");
+            document.Reload();
+            Check(!document.CanUndo && !document.DiffersFromOpened);
+
+            step = "document-undo-gap";
+            // 처음 연 원문에 두 인수 ^Q가 있으면 DLL이 원문 복원을 거부하고 상태는 그대로다.
+            string gap = WriteTemplate(directory, "undo-gap.txt", SampleText.Replace("^Q35,5,9+", "^Q35,5"));
+            var gapDocument = new TemplateDocument();
+            gapDocument.Open(gap);
+            gapDocument.Apply(t => t.WithSetting(new BtplSetting("^Q", "35,5,9+")));
+            BtplTemplate fixedTemplate = gapDocument.Template;
+            Expect<BtplFormatException>(() => gapDocument.RevertToOpened());
+            Expect<BtplFormatException>(() => gapDocument.Undo());
+            Check(ReferenceEquals(gapDocument.Template, fixedTemplate) && gapDocument.CanUndo && gapDocument.IsDirty);
         }
 
         // 저장이 실패하면 편집본·수정 표시·디스크 내용이 모두 그대로여야 한다.

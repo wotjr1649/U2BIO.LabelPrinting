@@ -45,6 +45,10 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
         private readonly TesterSettings settings;
         private readonly TemplateDocument doc = new TemplateDocument();
         private readonly DXPopupMenu recentMenu = new DXPopupMenu();
+        private readonly DXPopupMenu undoMenu = new DXPopupMenu();
+        private DXMenuItem redoItem;
+        private DXMenuItem revertSavedItem;
+        private DXMenuItem revertOpenedItem;
         private readonly string startWarning;
         // 생성만으로는 SDK를 읽지 않는다. 연결·인쇄를 호출할 때 처음 로드된다.
         private readonly Bt003Printer printer = new Bt003Printer();
@@ -75,6 +79,13 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
             InitializeComponent();
             settings = TesterSettings.Load(TesterSettings.DefaultFilePath);
             btnOpen.DropDownControl = recentMenu;
+            redoItem = new DXMenuItem("다시 실행 (Ctrl+Y)", (sender, e) => RunHistory(doc.Redo));
+            revertSavedItem = new DXMenuItem("마지막 저장 상태로", (sender, e) => RunHistory(doc.RevertToSaved));
+            revertOpenedItem = new DXMenuItem("처음 연 상태로", (sender, e) => RunHistory(doc.RevertToOpened));
+            undoMenu.Items.Add(redoItem);
+            undoMenu.Items.Add(revertSavedItem);
+            undoMenu.Items.Add(revertOpenedItem);
+            btnUndo.DropDownControl = undoMenu;
             gridResults.DataSource = results;
             startWarning = settings.LoadWarning;
             LoadFont();
@@ -219,8 +230,6 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
             syncing = true;
             try
             {
-                rowResult.Properties.Value = template == null ? ""
-                    : (Parameters(template, "^Q") is string q ? "^Q" + q : "^Q 없음") + " / " + (Parameters(template, "^W") is string w ? "^W" + w : "^W 없음");
                 string state;
                 if (template == null) state = "열린 서식 없음";
                 else if (media == null) state = "계산 입력 오류(" + error + "): 서식은 바뀌지 않았습니다";
@@ -329,8 +338,7 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
         {
             gridViewTexts.CloseEditor();
             gridSettings.CloseEditor();
-            gridBlackMark.CloseEditor();
-            return gridViewTexts.ActiveEditor == null && gridSettings.ActiveEditor == null && gridBlackMark.ActiveEditor == null;
+            return gridViewTexts.ActiveEditor == null && gridSettings.ActiveEditor == null;
         }
 
         // 활성 여부를 한곳에서 !busy와 함께 계산해 장치 호출 중 RefreshView가 버튼을 다시 켜지 않게 한다.
@@ -347,8 +355,14 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
             gridTexts.Enabled = open;
             btnAddText.Enabled = open;
             btnRemoveText.Enabled = open && template.TextElements.Count > 0;
-            gridSettings.Enabled = open;
-            gridBlackMark.Enabled = idle;
+            // 블랙마크 칸은 서식 없이도 미리보기용으로 고칠 수 있다. 서식 명령 칸은 서식이 있을 때만 편집한다.
+            gridSettings.Enabled = idle;
+            rowQ.Properties.ReadOnly = rowW.Properties.ReadOnly = rowS.Properties.ReadOnly = rowH.Properties.ReadOnly = template == null;
+            // 드롭다운은 네 동작 중 하나라도 가능하면 켜고, 본체(한 단계 되돌리기)와 메뉴 항목은 각자 조건으로 판단한다.
+            btnUndo.Enabled = open && (doc.CanUndo || doc.CanRedo || doc.DiffersFromSaved || doc.DiffersFromOpened);
+            redoItem.Enabled = open && doc.CanRedo;
+            revertSavedItem.Enabled = open && doc.DiffersFromSaved;
+            revertOpenedItem.Enabled = open && doc.DiffersFromOpened;
             btnConnect.Enabled = idle;
             btnDisconnect.Enabled = idle;
             btnStatus.Enabled = idle;
@@ -769,6 +783,47 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
             }
         }
 
+        // 버튼·메뉴·단축키가 함께 쓴다. 장치 작업 중이거나 서식이 없으면 편집기 확정도 하지 않고 멈춘다.
+        // DLL이 원문 복원을 거부하면 오류만 남기고 상태와 기록은 그대로 둔다.
+        private void RunHistory(Action action)
+        {
+            if (busy || doc.Template == null || !CommitEditors()) return;
+            string labelBefore = Parameters(doc.Template, "^Q");
+            try
+            {
+                action();
+            }
+            catch (BtplFormatException error)
+            {
+                ShowException(error);
+                RefreshView();
+                return;
+            }
+            if (Parameters(doc.Template, "^Q") != labelBefore) ShowNotice(AlignNotice);
+            else ClearMessage();
+            SyncMediaRows(false);
+            RefreshView();
+        }
+
+        private void btnUndo_Click(object sender, EventArgs e)
+        {
+            if (doc.CanUndo) RunHistory(doc.Undo);
+        }
+
+        private void FrmMain_KeyDown(object sender, KeyEventArgs e)
+        {
+            bool undoKey = e.Control && !e.Shift && e.KeyCode == Keys.Z;
+            bool redoKey = e.Control && (e.KeyCode == Keys.Y || (e.Shift && e.KeyCode == Keys.Z));
+            if (!undoKey && !redoKey) return;
+            // 셀 편집기나 입력란에서는 그 칸의 글자 되돌리기로 둔다.
+            if (gridViewTexts.ActiveEditor != null || gridSettings.ActiveEditor != null || txtVariable.ContainsFocus || memoRaw.ContainsFocus) return;
+            e.Handled = true;
+            e.SuppressKeyPress = true;
+            if (busy || doc.Template == null) return;
+            if (undoKey && doc.CanUndo) RunHistory(doc.Undo);
+            else if (redoKey && doc.CanRedo) RunHistory(doc.Redo);
+        }
+
         private void btnAddText_Click(object sender, EventArgs e)
         {
             var texts = doc.Template.TextElements;
@@ -787,6 +842,12 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
 
         private void gridSettings_ValidatingEditor(object sender, BaseContainerValidateEditorEventArgs e)
         {
+            // 블랙마크 칸은 서식 없이도 검증한다. 서식 명령 칸만 아래에서 서식에 바로 반영한다.
+            if (gridSettings.FocusedRow is EditorRow mediaRow && Array.IndexOf(MediaRows, mediaRow) >= 0)
+            {
+                ValidateMedia(mediaRow, e);
+                return;
+            }
             if (doc.Template == null) return;
             string command = Command(gridSettings.FocusedRow);
             if (command == null) return;
@@ -824,9 +885,8 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
         }
 
         // 계산할 수 없는 입력은 칸에서 거부한다(ESC로 취소). 거부된 값이 칸에 남지 않으므로 서식과 연결된 칸은 늘 서식 값과 같다.
-        private void gridBlackMark_ValidatingEditor(object sender, BaseContainerValidateEditorEventArgs e)
+        private void ValidateMedia(EditorRow row, BaseContainerValidateEditorEventArgs e)
         {
-            if (!(gridBlackMark.FocusedRow is EditorRow row) || Array.IndexOf(MediaRows, row) < 0) return;
             // 라벨 치수는 서식에 넣지 않으므로 숫자만 확인한다. 둘 다 맞지 않는 서식에서도 하나씩 고칠 수 있고, 조합이 맞을 때까지 영역 판정만 멈춘다.
             if (row == rowLabelWidth || row == rowLabelHeight)
             {
@@ -842,9 +902,10 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
 
         // 사용자가 바꾼 칸이 들어가는 설정만, 서식과 연결돼 있을 때 바로 반영한다. 받침지 너비는 ^W만, 마크 세 칸은 ^Q만 바꾸고
         // 라벨 치수는 미리보기 전용이다. 연결된 칸은 서식 값과 같으므로 계산한 ^Q에서 바뀌는 인수는 고친 칸뿐이다.
-        private void gridBlackMark_CellValueChanged(object sender, DevExpress.XtraVerticalGrid.Events.CellValueChangedEventArgs e)
+        private void gridSettings_CellValueChanged(object sender, DevExpress.XtraVerticalGrid.Events.CellValueChangedEventArgs e)
         {
-            if (syncing || e.Row == rowResult || e.Row == rowMediaState) return;
+            // 서식 명령 칸은 검증 중에 반영하고, 상태 칸은 프로그램이 채운다. 블랙마크 칸만 여기서 처리한다.
+            if (syncing || !(e.Row is EditorRow row) || Array.IndexOf(MediaRows, row) < 0) return;
             if (!busy && doc.Template != null)
             {
                 // 직전 연결 확인이 계산 오류로 실패했으면 서식 값으로 다시 채워 연결부터 다시 확인한다(라벨 치수는 유지).

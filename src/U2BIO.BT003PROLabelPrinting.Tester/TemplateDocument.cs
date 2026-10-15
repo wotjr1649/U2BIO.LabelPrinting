@@ -13,6 +13,13 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
     {
         // 수정 여부는 이 원문과 비교한다. 비표준 숫자 표기(선행 0 등)는 값만 되돌려도 DLL이 표준 표기로 쓰므로 수정됨으로 남는다.
         private string savedText;
+        // 되돌리기 기록은 원문으로 두고 현재 객체의 WithRawText로 되살린다. 그래야 경로·저장 기준이 현재 것으로 유지돼
+        // 저장한 뒤 되돌려도 다음 저장이 원본 변경(SourceChanged)으로 잘못 막히지 않는다.
+        private const int MaxHistory = 100;
+        private readonly List<string> undo = new List<string>();
+        private readonly List<string> redo = new List<string>();
+        // 이번 실행에서 성공적으로 열거나 다시 읽은 원문이다. 저장해도 바뀌지 않는다.
+        private string openedText;
 
         internal BtplTemplate Template { get; private set; }
         internal bool IsDirty { get; private set; }
@@ -20,7 +27,13 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
         internal string DisplayPath => Template == null ? "열린 서식 없음" : Template.FilePath ?? "저장 안 됨";
 
         // DLL 호출이 끝난 뒤에만 상태를 바꿔 예외가 나면 이전 서식이 그대로 남는다.
-        internal void Open(string path) => Adopt(BtplTemplate.Load(path));
+        internal void Open(string path)
+        {
+            Adopt(BtplTemplate.Load(path));
+            openedText = savedText;
+            undo.Clear();
+            redo.Clear();
+        }
 
         internal void Reload() => Open(Current.FilePath);
 
@@ -31,15 +44,55 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
             IsDirty = false;
             LastLoadedOrSaved = null;
             savedText = null;
+            openedText = null;
+            undo.Clear();
+            redo.Clear();
+        }
+
+        internal bool CanUndo => Template != null && undo.Count > 0;
+        internal bool CanRedo => Template != null && redo.Count > 0;
+        internal int UndoCount => undo.Count;
+        internal bool DiffersFromSaved => Template != null && Template.ToBtpl() != savedText;
+        internal bool DiffersFromOpened => Template != null && Template.ToBtpl() != openedText;
+
+        // DLL이 원문을 거부하면(두 인수 ^Q, AW X 0 이하 등) 예외가 나고 상태는 그대로다.
+        internal void Undo() => Step(undo, redo);
+
+        internal void Redo() => Step(redo, undo);
+
+        internal void RevertToSaved() => Apply(t => t.WithRawText(savedText));
+
+        internal void RevertToOpened() => Apply(t => t.WithRawText(openedText));
+
+        private void Step(List<string> from, List<string> to)
+        {
+            if (from.Count == 0) return;
+            string current = Current.ToBtpl();
+            BtplTemplate restored = Current.WithRawText(from[from.Count - 1]);
+            from.RemoveAt(from.Count - 1);
+            Push(to, current);
+            Template = restored;
+            IsDirty = restored.ToBtpl() != savedText;
+        }
+
+        private static void Push(List<string> history, string text)
+        {
+            history.Add(text);
+            if (history.Count > MaxHistory) history.RemoveAt(0);
         }
 
         internal void Apply(Func<BtplTemplate, BtplTemplate> edit)
         {
             BtplTemplate result = edit(Current) ?? throw new InvalidOperationException("편집 결과가 없습니다.");
-            // 값이 같아 DLL이 같은 객체를 돌려주면 수정됨으로 표시하지 않는다.
+            // 값이 같아 DLL이 같은 객체를 돌려주거나 원문이 같으면 수정도 기록도 하지 않는다.
             if (ReferenceEquals(result, Template)) return;
+            string before = Current.ToBtpl();
+            string after = result.ToBtpl();
+            if (after == before) return;
+            Push(undo, before);
+            redo.Clear();
             Template = result;
-            IsDirty = result.ToBtpl() != savedText;
+            IsDirty = after != savedText;
         }
 
         internal void Save() => Adopt(Current.Save());
