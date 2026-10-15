@@ -7,6 +7,35 @@ using System.Xml.Linq;
 
 namespace U2BIO.BT003PROLabelPrinting.Tester
 {
+    // 프린터 헤드 해상도와 이 장치에서 잰 보정값이다. 서식이 아니라 장치에 딸린 값이라 설정에 저장한다.
+    internal sealed class PrinterCalibration
+    {
+        internal static readonly PrinterCalibration Default = new PrinterCalibration(300, 1.5m, 3.6m, -1.0m);
+
+        internal PrinterCalibration(int dpi, decimal sensorOffsetMm, decimal verticalOffsetMm, decimal horizontalOffsetMm)
+        {
+            Dpi = dpi;
+            SensorOffsetMm = sensorOffsetMm;
+            VerticalOffsetMm = verticalOffsetMm;
+            HorizontalOffsetMm = horizontalOffsetMm;
+        }
+
+        internal int Dpi { get; }
+        internal decimal SensorOffsetMm { get; }
+        internal decimal VerticalOffsetMm { get; }
+        internal decimal HorizontalOffsetMm { get; }
+
+        internal static string CheckDpi(int dpi) => dpi == 203 || dpi == 300 ? null : "dpi는 203 또는 300이어야 합니다.";
+
+        // BtplBlackMarkMedia와 같은 범위다. 세로 보정이 음수면 라벨이 원점 위로 나가 DLL이 항상 거부한다.
+        internal static string CheckOffset(decimal mm, bool allowNegative) =>
+            mm < (allowNegative ? -1000m : 0m) || mm > 1000m || mm != Math.Round(mm, 3)
+                ? "보정은 " + (allowNegative ? "-1000" : "0") + "~1000mm, 소수 셋째 자리까지여야 합니다." : null;
+
+        internal string Check() => CheckDpi(Dpi) ?? CheckOffset(SensorOffsetMm, true) ?? CheckOffset(VerticalOffsetMm, false)
+            ?? CheckOffset(HorizontalOffsetMm, true);
+    }
+
     internal sealed class TesterSettings
     {
         internal const string DefaultPort = "0";
@@ -28,6 +57,7 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
         internal string Port { get; private set; } = DefaultPort;
         internal int PresentationDistanceMm { get; private set; } = DefaultDistanceMm;
         internal string TemplateFolder { get; private set; } = "";
+        internal PrinterCalibration Calibration { get; private set; } = PrinterCalibration.Default;
         internal IReadOnlyList<string> RecentFiles => recentFiles;
         internal string LoadWarning { get; private set; }
 
@@ -59,16 +89,19 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
         internal static string CheckFolder(string folder) =>
             string.IsNullOrEmpty(folder) || Directory.Exists(folder) ? null : "서식 폴더가 없습니다.";
 
-        internal void Update(string port, int distanceMm, string folder)
+        // calibration이 null이면 현재 보정값을 유지한다.
+        internal void Update(string port, int distanceMm, string folder, PrinterCalibration calibration = null)
         {
             folder = folder ?? "";
-            string error = CheckPort(port) ?? CheckDistance(distanceMm) ?? CheckFolder(folder);
+            calibration = calibration ?? Calibration;
+            string error = CheckPort(port) ?? CheckDistance(distanceMm) ?? CheckFolder(folder) ?? calibration.Check();
             if (error != null) throw new ArgumentException(error);
             // 저장이 끝난 뒤에만 메모리 값을 바꿔 실패 시 화면과 파일이 어긋나지 않게 한다.
-            Write(port, distanceMm, folder, recentFiles);
+            Write(port, distanceMm, folder, recentFiles, calibration);
             Port = port;
             PresentationDistanceMm = distanceMm;
             TemplateFolder = folder;
+            Calibration = calibration;
             LoadWarning = null;
         }
 
@@ -80,10 +113,10 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
                 .Concat(recentFiles.Where(file => !string.Equals(file, fullPath, StringComparison.OrdinalIgnoreCase)))
                 .Take(MaxRecentFiles).ToList();
             // 경고 상태에서는 손상된 원본을 보존하려고 확인을 누를 때까지 쓰지 않는다.
-            if (LoadWarning == null) Write(Port, PresentationDistanceMm, TemplateFolder, recentFiles);
+            if (LoadWarning == null) Write(Port, PresentationDistanceMm, TemplateFolder, recentFiles, Calibration);
         }
 
-        private void CreateDefault() => Write(Port, PresentationDistanceMm, TemplateFolder, recentFiles);
+        private void CreateDefault() => Write(Port, PresentationDistanceMm, TemplateFolder, recentFiles, Calibration);
 
         private void Read()
         {
@@ -95,26 +128,50 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
             string folder = Value(root, "TemplateFolder");
             XElement recent = root.Element("RecentFiles") ?? throw new InvalidDataException("RecentFiles 항목이 없습니다.");
             List<string> files = recent.Elements("File").Select(file => file.Value).ToList();
+            // 보정 항목이 없는 이전 파일은 그 항목만 기본값으로 읽고 다시 쓰지 않는다. 값이 있는데 잘못되면 손상으로 본다.
+            PrinterCalibration fallback = PrinterCalibration.Default;
+            var calibration = new PrinterCalibration(
+                Optional(root, "Dpi", text => int.Parse(text, NumberStyles.None, CultureInfo.InvariantCulture), fallback.Dpi),
+                Optional(root, "SensorOffsetMm", ParseMm, fallback.SensorOffsetMm),
+                Optional(root, "VerticalOffsetMm", ParseMm, fallback.VerticalOffsetMm),
+                Optional(root, "HorizontalOffsetMm", ParseMm, fallback.HorizontalOffsetMm));
             string error = CheckPort(port) ?? CheckDistance(distance)
-                ?? (files.Count > MaxRecentFiles || files.Any(string.IsNullOrWhiteSpace) ? "최근 파일 목록이 잘못됐습니다." : null);
+                ?? (files.Count > MaxRecentFiles || files.Any(string.IsNullOrWhiteSpace) ? "최근 파일 목록이 잘못됐습니다." : null)
+                ?? calibration.Check();
             if (error != null) throw new InvalidDataException(error);
             Port = port;
             PresentationDistanceMm = distance;
+            Calibration = calibration;
             // 나중에 지워진 서식 폴더는 파일 손상이 아니므로 그 값만 비우고 포트·배출 거리는 유지한다.
             TemplateFolder = CheckFolder(folder) == null ? folder : "";
             recentFiles = files;
         }
 
+        private static T Optional<T>(XElement root, string name, Func<string, T> parse, T fallback)
+        {
+            XElement element = root.Element(name);
+            return element == null ? fallback : parse(element.Value);
+        }
+
+        private static decimal ParseMm(string text) =>
+            decimal.Parse(text, NumberStyles.AllowLeadingSign | NumberStyles.AllowDecimalPoint, CultureInfo.InvariantCulture);
+
+        private static string Mm(decimal value) => value.ToString("0.###", CultureInfo.InvariantCulture);
+
         private static string Value(XElement root, string name) =>
             root.Element(name)?.Value ?? throw new InvalidDataException(name + " 항목이 없습니다.");
 
-        private void Write(string port, int distanceMm, string folder, IEnumerable<string> files)
+        private void Write(string port, int distanceMm, string folder, IEnumerable<string> files, PrinterCalibration calibration)
         {
             var document = new XDocument(new XElement("TesterSettings", new XAttribute("version", "1"),
                 new XElement("Port", port),
                 new XElement("PresentationDistanceMm", distanceMm.ToString(CultureInfo.InvariantCulture)),
                 new XElement("TemplateFolder", folder),
-                new XElement("RecentFiles", files.Select(file => new XElement("File", file)))));
+                new XElement("RecentFiles", files.Select(file => new XElement("File", file))),
+                new XElement("Dpi", calibration.Dpi.ToString(CultureInfo.InvariantCulture)),
+                new XElement("SensorOffsetMm", Mm(calibration.SensorOffsetMm)),
+                new XElement("VerticalOffsetMm", Mm(calibration.VerticalOffsetMm)),
+                new XElement("HorizontalOffsetMm", Mm(calibration.HorizontalOffsetMm))));
             string target = Path.GetFullPath(FilePath);
             // 실행 중 설정 폴더가 지워져도 다음 저장에서 다시 만든다.
             Directory.CreateDirectory(Path.GetDirectoryName(target));

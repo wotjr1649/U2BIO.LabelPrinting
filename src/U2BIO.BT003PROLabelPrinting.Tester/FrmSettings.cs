@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Windows.Forms;
 using DevExpress.XtraEditors;
@@ -25,6 +26,11 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
             rowPort.Properties.Value = settings.Port;
             rowDistance.Properties.Value = settings.PresentationDistanceMm;
             rowFolder.Properties.Value = settings.TemplateFolder;
+            PrinterCalibration calibration = settings.Calibration;
+            rowDpi.Properties.Value = calibration.Dpi.ToString(CultureInfo.InvariantCulture);
+            rowSensor.Properties.Value = Mm(calibration.SensorOffsetMm);
+            rowVertical.Properties.Value = Mm(calibration.VerticalOffsetMm);
+            rowHorizontal.Properties.Value = Mm(calibration.HorizontalOffsetMm);
             lblWarning.Text = settings.LoadWarning;
             layoutItemWarning.Visibility = settings.LoadWarning == null ? LayoutVisibility.Never : LayoutVisibility.Always;
         }
@@ -92,15 +98,20 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
 
         private void btnOK_Click(object sender, EventArgs e)
         {
-            if (!gridConnection.PostEditor() || !gridTemplate.PostEditor()) return;
+            if (!gridConnection.PostEditor() || !gridTemplate.PostEditor() || !gridCalibration.PostEditor()) return;
             gridConnection.CloseEditor();
             gridTemplate.CloseEditor();
+            gridCalibration.CloseEditor();
             if (ShowError(gridConnection, pageConnection, rowPort) || ShowError(gridConnection, pageConnection, rowDistance)
-                || ShowError(gridTemplate, pageTemplate, rowFolder)) return;
+                || ShowError(gridTemplate, pageTemplate, rowFolder) || ShowError(gridCalibration, pageCalibration, rowDpi)
+                || ShowError(gridCalibration, pageCalibration, rowSensor) || ShowError(gridCalibration, pageCalibration, rowVertical)
+                || ShowError(gridCalibration, pageCalibration, rowHorizontal)) return;
             try
             {
+                var calibration = new PrinterCalibration(ReadDpi(rowDpi.Properties.Value), ReadMm(rowSensor.Properties.Value),
+                    ReadMm(rowVertical.Properties.Value), ReadMm(rowHorizontal.Properties.Value));
                 settings.Update(Convert.ToString(rowPort.Properties.Value), ReadDistance(rowDistance.Properties.Value),
-                    Convert.ToString(rowFolder.Properties.Value));
+                    Convert.ToString(rowFolder.Properties.Value), calibration);
                 // 버튼에 DialogResult를 두지 않고 저장이 성공했을 때만 닫는다.
                 DialogResult = DialogResult.OK;
             }
@@ -131,8 +142,26 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
             if (row == rowPort) return TesterSettings.CheckPort(Convert.ToString(value));
             if (row == rowDistance) return TesterSettings.CheckDistance(ReadDistance(value));
             if (row == rowFolder) return TesterSettings.CheckFolder(Convert.ToString(value));
+            if (row == rowDpi) return PrinterCalibration.CheckDpi(ReadDpi(value));
+            if (row == rowSensor || row == rowHorizontal || row == rowVertical)
+            {
+                if (!TryMm(value, out decimal mm)) return "숫자(mm)를 입력하세요.";
+                return PrinterCalibration.CheckOffset(mm, row != rowVertical);
+            }
             return null;
         }
+
+        private static string Mm(decimal value) => value.ToString("0.###", CultureInfo.InvariantCulture);
+
+        private static int ReadDpi(object value) =>
+            int.TryParse(Convert.ToString(value, CultureInfo.InvariantCulture), NumberStyles.None, CultureInfo.InvariantCulture, out int dpi) ? dpi : -1;
+
+        private static bool TryMm(object value, out decimal mm) =>
+            decimal.TryParse(Convert.ToString(value, CultureInfo.InvariantCulture)?.Trim(), NumberStyles.AllowLeadingSign | NumberStyles.AllowDecimalPoint,
+                CultureInfo.InvariantCulture, out mm);
+
+        // 확인 전에 Check로 걸렀으므로 여기서는 읽기만 한다.
+        private static decimal ReadMm(object value) => TryMm(value, out decimal mm) ? mm : 0m;
 
         // 스핀 편집기에 범위를 두면 1001이 1000으로 바뀌어 오류 없이 저장되므로 범위는 여기서만 검사한다.
         // 정수가 아니거나 int 범위 밖·빈 값은 범위 오류 값(-1)으로 바꾼다.

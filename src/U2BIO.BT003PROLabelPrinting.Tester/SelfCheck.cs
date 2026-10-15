@@ -2,7 +2,9 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Drawing;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Text;
 using System.Windows.Forms;
 
@@ -30,11 +32,12 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
                 CheckDocument(directory);
                 CheckPreview();
                 CheckMedia();
+                CheckRenderer();
                 CheckGapLabel();
                 CheckUsbPorts();
                 CheckNoNativeOrUi();
                 Console.WriteLine("PASS: tester self-check " + (expect64 ? "x64" : "x86")
-                    + " settings/document/preview/media/safe-area/gap-label/usb-list; nativeSDK=not-loaded; no UI/device");
+                    + " settings/document/preview/media/ink-area/renderer/gap-label/usb-list; nativeSDK=not-loaded; no UI/device");
                 return 0;
             }
             catch (Exception error)
@@ -84,8 +87,36 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
             Check(reloaded.LoadWarning == null && reloaded.Port == "1" && reloaded.PresentationDistanceMm == 20
                 && reloaded.TemplateFolder == directory && reloaded.RecentFiles.SequenceEqual(settings.RecentFiles));
 
+            step = "settings-calibration";
+            Check(reloaded.Calibration.Dpi == 300 && reloaded.Calibration.SensorOffsetMm == 1.5m
+                && reloaded.Calibration.VerticalOffsetMm == 3.6m && reloaded.Calibration.HorizontalOffsetMm == -1.0m);
+            settings.Update("1", 20, directory, new PrinterCalibration(203, -2.125m, 0m, 1000m));
+            PrinterCalibration saved = TesterSettings.Load(path).Calibration;
+            Check(saved.Dpi == 203 && saved.SensorOffsetMm == -2.125m && saved.VerticalOffsetMm == 0m && saved.HorizontalOffsetMm == 1000m);
+            // 세로 보정이 음수면 DLL이 항상 거부하므로 설정에서 막는다.
+            Expect<ArgumentException>(() => settings.Update("1", 20, directory, new PrinterCalibration(300, 1.5m, -0.5m, 0m)));
+            Expect<ArgumentException>(() => settings.Update("1", 20, directory, new PrinterCalibration(200, 1.5m, 1m, 0m)));
+            Expect<ArgumentException>(() => settings.Update("1", 20, directory, new PrinterCalibration(300, 1.0005m, 1m, 0m)));
+            Check(TesterSettings.Load(path).Calibration.Dpi == 203);
+            // 보정 항목이 없는 이전 파일은 읽기만 해서는 다시 쓰지 않고, 최근 파일을 더하면 보정 기본값과 함께 저장한다.
+            string legacy = Path.Combine(directory, "legacy.xml");
+            File.WriteAllText(legacy, "<TesterSettings version=\"1\"><Port>0</Port><PresentationDistanceMm>15</PresentationDistanceMm>"
+                + "<TemplateFolder></TemplateFolder><RecentFiles /></TesterSettings>", Encoding.UTF8);
+            byte[] legacyBytes = File.ReadAllBytes(legacy);
+            var old = TesterSettings.Load(legacy);
+            Check(old.LoadWarning == null && old.Calibration.Dpi == 300 && old.Calibration.VerticalOffsetMm == 3.6m
+                && File.ReadAllBytes(legacy).SequenceEqual(legacyBytes));
+            old.AddRecent(Path.Combine(directory, "legacy-recent.txt"));
+            var upgraded = TesterSettings.Load(legacy);
+            Check(upgraded.LoadWarning == null && upgraded.RecentFiles.Count == 1 && upgraded.Calibration.HorizontalOffsetMm == -1.0m
+                && File.ReadAllText(legacy).Contains("<VerticalOffsetMm>3.6</VerticalOffsetMm>"));
+
             step = "settings-corrupt";
             CheckDamagedSettings(Path.Combine(directory, "broken.xml"), "<TesterSettings version=\"1\"><Port>");
+            // 값이 있는데 잘못된 보정은 손상으로 보고 원본을 지킨다.
+            CheckDamagedSettings(Path.Combine(directory, "bad-calibration.xml"), "<TesterSettings version=\"1\"><Port>0</Port>"
+                + "<PresentationDistanceMm>15</PresentationDistanceMm><TemplateFolder></TemplateFolder><RecentFiles />"
+                + "<VerticalOffsetMm>-1</VerticalOffsetMm></TesterSettings>");
             CheckDamagedSettings(Path.Combine(directory, "range.xml"), "<TesterSettings version=\"1\"><Port>0</Port>"
                 + "<PresentationDistanceMm>1001</PresentationDistanceMm><TemplateFolder></TemplateFolder><RecentFiles /></TesterSettings>");
 
@@ -240,19 +271,27 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
             Check(TemplateDocument.PreviewText("^V00", null) == "^V00");
         }
 
-        // 계산값 비교는 DLL에 적용해 보기만 한다. 영역 판정은 운영 기준 용지의 SafeArea(X 71~732, Y 66~255)로 확인한다.
+        // 블랙마크 칸 연결은 DLL에 적용해 보기만 한다. 영역 판정은 운영 기준 용지의 LabelArea(Y 43~279)·SafeArea(Y 66~255)와 잉크 범위로 확인한다.
         private static void CheckMedia()
         {
             step = "media";
             var media = new BtplBlackMarkMedia(70m, 35m, 5m, 7.5m, 60m, 20m);
             BtplTemplate sample = BtplTemplate.Parse(SampleText);
-            Check(TemplateDocument.SameMedia(sample, media));
-            Check(!TemplateDocument.SameMedia(BtplTemplate.Parse(SampleText.Replace("^W70", "^W60")), media));
-            Check(!TemplateDocument.SameMedia(BtplTemplate.Parse(SampleText.Replace("^W70\r\n", "")), media));
-            Check(!TemplateDocument.SameMedia(BtplTemplate.Parse(SampleText.Replace("^Q35,5,9+", "^Q35,5")), media));
+            Check(TemplateDocument.SameSetting(sample, media.LabelSetting) && TemplateDocument.SameSetting(sample, media.WidthSetting));
+            Check(!TemplateDocument.SameSetting(BtplTemplate.Parse(SampleText.Replace("^W70", "^W60")), media.WidthSetting));
+            Check(!TemplateDocument.SameSetting(BtplTemplate.Parse(SampleText.Replace("^W70\r\n", "")), media.WidthSetting));
+            // 방향 −, 0.5 mm 단위가 아닌 위치, 두 인수 ^Q는 계산기로 그대로 만들 수 없어 연결하지 않는다.
+            foreach (string q in new[] { "^Q35,5,9-", "^Q35,5,9.2+", "^Q35,5" })
+                Check(!TemplateDocument.SameSetting(BtplTemplate.Parse(SampleText.Replace("^Q35,5,9+", q)), media.LabelSetting));
+            Check(new BtplBlackMarkMedia(70m, 35m, 5m, 7.7m, 60m, 20m).LabelSetting.Parameters == "35,5,9+");
+            Check(TemplateDocument.TryReadLabel("35,5,9+", out decimal segment, out decimal mark, out decimal z) && segment == 35 && mark == 5 && z == 9);
+            Check(!TemplateDocument.TryReadLabel("35,5,9-", out _, out _, out _) && !TemplateDocument.TryReadLabel("35,5", out _, out _, out _)
+                && !TemplateDocument.TryReadLabel(null, out _, out _, out _));
+            Check(TemplateDocument.TryReadWidth("70", out decimal liner) && liner == 70 && !TemplateDocument.TryReadWidth("7O", out _)
+                && !TemplateDocument.TryReadWidth(null, out _));
             try
             {
-                TemplateDocument.SameMedia(BtplTemplate.Parse(SampleText.Replace("^W70\r\n", "^W70\r\n^W70\r\n")), media);
+                TemplateDocument.SameSetting(BtplTemplate.Parse(SampleText.Replace("^W70\r\n", "^W70\r\n^W70\r\n")), media.WidthSetting);
                 Check(false);
             }
             catch (BtplFormatException error)
@@ -260,30 +299,65 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
                 Check(error.Code == "AmbiguousSetting");
             }
 
-            step = "safe-area";
+            step = "ink-area";
+            BtplArea label = media.LabelArea;
             BtplArea safe = media.SafeArea;
-            Check(safe.Left == 71 && safe.Top == 66 && safe.Right == 732 && safe.Bottom == 255);
-            BtplTemplate edge = BtplTemplate.Parse(SampleText.Replace("AW,80,120,", "AW,80,208,").Replace("AW,80,160,", "AW,80,209,"));
-            Check(TemplateDocument.OutsideSafeArea(edge.TextElements[0], safe, 100) == null);
-            Check(TemplateDocument.OutsideSafeArea(edge.TextElements[1], safe, 100) == "아래 1 dot");
-            BtplTemplate far = BtplTemplate.Parse(SampleText.Replace("AW,80,120,", "AW,80,260,").Replace("AW,80,160,10,", "AW,70,65,10,"));
-            Check(TemplateDocument.OutsideSafeArea(far.TextElements[0], safe, 100) == "아래 52 dot");
-            Check(TemplateDocument.OutsideSafeArea(far.TextElements[1], safe, 663) == "위 1 dot, 왼쪽 1 dot, 오른쪽 1 dot 추정");
-            // 경고 거리는 그리기 제한(100000) 전 높이로 구한다.
-            BtplTemplate huge = BtplTemplate.Parse(SampleText.Replace("AW,80,120,10,", "AW,80,66,30000,"));
-            Check(TemplateDocument.OutsideSafeArea(huge.TextElements[0], safe, 100) == "아래 141477 dot");
-            BtplTemplate turned = BtplTemplate.Parse(SampleText.Replace("AW,80,120,10,1,0,0,", "AW,80,120,10,1,1,0,")
-                .Replace("AW,80,160,10,1,0,0,", "AW,80,160,10,1,0,1,"));
-            Check(TemplateDocument.CanJudge(sample.TextElements[0]) && !TemplateDocument.CanJudge(turned.TextElements[0])
-                && !TemplateDocument.CanJudge(turned.TextElements[1]));
-            // 정렬 줄(6)은 영역 밖 위치여도 제외 목록에만, 0/0 줄(7)은 영역 밖 목록에만 들어간다.
-            BtplTemplate mixed = BtplTemplate.Parse(SampleText.Replace("AW,80,120,10,1,0,0,", "AW,80,260,10,1,1,0,")
-                .Replace("AW,80,160,", "AW,80,260,"));
-            var outside = new List<string>();
+            Check(label.Top == 43 && label.Bottom == 279 && safe.Left == 71 && safe.Top == 66 && safe.Right == 732 && safe.Bottom == 255);
+            // 이 PC 돋움체 크기 10 "Not Used"의 잉크 예: 로컬 [3,189)×[6,40).
+            Rectangle ink = Rectangle.FromLTRB(3, 6, 189, 40);
+            Check(TemplateDocument.Outside(ink, 80, 215, safe) == null && TemplateDocument.Outside(ink, 80, 216, safe) == "아래 1 dot");
+            Check(TemplateDocument.Outside(ink, 80, 239, label) == null && TemplateDocument.Outside(ink, 80, 240, label) == "아래 1 dot");
+            Check(TemplateDocument.Outside(ink, 80, 260, label) == "아래 21 dot");
+            Check(TemplateDocument.Outside(ink, 67, 59, safe) == "위 1 dot, 왼쪽 1 dot" && TemplateDocument.Outside(ink, 544, 100, safe) == "오른쪽 1 dot");
+            var raster = new TextRaster(null, ink, 0, null);
+            BtplTemplate low = BtplTemplate.Parse(SampleText.Replace("AW,80,120,", "AW,80,260,").Replace("AW,80,160,", "AW,80,230,"));
+            Check(TemplateDocument.Classify(low.TextElements[0], raster, label, safe, out string detail) == InkState.Cut && detail == "아래 21 dot");
+            Check(TemplateDocument.Classify(low.TextElements[1], raster, label, safe, out detail) == InkState.Unsafe && detail == "아래 15 dot");
+            Check(TemplateDocument.Classify(sample.TextElements[0], raster, label, safe, out detail) == InkState.Inside && detail == null);
+            Check(TemplateDocument.Classify(sample.TextElements[0], new TextRaster(null, null, 0, null), label, safe, out _) == InkState.Blank);
+            Check(TemplateDocument.Classify(sample.TextElements[0], new TextRaster(null, null, 0, "크기 한도 초과"), label, safe, out detail) == InkState.Failed
+                && detail == "크기 한도 초과");
+            // 정렬 줄(6)은 영역 밖 위치여도 제외 목록에만, 0/0 줄(7)은 안전 영역 밖 목록에만 들어간다.
+            BtplTemplate mixed = BtplTemplate.Parse(SampleText.Replace("AW,80,120,10,1,0,0,", "AW,80,260,10,1,1,0,").Replace("AW,80,160,", "AW,80,230,"));
+            var cut = new List<string>();
+            var unsafeLines = new List<string>();
             var skipped = new List<string>();
-            TemplateDocument.CheckSafeArea(mixed, safe, text => 100, outside, skipped);
-            Check(outside.SequenceEqual(new[] { "줄 7(아래 52 dot)" }) && skipped.SequenceEqual(new[] { "줄 6" }));
+            var failed = new List<string>();
+            TemplateDocument.CheckInk(mixed, label, safe, text => raster, cut, unsafeLines, skipped, failed);
+            Check(cut.Count == 0 && unsafeLines.SequenceEqual(new[] { "줄 7(아래 15 dot)" }) && skipped.SequenceEqual(new[] { "줄 6" }) && failed.Count == 0);
         }
+
+        // 화면 없이 SDK와 같은 GDI 경로로 그림을 만든다. 글꼴이 PC마다 다를 수 있어 잉크 수치 대신 성공·실패와 자원만 확인한다.
+        private static void CheckRenderer()
+        {
+            step = "renderer";
+            string face = SdkTextRenderer.DefaultFace;
+            using (TextRaster mixed = SdkTextRenderer.Render(face, 10, 1, "Ag 한글 280", 0))
+            {
+                Check(mixed.Failure == null && mixed.Image != null && mixed.Ink.HasValue && mixed.Bytes > 0 && mixed.Image.Width % 32 == 0
+                    && mixed.Ink.Value.Top >= 0 && mixed.Ink.Value.Bottom <= mixed.Image.Height && mixed.Ink.Value.Right <= mixed.Image.Width);
+            }
+            using (TextRaster blank = SdkTextRenderer.Render(face, 10, 1, "", 0)) Check(blank.Failure == null && blank.Image == null && !blank.Ink.HasValue);
+            using (TextRaster spaces = SdkTextRenderer.Render(face, 10, 1, "   ", 0)) Check(spaces.Failure == null && spaces.Image != null && !spaces.Ink.HasValue);
+            using (TextRaster foreign = SdkTextRenderer.Render(face, 10, 1, "Ā", 0)) Check(foreign.Failure == "CP949로 바꿀 수 없음");
+            using (TextRaster huge = SdkTextRenderer.Render(face, 30000, 1, "A", 0)) Check(huge.Failure == "크기 한도 초과");
+            using (TextRaster full = SdkTextRenderer.Render(face, 10, 1, "A", SdkTextRenderer.BudgetBytes)) Check(full.Failure == "미리보기 메모리 한도");
+            Check(SdkTextRenderer.Fits(1024, 0) && !SdkTextRenderer.Fits(SdkTextRenderer.BudgetBytes / 2 + 1, 0)
+                && !SdkTextRenderer.Fits(1024, SdkTextRenderer.BudgetBytes - 1024));
+            Check(SdkTextRenderer.Weight(0) == 400 && SdkTextRenderer.Weight(1) == 400 && SdkTextRenderer.Weight(2) == 600 && SdkTextRenderer.Weight(3) == 700);
+
+            step = "renderer-resources";
+            using (Process process = Process.GetCurrentProcess())
+            {
+                uint before = GetGuiResources(process.Handle, 0);
+                for (int index = 0; index < 200; index++)
+                    using (TextRaster made = SdkTextRenderer.Render(face, 10, 2, "자원 " + index, 0)) Check(made.Failure == null);
+                Check(GetGuiResources(process.Handle, 0) <= before + 2);
+            }
+        }
+
+        [DllImport("user32.dll")]
+        private static extern uint GetGuiResources(IntPtr process, uint flags);
 
         private static void CheckGapLabel()
         {

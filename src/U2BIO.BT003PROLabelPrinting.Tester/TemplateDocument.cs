@@ -1,10 +1,14 @@
 using System;
 using System.Collections.Generic;
+using System.Drawing;
+using System.Globalization;
 using System.Linq;
 using System.Text.RegularExpressions;
 
 namespace U2BIO.BT003PROLabelPrinting.Tester
 {
+    internal enum InkState { Inside, Unsafe, Cut, Blank, Skipped, Failed }
+
     internal sealed class TemplateDocument
     {
         // 수정 여부는 이 원문과 비교한다. 비표준 숫자 표기(선행 0 등)는 값만 되돌려도 DLL이 표준 표기로 쓰므로 수정됨으로 남는다.
@@ -61,45 +65,75 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
                 && lines[number - 1].TrimStart().StartsWith("^Q", StringComparison.Ordinal));
         }
 
-        // 문서에 넣지 않고 DLL에 적용해 보기만 한다. 같은 객체가 돌아오면 서식 값이 계산값과 같다. 적용할 수 없는 구조면 BtplFormatException이 난다.
-        internal static bool SameMedia(BtplTemplate template, BtplBlackMarkMedia media) =>
-            ReferenceEquals(template.WithSetting(media.LabelSetting).WithSetting(media.WidthSetting), template);
+        // 문서에 넣지 않고 DLL에 적용해 보기만 한다. 같은 객체가 돌아오면 서식 값이 이 설정과 같다. 적용할 수 없는 구조면 BtplFormatException이 난다.
+        internal static bool SameSetting(BtplTemplate template, BtplSetting setting) => ReferenceEquals(template.WithSetting(setting), template);
 
-        // SDK가 LOGFONT 높이를 size*340/72 dot로 계산한다. 실제 잉크 높이가 아니라 참고 상자 높이다.
-        internal static long TextHeight(BtplTextElement text) => (long)text.Size * 340 / 72;
+        // ^Q 세 인수를 계산 입력으로 옮기는 표시 매핑이다. 방향이 '+'가 아니거나 숫자가 아니면 옮기지 않는다.
+        // 그대로 다시 만들어지는지(0.5 mm 단위, 표기)는 SameSetting 왕복으로만 판단한다.
+        internal static bool TryReadLabel(string parameters, out decimal segment, out decimal mark, out decimal z)
+        {
+            segment = mark = z = 0;
+            string[] parts = parameters?.Split(',');
+            return parts != null && parts.Length == 3 && parts[2].EndsWith("+", StringComparison.Ordinal)
+                && TryMm(parts[0], out segment) && TryMm(parts[1], out mark) && TryMm(parts[2].Substring(0, parts[2].Length - 1), out z);
+        }
+
+        internal static bool TryReadWidth(string parameters, out decimal liner)
+        {
+            liner = 0;
+            return parameters != null && TryMm(parameters, out liner);
+        }
+
+        private static bool TryMm(string text, out decimal value) =>
+            decimal.TryParse(text, NumberStyles.AllowDecimalPoint, CultureInfo.InvariantCulture, out value);
 
         // 미리보기는 정렬·회전을 그리지 않으므로 그런 줄은 영역 판정에서 뺀다.
         internal static bool CanJudge(BtplTextElement text) => text.Alignment == 0 && text.Rotation == 0;
 
-        // 참고 상자(높이 TextHeight, 폭은 화면 글꼴로 잰 추정)가 안전 영역을 벗어난 방향과 거리다. 안쪽이면 null이다.
-        internal static string OutsideSafeArea(BtplTextElement text, BtplArea safe, long width)
+        // 잉크 범위(문구 그림 기준 반열림)를 서식 좌표로 옮겨 영역(반열림) 밖으로 나간 방향과 거리를 적는다. 안쪽이면 null이다.
+        internal static string Outside(Rectangle ink, int x, int y, BtplArea area)
         {
             var parts = new List<string>();
-            long top = safe.Top - (long)text.Y;
-            long bottom = text.Y + TextHeight(text) - safe.Bottom;
-            long left = safe.Left - (long)text.X;
-            long right = text.X + width - safe.Right;
+            long top = area.Top - ((long)y + ink.Top);
+            long bottom = (long)y + ink.Bottom - area.Bottom;
+            long left = area.Left - ((long)x + ink.Left);
+            long right = (long)x + ink.Right - area.Right;
             if (top > 0) parts.Add("위 " + top + " dot");
             if (bottom > 0) parts.Add("아래 " + bottom + " dot");
             if (left > 0) parts.Add("왼쪽 " + left + " dot");
-            if (right > 0) parts.Add("오른쪽 " + right + " dot 추정");
+            if (right > 0) parts.Add("오른쪽 " + right + " dot");
             return parts.Count == 0 ? null : string.Join(", ", parts);
         }
 
-        // 경고 줄 목록을 만든다. 정렬·회전 줄은 skipped에만, 안전 영역 밖 줄은 outside에만 들어간다.
-        internal static void CheckSafeArea(BtplTemplate template, BtplArea safe, Func<BtplTextElement, long> widthOf,
-            List<string> outside, List<string> skipped)
+        // 라벨 밖이면 잘림, 라벨 안이지만 안전 영역 밖이면 주의다. 그리지 못한 줄은 정상으로 보지 않는다.
+        internal static InkState Classify(BtplTextElement text, TextRaster raster, BtplArea label, BtplArea safe, out string detail)
+        {
+            detail = null;
+            if (!CanJudge(text)) return InkState.Skipped;
+            if (raster == null || raster.Failure != null)
+            {
+                detail = raster?.Failure ?? "그림 없음";
+                return InkState.Failed;
+            }
+            if (!raster.Ink.HasValue) return InkState.Blank;
+            detail = Outside(raster.Ink.Value, text.X, text.Y, label);
+            if (detail != null) return InkState.Cut;
+            detail = Outside(raster.Ink.Value, text.X, text.Y, safe);
+            return detail != null ? InkState.Unsafe : InkState.Inside;
+        }
+
+        // 경고 줄 목록이다. 한 줄은 한 목록에만 들어간다.
+        internal static void CheckInk(BtplTemplate template, BtplArea label, BtplArea safe, Func<BtplTextElement, TextRaster> rasterOf,
+            List<string> cut, List<string> unsafeLines, List<string> skipped, List<string> failed)
         {
             foreach (BtplTextElement text in template.TextElements)
             {
                 string line = "줄 " + text.TemplateLine;
-                if (!CanJudge(text))
-                {
-                    skipped.Add(line);
-                    continue;
-                }
-                string where = OutsideSafeArea(text, safe, widthOf(text));
-                if (where != null) outside.Add(line + "(" + where + ")");
+                InkState state = Classify(text, CanJudge(text) ? rasterOf(text) : null, label, safe, out string detail);
+                if (state == InkState.Cut) cut.Add(line + "(" + detail + ")");
+                else if (state == InkState.Unsafe) unsafeLines.Add(line + "(" + detail + ")");
+                else if (state == InkState.Skipped) skipped.Add(line);
+                else if (state == InkState.Failed) failed.Add(line + "(" + detail + ")");
             }
         }
 

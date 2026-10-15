@@ -26,6 +26,8 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
         private const NumberStyles MmStyle = NumberStyles.AllowLeadingWhite | NumberStyles.AllowTrailingWhite
             | NumberStyles.AllowLeadingSign | NumberStyles.AllowDecimalPoint;
         private const int MaxDots = 100000;
+        // 블랙마크 탭 칸과 운영 기준값이다. 앞의 네 칸은 ^W·^Q에서 채우고 라벨 너비·길이는 미리보기에만 쓴다.
+        private static readonly string[] MediaDefaults = { "70", "35", "5", "7.5", "60", "20" };
         private const decimal MaxWidthMm = 10000;
         private const string GapBlocked = "GapLabelSetting";
         private const string NoResponse = "미응답";
@@ -44,7 +46,16 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
         private readonly BindingList<ResultRow> results = new BindingList<ResultRow>();
         private string[] recentShown;
         private bool previewFailed;
-        private bool canApplyMedia;
+        // 블랙마크 칸을 프로그램이 채우는 동안에는 사용자 편집으로 보지 않는다.
+        private bool syncing;
+        private bool labelLinked;
+        private bool widthLinked;
+        private bool syncFailed;
+        private string labelProblem;
+        private string widthProblem;
+        private string fontFace;
+        private bool fontConfigured;
+        private Dictionary<string, TextRaster> rasters = new Dictionary<string, TextRaster>();
         private bool busy;
         private bool closeRequested;
         private bool connectAttempted;
@@ -60,6 +71,8 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
             btnOpen.DropDownControl = recentMenu;
             gridResults.DataSource = results;
             startWarning = settings.LoadWarning;
+            fontFace = SdkTextRenderer.FontFace(out fontConfigured);
+            SyncMediaRows(true);
             if (startWarning != null) ShowError(startWarning);
             else ClearMessage();
             RefreshView();
@@ -115,40 +128,99 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
             lblStatus.Text = "연결: " + connectionState + connectionTarget + " · 위치: " + positionState;
         }
 
-        // 블랙마크 계산 결과, 열린 서식과의 비교, 미리보기 아래 경고 줄을 함께 갱신한다. 문서는 바꾸지 않는다.
+        private EditorRow[] MediaRows => new[] { rowLinerWidth, rowSegment, rowMarkWidth, rowMarkToLabel, rowLabelWidth, rowLabelHeight };
+
+        // 서식의 ^W·^Q를 블랙마크 칸에 옮기고 칸 값이 서식을 그대로 다시 만드는지 DLL로 확인한다. 문서는 바꾸지 않는다.
+        // reset은 성공한 열기·다시 읽기·닫기에서만 쓴다. 저장·다른 이름 저장은 라벨 치수 같은 세션 입력을 유지한다.
+        private void SyncMediaRows(bool reset)
+        {
+            syncing = true;
+            try
+            {
+                EditorRow[] rows = MediaRows;
+                if (reset) for (int i = 0; i < rows.Length; i++) rows[i].Properties.Value = MediaDefaults[i];
+                BtplTemplate template = doc.Template;
+                labelLinked = widthLinked = syncFailed = false;
+                labelProblem = widthProblem = null;
+                if (template != null)
+                {
+                    if (TemplateDocument.TryReadWidth(Parameters(template, "^W"), out decimal liner)) rowLinerWidth.Properties.Value = Mm(liner);
+                    decimal sensor = settings.Calibration.SensorOffsetMm;
+                    if (TemplateDocument.TryReadLabel(Parameters(template, "^Q"), out decimal segment, out decimal mark, out decimal z) && z - sensor >= 0)
+                    {
+                        rowSegment.Properties.Value = Mm(segment);
+                        rowMarkWidth.Properties.Value = Mm(mark);
+                        rowMarkToLabel.Properties.Value = Mm(z - sensor);
+                    }
+                    BtplBlackMarkMedia media = CreateMedia(out string error);
+                    if (media == null)
+                    {
+                        syncFailed = true;
+                        labelProblem = widthProblem = "계산 입력 오류(" + error + ")";
+                    }
+                    else
+                    {
+                        labelLinked = Matches(template, media.LabelSetting, out labelProblem);
+                        widthLinked = Matches(template, media.WidthSetting, out widthProblem);
+                    }
+                }
+                bool open = template != null;
+                rowSegment.Properties.ReadOnly = rowMarkWidth.Properties.ReadOnly = rowMarkToLabel.Properties.ReadOnly = open && !labelLinked;
+                rowLinerWidth.Properties.ReadOnly = open && !widthLinked;
+            }
+            finally
+            {
+                syncing = false;
+            }
+        }
+
+        private static bool Matches(BtplTemplate template, BtplSetting setting, out string problem)
+        {
+            try
+            {
+                problem = TemplateDocument.SameSetting(template, setting) ? null
+                    : Parameters(template, setting.Command) == null ? "서식에 없음" : "계산기로 그대로 만들 수 없음";
+            }
+            catch (BtplFormatException format)
+            {
+                problem = format.Code;
+            }
+            return problem == null;
+        }
+
+        private static string Mm(decimal value) => value.ToString("0.###", CultureInfo.InvariantCulture);
+
+        // 블랙마크 상태, 문구 그림, 미리보기 아래 경고 줄을 함께 갱신한다. 문서는 바꾸지 않는다.
         private void RefreshMedia()
         {
             BtplTemplate template = doc.Template;
             BtplBlackMarkMedia media = CreateMedia(out string error);
-            rowResult.Properties.Value = media == null ? "계산 입력 오류: " + error
-                : media.LabelSetting.Command + media.LabelSetting.Parameters + " / " + media.WidthSetting.Command + media.WidthSetting.Parameters;
-            string compare;
-            string tip = "^Q·^W가 같아도 라벨 크기·dpi·보정까지 같다는 뜻은 아닙니다.";
-            canApplyMedia = false;
-            if (template == null) compare = "열린 서식 없음";
-            else if (media == null) compare = "계산 입력 오류";
-            else
+            string variable = VariableData();
+            RefreshRasters(template, variable);
+            syncing = true;
+            try
             {
-                try
-                {
-                    bool same = TemplateDocument.SameMedia(template, media);
-                    compare = same ? "같음" : "다름";
-                    canApplyMedia = !same;
-                }
-                // 버튼은 켜 두어 누르면 공통 오류 줄에 이유와 외부 편집 안내가 나오게 한다.
-                catch (BtplFormatException format)
-                {
-                    compare = "적용 불가 예상: " + format.Code;
-                    tip = format.Message;
-                    canApplyMedia = true;
-                }
+                rowResult.Properties.Value = template == null ? ""
+                    : (Parameters(template, "^Q") is string q ? "^Q" + q : "^Q 없음") + " / " + (Parameters(template, "^W") is string w ? "^W" + w : "^W 없음");
+                string state;
+                if (template == null) state = "열린 서식 없음";
+                else if (media == null) state = "계산 입력 오류(" + error + "): 서식은 바뀌지 않았습니다";
+                else state = LinkState("^Q", labelLinked, labelProblem, template, media.LabelSetting) + " · "
+                    + LinkState("^W", widthLinked, widthProblem, template, media.WidthSetting);
+                rowMediaState.Properties.Value = state;
+                rowMediaState.Properties.ToolTip = state + Environment.NewLine + "^Q·^W가 같아도 라벨 크기·dpi·보정까지 같다는 뜻은 아닙니다.";
             }
-            rowCompare.Properties.Value = compare;
-            rowCompare.Properties.ToolTip = tip;
+            finally
+            {
+                syncing = false;
+            }
 
             // 줄을 숨기거나 글자 길이로 너비를 바꾸면 왼쪽 열 배치가 흔들리므로 항상 같은 자리에 두고 긴 내용은 툴팁으로 본다.
             bool unsupported = template != null && template.UnsupportedLineNumbers.Count > 0;
-            bool outside = false;
+            var cut = new List<string>();
+            var unsafeLines = new List<string>();
+            var skipped = new List<string>();
+            var failed = new List<string>();
             var notes = new List<string>();
             if (template != null)
             {
@@ -156,27 +228,90 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
                 if (media == null) notes.Add("계산 입력 오류로 영역 판정 안 함");
                 else
                 {
-                    string variable = VariableData();
-                    var outsideLines = new List<string>();
-                    var skipped = new List<string>();
-                    try
-                    {
-                        TemplateDocument.CheckSafeArea(template, media.SafeArea, text => MeasureDots(text, variable), outsideLines, skipped);
-                        outside = outsideLines.Count > 0;
-                        if (outside) notes.Add("안전 영역 밖: " + string.Join(", ", outsideLines));
-                        if (skipped.Count > 0) notes.Add("판정 제외(정렬·회전): " + string.Join(", ", skipped));
-                    }
-                    // 글자 폭 측정이 실패해도 RefreshView가 끊겨 버튼 상태가 멈추지 않게 판정만 포기한다.
-                    catch (Exception failure) when (failure is ArgumentException || failure is ExternalException || failure is OutOfMemoryException)
-                    {
-                        notes.Add("영역 판정 실패: " + failure.Message);
-                    }
+                    TemplateDocument.CheckInk(template, media.LabelArea, media.SafeArea, text => RasterOf(text, variable), cut, unsafeLines, skipped, failed);
+                    if (cut.Count > 0) notes.Add("라벨 밖(잘림): " + string.Join(", ", cut));
+                    if (unsafeLines.Count > 0) notes.Add("안전 영역 밖: " + string.Join(", ", unsafeLines));
+                    if (failed.Count > 0) notes.Add("판정 불가: " + string.Join(", ", failed));
+                    if (skipped.Count > 0) notes.Add("판정 제외(정렬·회전): " + string.Join(", ", skipped));
                 }
             }
             lblUnsupported.Text = string.Join(" · ", notes);
             lblUnsupported.ToolTip = lblUnsupported.Text;
-            lblUnsupported.Appearance.ForeColor = unsupported || outside ? Color.Red : Color.Gray;
+            lblUnsupported.Appearance.ForeColor = unsupported || cut.Count > 0 || failed.Count > 0 ? Color.Red
+                : unsafeLines.Count > 0 ? Color.DarkOrange : Color.Gray;
             previewPanel.Invalidate();
+        }
+
+        private static string LinkState(string command, bool linked, string problem, BtplTemplate template, BtplSetting computed)
+        {
+            if (!linked) return command + " " + problem + ": 용지·인쇄 탭에서 고치세요";
+            try
+            {
+                return command + (TemplateDocument.SameSetting(template, computed) ? " 서식과 같음" : " 반영 안 됨");
+            }
+            catch (BtplFormatException format)
+            {
+                return command + " " + format.Code;
+            }
+        }
+
+        // 지금 서식에 필요한 문구 그림만 남긴다. 다시 쓰는 그림과 새 그림, 아직 버리지 않은 그림을 합쳐 예산 안에서만 새로 만든다.
+        private void RefreshRasters(BtplTemplate template, string variable)
+        {
+            var next = new Dictionary<string, TextRaster>();
+            long used = rasters.Values.Sum(raster => raster.Bytes);
+            if (template != null)
+            {
+                foreach (BtplTextElement text in template.TextElements)
+                {
+                    string shown = TemplateDocument.PreviewText(text.Payload, variable);
+                    string key = RasterKey(text, shown);
+                    if (next.ContainsKey(key)) continue;
+                    // 실패한 그림은 예산이 풀렸을 수 있으므로 다시 만든다.
+                    if (rasters.TryGetValue(key, out TextRaster old) && old.Failure == null)
+                    {
+                        next[key] = old;
+                        continue;
+                    }
+                    TextRaster made;
+                    try
+                    {
+                        made = SdkTextRenderer.Render(fontFace, text.Size, text.Weight, shown, used);
+                    }
+                    catch (Exception failure) when (failure is ArgumentException || failure is ExternalException || failure is OutOfMemoryException)
+                    {
+                        made = new TextRaster(null, null, 0, "그리기 실패: " + failure.Message);
+                    }
+                    used += made.Bytes;
+                    next[key] = made;
+                }
+            }
+            foreach (KeyValuePair<string, TextRaster> pair in rasters)
+            {
+                if (!next.TryGetValue(pair.Key, out TextRaster kept) || !ReferenceEquals(kept, pair.Value)) pair.Value.Dispose();
+            }
+            rasters = next;
+        }
+
+        private static string RasterKey(BtplTextElement text, string shown) =>
+            text.Size.ToString(CultureInfo.InvariantCulture) + "|" + text.Weight.ToString(CultureInfo.InvariantCulture) + "|" + shown;
+
+        private TextRaster RasterOf(BtplTextElement text, string variable) =>
+            rasters.TryGetValue(RasterKey(text, TemplateDocument.PreviewText(text.Payload, variable)), out TextRaster raster) ? raster : null;
+
+        private void DisposeRasters()
+        {
+            foreach (TextRaster raster in rasters.Values) raster.Dispose();
+            rasters = new Dictionary<string, TextRaster>();
+        }
+
+        // 블랙마크·문구·용지 그리드에 남은 편집기를 확정한다. 값이 거부돼 편집기가 남으면 false다.
+        private bool CommitEditors()
+        {
+            gridViewTexts.CloseEditor();
+            gridSettings.CloseEditor();
+            gridBlackMark.CloseEditor();
+            return gridViewTexts.ActiveEditor == null && gridSettings.ActiveEditor == null && gridBlackMark.ActiveEditor == null;
         }
 
         // 활성 여부를 한곳에서 !busy와 함께 계산해 장치 호출 중 RefreshView가 버튼을 다시 켜지 않게 한다.
@@ -195,7 +330,6 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
             btnRemoveText.Enabled = open && template.TextElements.Count > 0;
             gridSettings.Enabled = open;
             gridBlackMark.Enabled = idle;
-            btnApplyBlackMark.Enabled = open && canApplyMedia;
             btnConnect.Enabled = idle;
             btnDisconnect.Enabled = idle;
             btnStatus.Enabled = idle;
@@ -231,9 +365,7 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
         internal bool ConfirmDiscard()
         {
             // 셀 편집기에 남은 값을 먼저 문서에 반영해야 수정됨 여부가 맞다. 값이 거부돼 편집기가 남으면 멈춘다.
-            gridViewTexts.CloseEditor();
-            gridSettings.CloseEditor();
-            if (gridViewTexts.ActiveEditor != null || gridSettings.ActiveEditor != null) return false;
+            if (!CommitEditors()) return false;
             if (!doc.IsDirty) return true;
             DialogResult answer = XtraMessageBox.Show(this, "저장하지 않은 수정이 있습니다. 저장할까요?", Title,
                 MessageBoxButtons.YesNoCancel, MessageBoxIcon.Question);
@@ -281,6 +413,7 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
             {
                 doc.Open(path);
                 ClearMessage();
+                SyncMediaRows(true);
             }
             catch (Exception error) when (IsDocumentError(error))
             {
@@ -297,6 +430,7 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
             if (busy || !ConfirmDiscard()) return;
             doc.Close();
             ClearMessage();
+            SyncMediaRows(true);
             RefreshView();
         }
 
@@ -314,6 +448,7 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
 
         private void btnSave_Click(object sender, EventArgs e)
         {
+            if (busy || doc.Template == null || !CommitEditors()) return;
             try
             {
                 doc.Save();
@@ -352,6 +487,7 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
             {
                 doc.Reload();
                 ClearMessage();
+                SyncMediaRows(true);
             }
             catch (Exception error) when (IsDocumentError(error))
             {
@@ -361,6 +497,7 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
 
         private void btnSaveAs_Click(object sender, EventArgs e)
         {
+            if (busy || doc.Template == null || !CommitEditors()) return;
             SaveAs();
             RefreshView();
         }
@@ -401,7 +538,16 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
 
         private void btnSettings_Click(object sender, EventArgs e)
         {
-            using (var form = new FrmSettings(settings)) form.ShowDialog(this);
+            using (var form = new FrmSettings(settings))
+            {
+                // 설정은 열린 서식의 ^Q·^W를 바꾸지 않는다. 보정에 따라 칸 표시와 미리보기만 다시 계산한다.
+                if (form.ShowDialog(this) == DialogResult.OK)
+                {
+                    fontFace = SdkTextRenderer.FontFace(out fontConfigured);
+                    DisposeRasters();
+                    SyncMediaRows(false);
+                }
+            }
             if (startWarning != null && settings.LoadWarning == null && lblMessage.Text == startWarning) ClearMessage();
             RefreshView();
         }
@@ -422,6 +568,7 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
                 return;
             }
             ReleasePrinter();
+            DisposeRasters();
         }
 
         // 정리 실패는 알리기만 하고 종료는 막지 않는다. 연결한 적이 없으면 SDK를 읽지 않는다.
@@ -514,7 +661,7 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
 
         private async void btnPrintEdit_Click(object sender, EventArgs e)
         {
-            if (busy || doc.Template == null) return;
+            if (busy || doc.Template == null || !CommitEditors()) return;
             // 두 인수 ^Q를 보내면 프린터 라벨 유형이 간격 라벨로 바뀐다.
             if (TemplateDocument.HasGapLabelSetting(doc.Template))
             {
@@ -528,8 +675,8 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
 
         private async void btnPrintFile_Click(object sender, EventArgs e)
         {
-            string path = doc.Template?.FilePath;
-            if (busy || path == null) return;
+            if (busy || doc.Template?.FilePath == null || !CommitEditors()) return;
+            string path = doc.Template.FilePath;
             if (doc.IsDirty && XtraMessageBox.Show(this, "저장하지 않은 수정은 이 인쇄에 반영되지 않습니다. 계속할까요?", Title,
                 MessageBoxButtons.YesNo, MessageBoxIcon.Warning, MessageBoxDefaultButton.Button2) != DialogResult.Yes) return;
             string data = VariableData();
@@ -640,7 +787,12 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
             }
             // 칸 값은 맞지만 서식 구조 때문에 못 넣으면 칸을 문서 값으로 되돌린다.
             if (!ApplyEdit(t => t.WithSetting(setting))) e.Value = current ?? "";
-            BeginInvoke(new Action(RefreshView));
+            // ^Q·^W가 바뀌면 블랙마크 칸도 서식 값으로 다시 채운다(라벨 치수는 유지).
+            BeginInvoke(new Action(() =>
+            {
+                if (command == "^Q" || command == "^W") SyncMediaRows(false);
+                RefreshView();
+            }));
         }
 
         private string Command(BaseRow row)
@@ -652,40 +804,46 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
             return null;
         }
 
-        private void btnApplyBlackMark_Click(object sender, EventArgs e)
-        {
-            BtplBlackMarkMedia media = CreateMedia(out string error);
-            if (media == null)
-            {
-                ShowError("블랙마크 계산 입력 오류: " + error);
-                return;
-            }
-            // ^Q와 ^W 중 하나만 바뀐 서식이 남지 않게 한 번의 편집으로 반영한다.
-            ApplyEdit(t => t.WithSetting(media.LabelSetting).WithSetting(media.WidthSetting));
-            RefreshView();
-        }
-
+        // 사용자가 칸을 확정하면 서식과 연결된 설정만 바로 반영한다. 연결 확인 때 칸이 서식을 그대로 만들었으므로
+        // 바꾸지 않은 쪽 설정은 같은 객체가 돌아와 바뀌지 않는다(받침지 너비만 고치면 ^W만 바뀐다).
         private void gridBlackMark_CellValueChanged(object sender, DevExpress.XtraVerticalGrid.Events.CellValueChangedEventArgs e)
         {
-            // 계산 결과 행은 RefreshMedia가 채우므로 그 변경으로 다시 갱신하지 않는다.
-            if (e.Row == rowResult || e.Row == rowCompare) return;
-            RefreshMedia();
-            UpdateEnabled();
+            if (syncing || e.Row == rowResult || e.Row == rowMediaState) return;
+            if (!busy && doc.Template != null)
+            {
+                // 직전 연결 확인이 계산 오류로 실패했으면 칸을 서식 값으로 다시 채워 연결부터 다시 확인한다.
+                if (syncFailed) SyncMediaRows(false);
+                BtplBlackMarkMedia media = CreateMedia(out _);
+                if (media != null && (labelLinked || widthLinked))
+                {
+                    bool label = labelLinked;
+                    bool width = widthLinked;
+                    if (ApplyEdit(t =>
+                    {
+                        BtplTemplate next = t;
+                        if (label) next = next.WithSetting(media.LabelSetting);
+                        if (width) next = next.WithSetting(media.WidthSetting);
+                        return next;
+                    })) SyncMediaRows(false);
+                }
+            }
+            RefreshView();
         }
 
         private BtplBlackMarkMedia CreateMedia(out string error)
         {
             error = "InvalidArguments";
-            EditorRow[] rows = { rowLinerWidth, rowSegment, rowMarkWidth, rowMarkToLabel, rowLabelWidth, rowLabelHeight, rowSensor, rowVertical, rowHorizontal };
+            EditorRow[] rows = MediaRows;
             var mm = new decimal[rows.Length];
             for (int i = 0; i < rows.Length; i++)
             {
                 if (!decimal.TryParse(Convert.ToString(rows[i].Properties.Value, CultureInfo.InvariantCulture), MmStyle, CultureInfo.InvariantCulture, out mm[i])) return null;
             }
-            if (!int.TryParse(Convert.ToString(rowDpi.Properties.Value, CultureInfo.InvariantCulture), NumberStyles.None, CultureInfo.InvariantCulture, out int dpi)) return null;
+            PrinterCalibration calibration = settings.Calibration;
             try
             {
-                var media = new BtplBlackMarkMedia(mm[0], mm[1], mm[2], mm[3], mm[4], mm[5], dpi, mm[6], mm[7], mm[8]);
+                var media = new BtplBlackMarkMedia(mm[0], mm[1], mm[2], mm[3], mm[4], mm[5], calibration.Dpi,
+                    calibration.SensorOffsetMm, calibration.VerticalOffsetMm, calibration.HorizontalOffsetMm);
                 error = null;
                 return media;
             }
@@ -696,9 +854,7 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
             }
         }
 
-        private int PreviewDpi() =>
-            int.TryParse(Convert.ToString(rowDpi.Properties.Value, CultureInfo.InvariantCulture), NumberStyles.None, CultureInfo.InvariantCulture, out int dpi)
-            && dpi == 203 ? 203 : 300;
+        private int PreviewDpi() => settings.Calibration.Dpi;
 
         private void txtVariable_EditValueChanged(object sender, EventArgs e) => RefreshView();
 
@@ -732,7 +888,7 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
             string variable = VariableData();
             int width = CanvasWidth(template, media);
             int height = Clamp(Math.Max(media?.LabelArea.Bottom ?? 0,
-                template.TextElements.Select(text => (long)text.Y + DotHeight(text)).DefaultIfEmpty(0).Max()) + 40);
+                template.TextElements.Select(text => (long)text.Y + (RasterOf(text, variable)?.Image?.Height ?? CellDots(text))).DefaultIfEmpty(0).Max()) + 40);
             float scale = Math.Min((client.Width - 8f) / width, (client.Height - 8f) / height);
             if (scale <= 0) return;
             float left = client.Left + (client.Width - width * scale) / 2;
@@ -740,39 +896,31 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
             g.SmoothingMode = SmoothingMode.AntiAlias;
             g.FillRectangle(Brushes.White, left, top, width * scale, height * scale);
             g.DrawRectangle(Pens.Gray, left, top, width * scale, height * scale);
-            if (media != null) DrawAreas(g, media, left, top, scale);
+            string legend = "계산 입력 기준 (실선 라벨, 점선 안전 영역) · 글꼴 " + fontFace + (fontConfigured ? "" : "(SDK 기본값)");
+            if (media != null) DrawAreas(g, media, left, top, scale, legend);
+            g.InterpolationMode = InterpolationMode.HighQualityBilinear;
+            g.PixelOffsetMode = PixelOffsetMode.Half;
             foreach (BtplTextElement text in template.TextElements)
             {
-                bool outside = media != null && TemplateDocument.CanJudge(text)
-                    && TemplateDocument.OutsideSafeArea(text, media.SafeArea, MeasureDots(text, variable)) != null;
-                using (Font font = PreviewFont(text, Math.Max(1f, DotHeight(text) * scale)))
+                TextRaster raster = RasterOf(text, variable);
+                float x = left + text.X * scale;
+                float y = top + text.Y * scale;
+                if (raster?.Image == null)
                 {
-                    // 폭 측정과 같은 조건으로 그려 빨간 표시와 경고 줄이 같은 상자를 가리키게 한다.
-                    g.DrawString(TemplateDocument.PreviewText(text.Payload, variable), font, outside ? Brushes.Red : Brushes.Black,
-                        left + text.X * scale, top + text.Y * scale, StringFormat.GenericTypographic);
+                    // 그리지 못한 줄은 SDK 셀 높이 상자로만 자리를 보인다. 빈 문구는 그리지 않는다.
+                    if (raster?.Failure == null) continue;
+                    using (var pen = new Pen(Color.Red) { DashStyle = DashStyle.Dot })
+                        g.DrawRectangle(pen, x, y, Math.Max(1f, CellDots(text) * scale), Math.Max(1f, CellDots(text) * scale));
+                    continue;
                 }
+                InkState state = media == null ? InkState.Inside : TemplateDocument.Classify(text, raster, media.LabelArea, media.SafeArea, out _);
+                SdkTextRenderer.SetInkColor(raster.Image, state == InkState.Cut ? Color.Red : state == InkState.Unsafe ? Color.DarkOrange : Color.Black);
+                g.DrawImage(raster.Image, x, y, raster.Image.Width * scale, raster.Image.Height * scale);
             }
         }
 
-        private static Font PreviewFont(BtplTextElement text, float pixels) =>
-            new Font("굴림", pixels, text.Weight >= 2 ? FontStyle.Bold : FontStyle.Regular, GraphicsUnit.Pixel);
-
-        // 미리보기 글꼴로 잰 문구 폭(dot)이다. 프린터 글꼴 폭과 같다는 보장이 없는 추정이며, 큰 글자는 1000 px로 재고 비례로 늘린다.
-        private static long MeasureDots(BtplTextElement text, string variable)
-        {
-            int height = DotHeight(text);
-            float em = Math.Min(height, 1000);
-            using (var bitmap = new Bitmap(1, 1))
-            using (Graphics g = Graphics.FromImage(bitmap))
-            using (Font font = PreviewFont(text, em))
-            {
-                SizeF size = g.MeasureString(TemplateDocument.PreviewText(text.Payload, variable), font, PointF.Empty, StringFormat.GenericTypographic);
-                return (long)Math.Ceiling(size.Width * height / em);
-            }
-        }
-
-        // 그리기용 높이다. 극단적인 크기는 Clamp로 제한하고, 경고 거리는 제한 전 TextHeight로 구한다.
-        private static int DotHeight(BtplTextElement text) => Clamp(TemplateDocument.TextHeight(text));
+        // SDK가 LOGFONT 셀 높이를 size*340/72 dot로 계산한다. 그림을 만들지 못한 줄의 자리 표시와 캔버스 크기에만 쓴다.
+        private static int CellDots(BtplTextElement text) => Clamp((long)text.Size * 340 / 72);
 
         // 극단적인 서식 값으로 int 계산이 넘치거나 그리기가 실패하지 않게 dot 값을 제한한다.
         private static int Clamp(long dots) => (int)Math.Max(1, Math.Min(MaxDots, dots));
@@ -786,7 +934,7 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
             return Clamp(right + 40);
         }
 
-        private static void DrawAreas(Graphics g, BtplBlackMarkMedia media, float left, float top, float scale)
+        private static void DrawAreas(Graphics g, BtplBlackMarkMedia media, float left, float top, float scale, string legend)
         {
             RectangleF label = Scale(media.LabelArea, left, top, scale);
             using (var solid = new Pen(Color.SteelBlue, 1.5f))
@@ -798,7 +946,7 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
             }
             using (var font = new Font("굴림", 8f))
             {
-                g.DrawString("계산 입력 기준 (실선 라벨, 점선 안전 영역)", font, Brushes.SteelBlue, left + 2, top + 2);
+                g.DrawString(legend, font, Brushes.SteelBlue, left + 2, top + 2);
             }
         }
 

@@ -77,15 +77,9 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
             this.rowMarkToLabel = new DevExpress.XtraVerticalGrid.Rows.EditorRow();
             this.rowLabelWidth = new DevExpress.XtraVerticalGrid.Rows.EditorRow();
             this.rowLabelHeight = new DevExpress.XtraVerticalGrid.Rows.EditorRow();
-            this.rowDpi = new DevExpress.XtraVerticalGrid.Rows.EditorRow();
-            this.categoryOffset = new DevExpress.XtraVerticalGrid.Rows.CategoryRow();
-            this.rowSensor = new DevExpress.XtraVerticalGrid.Rows.EditorRow();
-            this.rowVertical = new DevExpress.XtraVerticalGrid.Rows.EditorRow();
-            this.rowHorizontal = new DevExpress.XtraVerticalGrid.Rows.EditorRow();
             this.categoryResult = new DevExpress.XtraVerticalGrid.Rows.CategoryRow();
             this.rowResult = new DevExpress.XtraVerticalGrid.Rows.EditorRow();
-            this.rowCompare = new DevExpress.XtraVerticalGrid.Rows.EditorRow();
-            this.btnApplyBlackMark = new DevExpress.XtraEditors.SimpleButton();
+            this.rowMediaState = new DevExpress.XtraVerticalGrid.Rows.EditorRow();
             this.pageRaw = new DevExpress.XtraTab.XtraTabPage();
             this.memoRaw = new DevExpress.XtraEditors.MemoEdit();
             this.txtVariable = new DevExpress.XtraEditors.TextEdit();
@@ -581,7 +575,6 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
             // pageBlackMark
             //
             this.pageBlackMark.Controls.Add(this.gridBlackMark);
-            this.pageBlackMark.Controls.Add(this.btnApplyBlackMark);
             this.pageBlackMark.Name = "pageBlackMark";
             this.pageBlackMark.Size = new System.Drawing.Size(510, 574);
             this.pageBlackMark.Text = "블랙마크 계산";
@@ -601,9 +594,8 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
             this.gridBlackMark.RowHeaderWidth = 280;
             this.gridBlackMark.Rows.AddRange(new DevExpress.XtraVerticalGrid.Rows.BaseRow[] {
             this.categoryMeasure,
-            this.categoryOffset,
             this.categoryResult});
-            this.gridBlackMark.Size = new System.Drawing.Size(510, 547);
+            this.gridBlackMark.Size = new System.Drawing.Size(510, 574);
             this.gridBlackMark.TabIndex = 0;
             this.gridBlackMark.CellValueChanged += new DevExpress.XtraVerticalGrid.Events.CellValueChangedEventHandler(this.gridBlackMark_CellValueChanged);
             //
@@ -620,8 +612,7 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
             this.rowMarkWidth,
             this.rowMarkToLabel,
             this.rowLabelWidth,
-            this.rowLabelHeight,
-            this.rowDpi});
+            this.rowLabelHeight});
             this.categoryMeasure.Name = "categoryMeasure";
             this.categoryMeasure.Properties.Caption = "용지 실측";
             //
@@ -673,75 +664,25 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
             this.rowLabelHeight.Properties.RowEdit = this.repositoryBlackMark;
             this.rowLabelHeight.Properties.Value = "20";
             //
-            // rowDpi
-            //
-            this.rowDpi.Name = "rowDpi";
-            this.rowDpi.Properties.Caption = "dpi (203/300)";
-            this.rowDpi.Properties.RowEdit = this.repositoryBlackMark;
-            this.rowDpi.Properties.Value = "300";
-            //
-            // categoryOffset
-            //
-            this.categoryOffset.ChildRows.AddRange(new DevExpress.XtraVerticalGrid.Rows.BaseRow[] {
-            this.rowSensor,
-            this.rowVertical,
-            this.rowHorizontal});
-            this.categoryOffset.Name = "categoryOffset";
-            this.categoryOffset.Properties.Caption = "보정";
-            //
-            // rowSensor
-            //
-            this.rowSensor.Name = "rowSensor";
-            this.rowSensor.Properties.Caption = "센서 보정(mm)";
-            this.rowSensor.Properties.ToolTip = "자로 잰 마크~라벨 간격과 프린터가 쓰는 위치 값(^Q 셋째 인수)의 차이입니다.";
-            this.rowSensor.Properties.RowEdit = this.repositoryBlackMark;
-            this.rowSensor.Properties.Value = "1.5";
-            //
-            // rowVertical
-            //
-            this.rowVertical.Name = "rowVertical";
-            this.rowVertical.Properties.Caption = "세로 보정(mm)";
-            this.rowVertical.Properties.ToolTip = "서식 원점(Y0)부터 흰 라벨 위쪽 끝까지의 거리입니다.";
-            this.rowVertical.Properties.RowEdit = this.repositoryBlackMark;
-            this.rowVertical.Properties.Value = "3.6";
-            //
-            // rowHorizontal
-            //
-            this.rowHorizontal.Name = "rowHorizontal";
-            this.rowHorizontal.Properties.Caption = "가로 보정(mm)";
-            this.rowHorizontal.Properties.ToolTip = "가운데 정렬 위치에서 흰 라벨 왼쪽 끝까지의 거리입니다. +는 오른쪽, −는 왼쪽입니다.";
-            this.rowHorizontal.Properties.RowEdit = this.repositoryBlackMark;
-            this.rowHorizontal.Properties.Value = "-1.0";
-            //
             // categoryResult
             //
             this.categoryResult.ChildRows.AddRange(new DevExpress.XtraVerticalGrid.Rows.BaseRow[] {
             this.rowResult,
-            this.rowCompare});
+            this.rowMediaState});
             this.categoryResult.Name = "categoryResult";
-            this.categoryResult.Properties.Caption = "계산 결과";
+            this.categoryResult.Properties.Caption = "서식 반영";
             //
             // rowResult
             //
             this.rowResult.Name = "rowResult";
-            this.rowResult.Properties.Caption = "^Q / ^W";
+            this.rowResult.Properties.Caption = "서식 ^Q / ^W";
             this.rowResult.Properties.ReadOnly = true;
             //
-            // rowCompare
+            // rowMediaState
             //
-            this.rowCompare.Name = "rowCompare";
-            this.rowCompare.Properties.Caption = "열린 서식과 비교";
-            this.rowCompare.Properties.ReadOnly = true;
-            //
-            // btnApplyBlackMark
-            //
-            this.btnApplyBlackMark.Dock = System.Windows.Forms.DockStyle.Bottom;
-            this.btnApplyBlackMark.Location = new System.Drawing.Point(0, 547);
-            this.btnApplyBlackMark.Name = "btnApplyBlackMark";
-            this.btnApplyBlackMark.Size = new System.Drawing.Size(510, 27);
-            this.btnApplyBlackMark.TabIndex = 1;
-            this.btnApplyBlackMark.Text = "계산값을 ^Q·^W에 적용";
-            this.btnApplyBlackMark.Click += new System.EventHandler(this.btnApplyBlackMark_Click);
+            this.rowMediaState.Name = "rowMediaState";
+            this.rowMediaState.Properties.Caption = "상태";
+            this.rowMediaState.Properties.ReadOnly = true;
             //
             // pageRaw
             //
@@ -1361,15 +1302,9 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
         private DevExpress.XtraVerticalGrid.Rows.EditorRow rowMarkToLabel;
         private DevExpress.XtraVerticalGrid.Rows.EditorRow rowLabelWidth;
         private DevExpress.XtraVerticalGrid.Rows.EditorRow rowLabelHeight;
-        private DevExpress.XtraVerticalGrid.Rows.EditorRow rowDpi;
-        private DevExpress.XtraVerticalGrid.Rows.CategoryRow categoryOffset;
-        private DevExpress.XtraVerticalGrid.Rows.EditorRow rowSensor;
-        private DevExpress.XtraVerticalGrid.Rows.EditorRow rowVertical;
-        private DevExpress.XtraVerticalGrid.Rows.EditorRow rowHorizontal;
         private DevExpress.XtraVerticalGrid.Rows.CategoryRow categoryResult;
         private DevExpress.XtraVerticalGrid.Rows.EditorRow rowResult;
-        private DevExpress.XtraVerticalGrid.Rows.EditorRow rowCompare;
-        private DevExpress.XtraEditors.SimpleButton btnApplyBlackMark;
+        private DevExpress.XtraVerticalGrid.Rows.EditorRow rowMediaState;
         private DevExpress.XtraTab.XtraTabPage pageRaw;
         private DevExpress.XtraEditors.MemoEdit memoRaw;
         private DevExpress.XtraEditors.TextEdit txtVariable;

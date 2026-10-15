@@ -60,6 +60,7 @@
       <SubType>Component</SubType>
     </Compile>
     <Compile Include="Program.cs" />
+    <Compile Include="SdkTextRenderer.cs" />
     <Compile Include="SelfCheck.cs" />
     <Compile Include="TemplateDocument.cs" />
     <Compile Include="TesterSettings.cs" />
