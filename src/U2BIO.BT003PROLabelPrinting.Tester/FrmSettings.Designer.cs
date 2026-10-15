@@ -49,7 +49,9 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
             this.gridCalibration = new DevExpress.XtraVerticalGrid.VGridControl();
             this.repositoryDpi = new DevExpress.XtraEditors.Repository.RepositoryItemComboBox();
             this.repositoryOffset = new DevExpress.XtraEditors.Repository.RepositoryItemTextEdit();
+            this.repositoryMediaMode = new DevExpress.XtraEditors.Repository.RepositoryItemImageComboBox();
             this.categoryCalibration = new DevExpress.XtraVerticalGrid.Rows.CategoryRow();
+            this.rowMediaMode = new DevExpress.XtraVerticalGrid.Rows.EditorRow();
             this.rowDpi = new DevExpress.XtraVerticalGrid.Rows.EditorRow();
             this.rowSensor = new DevExpress.XtraVerticalGrid.Rows.EditorRow();
             this.rowVertical = new DevExpress.XtraVerticalGrid.Rows.EditorRow();
@@ -77,6 +79,7 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
             ((System.ComponentModel.ISupportInitialize)(this.gridCalibration)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.repositoryDpi)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.repositoryOffset)).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)(this.repositoryMediaMode)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.layoutControlGroup1)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.layoutItemWarning)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.layoutItemTabs)).BeginInit();
@@ -263,7 +266,8 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
             this.gridCalibration.RecordWidth = 200;
             this.gridCalibration.RepositoryItems.AddRange(new DevExpress.XtraEditors.Repository.RepositoryItem[] {
             this.repositoryDpi,
-            this.repositoryOffset});
+            this.repositoryOffset,
+            this.repositoryMediaMode});
             this.gridCalibration.RowHeaderWidth = 280;
             this.gridCalibration.Rows.AddRange(new DevExpress.XtraVerticalGrid.Rows.BaseRow[] {
             this.categoryCalibration});
@@ -288,15 +292,30 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
             this.repositoryOffset.AutoHeight = false;
             this.repositoryOffset.Name = "repositoryOffset";
             //
+            // repositoryMediaMode
+            //
+            this.repositoryMediaMode.AutoHeight = false;
+            this.repositoryMediaMode.Buttons.AddRange(new DevExpress.XtraEditors.Controls.EditorButton[] {
+            new DevExpress.XtraEditors.Controls.EditorButton(DevExpress.XtraEditors.Controls.ButtonPredefines.Combo)});
+            this.repositoryMediaMode.Name = "repositoryMediaMode";
+            //
             // categoryCalibration
             //
             this.categoryCalibration.ChildRows.AddRange(new DevExpress.XtraVerticalGrid.Rows.BaseRow[] {
+            this.rowMediaMode,
             this.rowDpi,
             this.rowSensor,
             this.rowVertical,
             this.rowHorizontal});
             this.categoryCalibration.Name = "categoryCalibration";
             this.categoryCalibration.Properties.Caption = "프린터 보정";
+            //
+            // rowMediaMode
+            //
+            this.rowMediaMode.Name = "rowMediaMode";
+            this.rowMediaMode.Properties.Caption = "용지 방식";
+            this.rowMediaMode.Properties.ToolTip = "프린터에 넣어 둔 용지입니다. 서식의 ^Q 방식과 다르면 인쇄 전에 확인을 받습니다.";
+            this.rowMediaMode.Properties.RowEdit = this.repositoryMediaMode;
             //
             // rowDpi
             //
@@ -441,6 +460,7 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
             ((System.ComponentModel.ISupportInitialize)(this.gridCalibration)).EndInit();
             ((System.ComponentModel.ISupportInitialize)(this.repositoryDpi)).EndInit();
             ((System.ComponentModel.ISupportInitialize)(this.repositoryOffset)).EndInit();
+            ((System.ComponentModel.ISupportInitialize)(this.repositoryMediaMode)).EndInit();
             ((System.ComponentModel.ISupportInitialize)(this.layoutControlGroup1)).EndInit();
             ((System.ComponentModel.ISupportInitialize)(this.layoutItemWarning)).EndInit();
             ((System.ComponentModel.ISupportInitialize)(this.layoutItemTabs)).EndInit();
@@ -475,6 +495,8 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
         private DevExpress.XtraVerticalGrid.VGridControl gridCalibration;
         private DevExpress.XtraEditors.Repository.RepositoryItemComboBox repositoryDpi;
         private DevExpress.XtraEditors.Repository.RepositoryItemTextEdit repositoryOffset;
+        private DevExpress.XtraEditors.Repository.RepositoryItemImageComboBox repositoryMediaMode;
+        private DevExpress.XtraVerticalGrid.Rows.EditorRow rowMediaMode;
         private DevExpress.XtraVerticalGrid.Rows.CategoryRow categoryCalibration;
         private DevExpress.XtraVerticalGrid.Rows.EditorRow rowDpi;
         private DevExpress.XtraVerticalGrid.Rows.EditorRow rowSensor;

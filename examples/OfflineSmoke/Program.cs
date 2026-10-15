@@ -3,23 +3,11 @@ using System.Diagnostics;
 using System.IO;
 using System.Reflection;
 using System.Runtime.Versioning;
-using System.Text.RegularExpressions;
 using U2BIO.BT003PROLabelPrinting;
 
 internal static class Program
 {
     private static void Check(bool valid) { if (!valid) throw new InvalidOperationException("Offline public API check failed."); }
-
-    // 화면 표시용 치환은 호출 프로그램 책임이다. DLL에 다시 넣을 인쇄 서식을 만들지 않는다.
-    private static string PreviewText(string payload, string variableData)
-    {
-        string[] values = variableData == null ? new string[0] : variableData.Split(new[] { "!!" }, StringSplitOptions.None);
-        return Regex.Replace(payload, "\\^V([0-9]{2})", match =>
-        {
-            int index = int.Parse(match.Groups[1].Value);
-            return index < values.Length ? values[index] : match.Value;
-        }, RegexOptions.CultureInvariant);
-    }
 
     private static int Main(string[] args)
     {
@@ -31,10 +19,9 @@ internal static class Program
             Check(typeof(Bt003Printer).Assembly.GetCustomAttribute<TargetFrameworkAttribute>().FrameworkName == ".NETFramework,Version=v4.6.1");
             string variableData = "FIRST LINE!!SECOND LINE";
             var template = BtplTemplate.Parse("^L\nAW,80,120,10,1,0,0,^V00\nAW,80,160,10,1,0,0,^V01\nE\n");
-            Check(PreviewText(template.TextElements[0].Payload, variableData) == "FIRST LINE");
-            Check(PreviewText("^V00/^V01/^V02/^V03", "A!!!!C!!") == "A//C/");
-            Check(PreviewText("^V00", "^V01!!SAFE") == "^V01");
-            Check(PreviewText("^V02", variableData) == "^V02");
+            // 화면 표시용 치환은 GetPreviewText가 하고 원문은 그대로다. 인쇄할 때의 치환은 SDK가 한다.
+            Check(template.TextElements[0].GetPreviewText(variableData) == "FIRST LINE" && template.TextElements[1].GetPreviewText("A") == "^V01");
+            Check(template.TextElements[0].Payload == "^V00" && template.LabelMode == BtplLabelMode.Unspecified);
             template = template.WithText(0, template.TextElements[0].WithPosition(90, 130).WithSize(12).WithWeight(2));
             Check(template.TextElements[0].Payload == "^V00" && template.ToBtpl().Contains("^V01"));
 

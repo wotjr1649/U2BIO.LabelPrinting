@@ -30,14 +30,13 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
                 Directory.CreateDirectory(directory);
                 CheckSettings(directory);
                 CheckDocument(directory);
-                CheckPreview();
                 CheckMedia();
                 CheckRenderer();
-                CheckGapLabel(directory);
+                CheckPrintGuard(directory);
                 CheckUsbPorts();
                 CheckNoNativeOrUi();
                 Console.WriteLine("PASS: tester self-check " + (expect64 ? "x64" : "x86")
-                    + " settings/document/preview/media/ink-area/renderer/gap-label/print-file-lock/usb-list; nativeSDK=not-loaded; no UI/device");
+                    + " settings/document/media/ink-area/renderer/print-check/print-file-lock/usb-list; nativeSDK=not-loaded; no UI/device");
                 return 0;
             }
             catch (Exception error)
@@ -98,18 +97,28 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
             Expect<ArgumentException>(() => settings.Update("1", 20, directory, new PrinterCalibration(200, 1.5m, 1m, 0m)));
             Expect<ArgumentException>(() => settings.Update("1", 20, directory, new PrinterCalibration(300, 1.0005m, 1m, 0m)));
             Check(TesterSettings.Load(path).Calibration.Dpi == 203);
+
+            step = "settings-media-mode";
+            Check(TesterSettings.Load(path).LabelMediaMode == BtplLabelMode.BlackMark);
+            settings.Update("1", 20, directory, null, BtplLabelMode.Gap);
+            Check(TesterSettings.Load(path).LabelMediaMode == BtplLabelMode.Gap && TesterSettings.Load(path).Calibration.Dpi == 203);
+            Expect<ArgumentException>(() => settings.Update("1", 20, directory, null, BtplLabelMode.Ambiguous));
+            Expect<ArgumentException>(() => settings.Update("1", 20, directory, null, BtplLabelMode.Unspecified));
+            Check(TesterSettings.Load(path).LabelMediaMode == BtplLabelMode.Gap);
+            settings.Update("1", 20, directory, null, BtplLabelMode.BlackMark);
             // 보정 항목이 없는 이전 파일은 읽기만 해서는 다시 쓰지 않고, 최근 파일을 더하면 보정 기본값과 함께 저장한다.
             string legacy = Path.Combine(directory, "legacy.xml");
             File.WriteAllText(legacy, "<TesterSettings version=\"1\"><Port>0</Port><PresentationDistanceMm>15</PresentationDistanceMm>"
                 + "<TemplateFolder></TemplateFolder><RecentFiles /></TesterSettings>", Encoding.UTF8);
             byte[] legacyBytes = File.ReadAllBytes(legacy);
             var old = TesterSettings.Load(legacy);
-            Check(old.LoadWarning == null && old.Calibration.Dpi == 300 && old.Calibration.VerticalOffsetMm == 3.6m
+            Check(old.LoadWarning == null && old.LabelMediaMode == BtplLabelMode.BlackMark && old.Calibration.Dpi == 300 && old.Calibration.VerticalOffsetMm == 3.6m
                 && File.ReadAllBytes(legacy).SequenceEqual(legacyBytes));
             old.AddRecent(Path.Combine(directory, "legacy-recent.txt"));
             var upgraded = TesterSettings.Load(legacy);
             Check(upgraded.LoadWarning == null && upgraded.RecentFiles.Count == 1 && upgraded.Calibration.HorizontalOffsetMm == -1.0m
-                && File.ReadAllText(legacy).Contains("<VerticalOffsetMm>3.6</VerticalOffsetMm>"));
+                && File.ReadAllText(legacy).Contains("<VerticalOffsetMm>3.6</VerticalOffsetMm>")
+                && File.ReadAllText(legacy).Contains("<LabelMediaMode>BlackMark</LabelMediaMode>"));
 
             step = "settings-corrupt";
             CheckDamagedSettings(Path.Combine(directory, "broken.xml"), "<TesterSettings version=\"1\"><Port>");
@@ -117,6 +126,9 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
             CheckDamagedSettings(Path.Combine(directory, "bad-calibration.xml"), "<TesterSettings version=\"1\"><Port>0</Port>"
                 + "<PresentationDistanceMm>15</PresentationDistanceMm><TemplateFolder></TemplateFolder><RecentFiles />"
                 + "<VerticalOffsetMm>-1</VerticalOffsetMm></TesterSettings>");
+            CheckDamagedSettings(Path.Combine(directory, "bad-media.xml"), "<TesterSettings version=\"1\"><Port>0</Port>"
+                + "<PresentationDistanceMm>15</PresentationDistanceMm><TemplateFolder></TemplateFolder><RecentFiles />"
+                + "<LabelMediaMode>Ambiguous</LabelMediaMode></TesterSettings>");
             CheckDamagedSettings(Path.Combine(directory, "range.xml"), "<TesterSettings version=\"1\"><Port>0</Port>"
                 + "<PresentationDistanceMm>1001</PresentationDistanceMm><TemplateFolder></TemplateFolder><RecentFiles /></TesterSettings>");
 
@@ -326,17 +338,6 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
             Check(ReferenceEquals(document.Template, opened) && !document.IsDirty && document.Template.ToBtpl().Contains("^Q35,5,9+"));
         }
 
-        private static void CheckPreview()
-        {
-            step = "preview";
-            string variableData = "FIRST LINE!!SECOND LINE";
-            Check(TemplateDocument.PreviewText("^V00", variableData) == "FIRST LINE");
-            Check(TemplateDocument.PreviewText("^V00/^V01/^V02/^V03", "A!!!!C!!") == "A//C/");
-            Check(TemplateDocument.PreviewText("^V00", "^V01!!SAFE") == "^V01");
-            Check(TemplateDocument.PreviewText("^V02", variableData) == "^V02");
-            Check(TemplateDocument.PreviewText("^V00", null) == "^V00");
-        }
-
         // 블랙마크 칸 연결은 DLL에 적용해 보기만 한다. 영역 판정은 운영 기준 용지의 LabelArea(Y 43~279)·SafeArea(Y 66~255)와 잉크 범위로 확인한다.
         private static void CheckMedia()
         {
@@ -451,32 +452,31 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
         [DllImport("user32.dll")]
         private static extern uint GetGuiResources(IntPtr process, uint flags);
 
-        // 인쇄 전 검사는 DLL WithRawText의 저장 검사와 같다. 두 인수·해석 불가 ^Q와 AW X 0을 거부한다.
-        private static void CheckGapLabel(string directory)
+        // 인쇄 전 검사: X가 1 이상 정수가 아닌 AW는 확인으로도 넘기지 않고, 라벨 방식이 설정 용지와 다르거나 정할 수 없으면 확인 문구를 낸다.
+        private static void CheckPrintGuard(string directory)
         {
-            step = "gap-label";
-            Check(PrintRejection(SampleText.Replace("^Q35,5,9+", "^Q35,5")) == "GapLabelSetting");
-            Check(PrintRejection(SampleText.Replace("^Q35,5,9+", " ^Q35,5,9+")) == "GapLabelSetting");
-            Check(PrintRejection(SampleText.Replace("^Q35,5,9+", "^Q35,5,9+,1")) == "GapLabelSetting");
-            // 줄끝이 CRLF·LF·CR 어느 것이든 같은 기준으로 거부한다.
-            Check(PrintRejection("^XX1\n ^Q35,5,9+\n^W70\n^L\nE\n") == "GapLabelSetting");
-            Check(PrintRejection("^XX1\r ^Q35,5,9+\r^W70\r^L\rE\r") == "GapLabelSetting");
-            Check(PrintRejection("^XX1\r\n^W70\r\n^Q35,5,9+,1\r\n^L\r\nE\r\n") == "GapLabelSetting");
-            Check(PrintRejection("^XX1\n^Q35,5,9+\n^W70\n^L\nE\n") == null);
-            Check(PrintRejection(SampleText) == null);
-            Check(PrintRejection(SampleText.Replace("^H19", "^H19\r\n^XX1")) == null);
-            // 기존 파일의 AW X 0은 읽을 수 있지만 SDK 예외를 내므로 인쇄 전에 거부한다(해석된 줄과 해석하지 못한 줄 모두).
-            Check(PrintRejection(SampleText.Replace("AW,80,120,", "AW,0,120,")) == "InvalidArguments");
-            Check(PrintRejection(SampleText.Replace("AW,80,120,", "AW, 0,120,")) == "InvalidArguments");
+            step = "print-check";
+            string gap = SampleText.Replace("^Q35,5,9+", "^Q35,5");
+            Check(Block(SampleText) == null && Warn(SampleText, BtplLabelMode.BlackMark) == null && Warn(SampleText, BtplLabelMode.Gap) != null);
+            Check(Block(gap) == null && Warn(gap, BtplLabelMode.Gap) == null && Warn(gap, BtplLabelMode.BlackMark).Contains("^Q 줄 1"));
+            // ^Q 없음·앞 공백·네 인수는 어느 용지 방식이든 확인을 받는다. 줄끝이 CRLF·LF·CR 어느 것이든 같다.
+            foreach (string text in new[] { SampleText.Replace("^Q35,5,9+\r\n", ""), SampleText.Replace("^Q35,5,9+", " ^Q35,5,9+"),
+                SampleText.Replace("^Q35,5,9+", "^Q35,5,9+,1"), "^XX1\n ^Q35,5,9+\n^W70\n^L\nE\n", "^XX1\r ^Q35,5,9+\r^W70\r^L\rE\r" })
+                Check(Block(text) == null && Warn(text, BtplLabelMode.BlackMark) != null && Warn(text, BtplLabelMode.Gap) != null);
+            Check(Warn("^XX1\n^Q35,5,9+\n^W70\n^L\nE\n", BtplLabelMode.BlackMark) == null);
+            // 기존 파일의 AW X 0은 읽을 수 있지만 SDK 예외를 내므로 간격 서식이어도 막는다(해석된 줄과 해석하지 못한 줄 모두).
+            Check(Block(SampleText.Replace("AW,80,120,", "AW,0,120,")).Contains("줄 6"));
+            Check(Block(gap.Replace("AW,80,120,", "AW, 0,120,")).Contains("줄 6"));
 
             step = "print-file-lock";
-            // 검사부터 인쇄 호출이 끝날 때까지 파일 쓰기·교체를 막고, 끝나거나 예외가 나면 잠금을 푼다.
+            // 다시 읽기부터 인쇄 호출이 끝날 때까지 파일 쓰기·교체를 막고, 끝나거나 예외가 나면 잠금을 푼다.
             string path = WriteTemplate(directory, "print-lock.txt", SampleText);
-            bool blocked = TemplateDocument.WithPrintableFile(path, () =>
+            string confirmed = BtplTemplate.Load(path).ToBtpl();
+            bool blocked = TemplateDocument.WithConfirmedFile(path, confirmed, () =>
             {
                 try
                 {
-                    File.WriteAllText(path, SampleText.Replace("^Q35,5,9+", "^Q35,5"), Cp949);
+                    File.WriteAllText(path, gap, Cp949);
                     return false;
                 }
                 catch (IOException)
@@ -485,26 +485,18 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
                 }
             });
             Check(blocked && ReadText(path) == SampleText);
-            File.WriteAllText(path, SampleText.Replace("AW,80,120,", "AW,0,120,"), Cp949);
+            // 확인 뒤 바뀐 파일은 인쇄하지 않는다.
+            File.WriteAllText(path, gap, Cp949);
             bool printed = false;
-            Expect<BtplFormatException>(() => TemplateDocument.WithPrintableFile(path, () => printed = true));
+            Expect<IOException>(() => TemplateDocument.WithConfirmedFile(path, confirmed, () => printed = true));
             Check(!printed);
             File.WriteAllText(path, SampleText, Cp949);
-            Check(ReadText(path) == SampleText);
+            Check(TemplateDocument.WithConfirmedFile(path, confirmed, () => true) && ReadText(path) == SampleText);
         }
 
-        private static string PrintRejection(string text)
-        {
-            try
-            {
-                TemplateDocument.EnsurePrintable(BtplTemplate.Parse(text));
-                return null;
-            }
-            catch (BtplFormatException error)
-            {
-                return error.Code;
-            }
-        }
+        private static string Block(string text) => TemplateDocument.PrintBlock(BtplTemplate.Parse(text));
+
+        private static string Warn(string text, BtplLabelMode media) => TemplateDocument.LabelModeWarning(BtplTemplate.Parse(text), media);
 
         // 실행 폴더에는 같은 비트수 SDK 한 쌍이 있지만 이 검사는 로드하지 않고 화면도 만들지 않는다.
         // 레지스트리 대신 합성 목록으로 번호·이름·저장 포트 처리만 확인한다.
