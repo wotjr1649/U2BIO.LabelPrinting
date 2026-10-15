@@ -16,13 +16,14 @@ JSON/XML 형식, DataTable 바인딩, 일괄 렌더링, BtplProcessor와 큰 검
 | 구조 편집 | AW와 Q/W/S/H 값 수정, 추가/삭제 | 요소 선택, 입력 컨트롤, 업무별 입력 범위 |
 | 원문 편집 | WithRawText로 새 객체 생성, 파일 기준 유지 | 원문 편집 화면, 수정 내용 전달 |
 | 참고 미리보기 | TextElements와 UnsupportedLineNumbers 제공 | 그리기, 확대/축소, 선택 표시, 미지원 행 안내 |
-| 변수 표시 | 원문 변수 표식 보존 | 화면에서만 실제 값 치환 |
+| 변수 표시 | 원문 변수 표식 보존, 화면용 치환 GetPreviewText | 가변데이터 입력, 치환한 값은 화면에만 표시 |
+| 라벨 방식 | LabelMode·LabelSettingLineNumbers·UnprintableTextLineNumbers 판정 | 설정한 용지 방식과 비교, 인쇄 확인·차단 |
 | 용지 크기 | 원문 Q/W 값 제공 | 없으면 화면용 크기 별도 지정 |
 | 저장 | 실제 파일 저장, 명시적 덮어쓰기 조건, 실패 예외 | 경로 선택, 덮어쓰기 확인, 미저장 표시 |
 | 저장 후 전환 | 성공한 저장 기준의 새 객체 반환 | 성공 시 현재 객체/파일명 전환, 실패/취소 시 유지 |
 | 업무/인쇄 | 기존 동기 SDK API와 결과 반환 | DB 조회, !! 가변데이터 구성, 요청 순서, UI 백그라운드 실행 |
 
-DLL에 WinForms·DevExpress·DB·화면용 변수 치환 의존성을 넣지 않는다. SDK에 전달할 서식과 가변데이터는 화면 표시값으로 바꾸지 않는다. 배출·다음 인쇄 전 복귀와 PrintFile 파일 잠금은 기존 DLL 책임이다.
+DLL에 WinForms·DevExpress·DB 의존성을 넣지 않는다. 화면용 변수 치환은 2026-10-16 결정(#23)으로 DLL 선택 기능 GetPreviewText가 맡고, 인쇄용 치환은 계속 SDK가 맡는다. SDK에 전달할 서식과 가변데이터는 화면 표시값으로 바꾸지 않는다. 배출·다음 인쇄 전 복귀와 PrintFile 파일 잠금은 기존 DLL 책임이다.
 
 ## 원문과 편집 모델
 
@@ -62,9 +63,10 @@ WithLabelLength는 기존 ^Q의 첫 인수(블랙마크 용지는 마크를 뺀 
 
 ## 공개 API와 오류
 
-- BtplTemplate: Load(path, codePage=949), Parse(text), FilePath, CodePage, TextElements, Settings, UnsupportedLineNumbers, WithRawText, WithText, AddText, RemoveText, WithSetting, RemoveSetting, WithLabelLength, WithLabelWidth, ToBtpl, Save(), SaveAs(path, overwrite=false).
-- BtplTextElement: Command(AW), X/Y, Payload, Size/Weight, Alignment/Rotation, TemplateLine과 WithPosition/WithPayload/WithSize/WithWeight. 원문 값의 숫자 표기는 내부에서 보존한다.
+- BtplTemplate: Load(path, codePage=949), Parse(text), FilePath, CodePage, TextElements, Settings, UnsupportedLineNumbers, LabelMode, LabelSettingLineNumbers, UnprintableTextLineNumbers, WithRawText, WithText, AddText, RemoveText, WithSetting, RemoveSetting, WithLabelLength, WithLabelWidth, ToBtpl, Save(), SaveAs(path, overwrite=false).
+- BtplTextElement: Command(AW), X/Y, Payload, Size/Weight, Alignment/Rotation, TemplateLine과 WithPosition/WithPayload/WithSize/WithWeight, 화면용 GetPreviewText(variableData = null). 원문 값의 숫자 표기는 내부에서 보존한다.
 - BtplSetting: Command, Parameters, TemplateLine.
+- BtplLabelMode: Unspecified, BlackMark, Gap, Ambiguous.
 - BtplFormatException: 한글 설명, Code, TemplateLine. 작은 입력 오류이며 ValidationIssue/Severity/Row/Column/렌더 결과 계층은 제거한다.
 - BtplSaveConflictException: 현재 파일 변경/삭제 충돌. Code=SourceChanged.
 
@@ -86,7 +88,9 @@ Load 잠금은 읽는 동안만, 저장 잠금은 실제 파일 쓰기 동안만
 
 ## 참고 미리보기와 인쇄
 
-프로그램은 !!로 값을 분리할 때 빈 항목과 공백을 유지한다. A!!!!C!!는 A/빈 값/C/빈 값이다. ^Vnn을 번호에 맞춰 한 번만 치환하고 없는 번호는 원래 표식으로 표시한다. 값에 포함된 변수 표식을 재치환하지 않는다. 이 규칙은 화면 표시용이며 SDK의 빈 항목·부족 데이터 동작을 보증하지 않는다.
+GetPreviewText는 !!로 값을 분리할 때 빈 항목과 공백을 유지한다. A!!!!C!!는 A/빈 값/C/빈 값이다. ^Vnn을 번호에 맞춰 한 번만 치환하고 없는 번호는 원래 표식으로 표시한다. 값에 포함된 변수 표식을 재치환하지 않는다. null이면 표식을 그대로 둔다. 이 규칙은 화면 표시용이며 SDK의 빈 항목·부족 데이터 동작을 보증하지 않는다.
+
+LabelMode는 ^Q 판정 줄(LabelSettingLineNumbers, 앞 공백을 뺀 줄이 ^Q로 시작하는 줄)만으로 정한다. 없으면 Unspecified, 한 줄이고 해석된 세 인수면 BlackMark, 두 인수면 Gap, 그 밖(여러 줄·앞 공백·네 인수·해석 불가)은 Ambiguous다. UnprintableTextLineNumbers는 X가 1 이상 정수가 아닌 AW 줄(해석된 줄과 해석하지 못한 줄)이다. 두 값은 생성자에서 한 번 계산하며, 저장 검사도 이 목록만 읽어 AW 줄을 InvalidArguments로 먼저, 세 인수가 아닌 ^Q 줄을 GapLabelSetting으로 거부한다. DLL은 판정만 하고 Print/PrintFile을 막지 않는다. 인쇄할지는 호출 프로그램이 자기 용지 방식과 비교해 정한다.
 
 화면 표시값을 WithText·저장·SDK 인쇄 입력으로 되돌리지 않는다. 현재 편집본은 Print(template.ToBtpl(), rawVariableData), 저장된 파일은 PrintFile(path, rawVariableData)로 인쇄한다. 업무 데이터 구성·DB·변수 입력 UI·배경 실행·결과 표시·후속 요청 결정은 호출 프로그램 책임이다. 기존 IsSuccess와 자동 재인쇄 금지 계약을 유지한다.
 

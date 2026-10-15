@@ -59,9 +59,27 @@ SaveAs의 기본 동작은 기존 대상을 교체하지 않으며, 같은 원�
 
 기본 Load는 CP949다. 명시한 읽기 인코딩은 저장에서도 유지하며 BOM 없는 TXT를 쓴다. UTF-8 파일을 CP949 전용 PrintFile에 그대로 넘기지 않는다. 현재 편집본은 Print(ToBtpl(), rawVariableData), 저장된 CP949 파일은 PrintFile(path, rawVariableData)를 사용한다.
 
+## 라벨 방식과 인쇄 전 확인
+
+DLL은 서식의 라벨 방식과 SDK 인쇄 예외를 낼 AW 줄을 판정만 한다. Print/PrintFile은 막지 않으므로 프로그램이 자기 용지 방식과 비교해 인쇄할지 정한다.
+
+```csharp
+var template = BtplTemplate.Load("label.txt");
+if (template.UnprintableTextLineNumbers.Count > 0)
+{
+    // X가 1 이상 정수가 아닌 AW 줄이다. 줄 번호를 보이고 인쇄하지 않는다.
+}
+else if (template.LabelMode != BtplLabelMode.BlackMark)
+{
+    // 방식과 LabelSettingLineNumbers(^Q 줄)를 보이고 사용자 확인을 받는다.
+}
+```
+
+LabelMode는 ^Q 줄이 없으면 Unspecified(프린터의 현재 라벨 유형), 한 줄이고 세 인수면 BlackMark, 두 인수면 Gap(프린터 라벨 유형을 간격으로 바꿈), 여러 줄·앞 공백·네 인수·해석 불가면 Ambiguous다. 프린터의 현재 라벨 유형은 SDK로 조회하지 않는다. 간격 서식의 편집·저장은 지금처럼 GapLabelSetting으로 거부한다.
+
 ## 호출 프로그램의 참고 미리보기
 
-DLL은 그림이나 치환한 인쇄 서식을 반환하지 않는다. 프로그램이 TextElements의 X/Y·Payload·Size·Weight를 읽어 그린다. ^Vnn은 !!의 빈 항목/공백을 유지해 화면에서만 한 번 치환하고 없는 번호는 표식으로 남긴다. 이 표시값을 WithText/저장/Print에 다시 넣지 않는다.
+DLL은 그림이나 치환한 인쇄 서식을 반환하지 않는다. 프로그램이 TextElements의 X/Y·Size·Weight와 `GetPreviewText(rawVariableData)`를 읽어 그린다. GetPreviewText는 ^Vnn을 !!의 빈 항목/공백을 유지해 한 번 치환하고 없는 번호와 null은 표식으로 남긴다. 이 표시값을 WithText/저장/Print에 다시 넣지 않는다.
 
 용지 설정이 없으면 화면용 크기를 별도로 지정하고 TXT에 자동 추가하지 않는다. UnsupportedLineNumbers가 있으면 그 행이 미리보기에 반영되지 않았음을 알린다. 실제 프린터 글꼴·문자 폭·물리 출력 일치는 이 화면의 보장 범위가 아니다.
 
