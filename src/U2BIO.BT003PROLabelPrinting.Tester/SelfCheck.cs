@@ -341,7 +341,10 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
             using (TextRaster spaces = SdkTextRenderer.Render(face, 10, 1, "   ", 0)) Check(spaces.Failure == null && spaces.Image != null && !spaces.Ink.HasValue);
             using (TextRaster foreign = SdkTextRenderer.Render(face, 10, 1, "Ā", 0)) Check(foreign.Failure == "CP949로 바꿀 수 없음");
             using (TextRaster huge = SdkTextRenderer.Render(face, 30000, 1, "A", 0)) Check(huge.Failure == "크기 한도 초과");
-            using (TextRaster full = SdkTextRenderer.Render(face, 10, 1, "A", SdkTextRenderer.BudgetBytes)) Check(full.Failure == "미리보기 메모리 한도");
+            using (TextRaster full = SdkTextRenderer.Render(face, 10, 1, "A", SdkTextRenderer.BudgetBytes)) Check(full.Failure == SdkTextRenderer.BudgetFailure);
+            // 없는 글꼴은 GDI가 다른 글꼴로 바꾸므로 실현 이름이 요청과 달라야 범례가 대체를 알릴 수 있다.
+            string realized = SdkTextRenderer.RealizedFace("U2BIO 없는 글꼴");
+            Check(!string.IsNullOrEmpty(realized) && realized != "U2BIO 없는 글꼴" && !string.IsNullOrEmpty(SdkTextRenderer.RealizedFace(face)));
             Check(SdkTextRenderer.Fits(1024, 0) && !SdkTextRenderer.Fits(SdkTextRenderer.BudgetBytes / 2 + 1, 0)
                 && !SdkTextRenderer.Fits(1024, SdkTextRenderer.BudgetBytes - 1024));
             Check(SdkTextRenderer.Weight(0) == 400 && SdkTextRenderer.Weight(1) == 400 && SdkTextRenderer.Weight(2) == 600 && SdkTextRenderer.Weight(3) == 700);

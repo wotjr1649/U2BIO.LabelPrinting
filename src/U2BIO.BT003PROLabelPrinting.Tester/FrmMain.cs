@@ -55,6 +55,7 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
         private string widthProblem;
         private string fontFace;
         private bool fontConfigured;
+        private string fontRealized;
         private Dictionary<string, TextRaster> rasters = new Dictionary<string, TextRaster>();
         private bool busy;
         private bool closeRequested;
@@ -71,7 +72,7 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
             btnOpen.DropDownControl = recentMenu;
             gridResults.DataSource = results;
             startWarning = settings.LoadWarning;
-            fontFace = SdkTextRenderer.FontFace(out fontConfigured);
+            LoadFont();
             SyncMediaRows(true);
             if (startWarning != null) ShowError(startWarning);
             else ClearMessage();
@@ -144,14 +145,13 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
                 labelProblem = widthProblem = null;
                 if (template != null)
                 {
-                    if (TemplateDocument.TryReadWidth(Parameters(template, "^W"), out decimal liner)) rowLinerWidth.Properties.Value = Mm(liner);
+                    // 서식 값을 칸으로 옮길 수 없으면 이전 세션 값 대신 운영 기준값을 둔다(라벨 치수는 유지).
+                    rowLinerWidth.Properties.Value = TemplateDocument.TryReadWidth(Parameters(template, "^W"), out decimal liner) ? Mm(liner) : MediaDefaults[0];
                     decimal sensor = settings.Calibration.SensorOffsetMm;
-                    if (TemplateDocument.TryReadLabel(Parameters(template, "^Q"), out decimal segment, out decimal mark, out decimal z) && z - sensor >= 0)
-                    {
-                        rowSegment.Properties.Value = Mm(segment);
-                        rowMarkWidth.Properties.Value = Mm(mark);
-                        rowMarkToLabel.Properties.Value = Mm(z - sensor);
-                    }
+                    bool readable = TemplateDocument.TryReadLabel(Parameters(template, "^Q"), out decimal segment, out decimal mark, out decimal z) && z - sensor >= 0;
+                    rowSegment.Properties.Value = readable ? Mm(segment) : MediaDefaults[1];
+                    rowMarkWidth.Properties.Value = readable ? Mm(mark) : MediaDefaults[2];
+                    rowMarkToLabel.Properties.Value = readable ? Mm(z - sensor) : MediaDefaults[3];
                     BtplBlackMarkMedia media = CreateMedia(out string error);
                     if (media == null)
                     {
@@ -189,6 +189,20 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
         }
 
         private static string Mm(decimal value) => value.ToString("0.###", CultureInfo.InvariantCulture);
+
+        private void LoadFont()
+        {
+            fontFace = SdkTextRenderer.FontFace(out fontConfigured);
+            fontRealized = SdkTextRenderer.RealizedFace(fontFace);
+        }
+
+        // 범례에 요청한 글꼴과 GDI가 실제로 고른 글꼴을 구분해 보인다.
+        private string FontLegend()
+        {
+            string requested = fontFace + (fontConfigured ? "" : "(SDK 기본값)");
+            if (fontRealized == null) return requested + ", 실제 글꼴 확인 못 함";
+            return string.Equals(fontRealized, fontFace, StringComparison.OrdinalIgnoreCase) ? requested : fontRealized + "(요청 " + requested + ", 대체됨)";
+        }
 
         // 블랙마크 상태, 문구 그림, 미리보기 아래 경고 줄을 함께 갱신한다. 문서는 바꾸지 않는다.
         private void RefreshMedia()
@@ -255,11 +269,21 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
             }
         }
 
-        // 지금 서식에 필요한 문구 그림만 남긴다. 다시 쓰는 그림과 새 그림, 아직 버리지 않은 그림을 합쳐 예산 안에서만 새로 만든다.
+        // 지금 서식에 필요한 문구 그림만 남긴다. 다시 쓰는 그림과 새 그림을 합쳐 예산 안에서만 새로 만든다.
         private void RefreshRasters(BtplTemplate template, string variable)
         {
+            // 이번 서식에 쓰지 않는 그림을 먼저 놓아, 큰 서식에서 작은 서식으로 바꿀 때 첫 갱신부터 예산을 쓸 수 있게 한다.
+            var needed = new HashSet<string>(template == null ? Enumerable.Empty<string>()
+                : template.TextElements.Select(text => RasterKey(text, TemplateDocument.PreviewText(text.Payload, variable))));
+            foreach (KeyValuePair<string, TextRaster> pair in rasters)
+            {
+                // 실패한 그림은 예산이 풀렸을 수 있으므로 다시 만든다.
+                if (!needed.Contains(pair.Key) || pair.Value.Failure != null) pair.Value.Dispose();
+            }
             var next = new Dictionary<string, TextRaster>();
-            long used = rasters.Values.Sum(raster => raster.Bytes);
+            foreach (KeyValuePair<string, TextRaster> pair in rasters)
+                if (needed.Contains(pair.Key) && pair.Value.Failure == null) next[pair.Key] = pair.Value;
+            long used = next.Values.Sum(raster => raster.Bytes);
             if (template != null)
             {
                 foreach (BtplTextElement text in template.TextElements)
@@ -267,12 +291,6 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
                     string shown = TemplateDocument.PreviewText(text.Payload, variable);
                     string key = RasterKey(text, shown);
                     if (next.ContainsKey(key)) continue;
-                    // 실패한 그림은 예산이 풀렸을 수 있으므로 다시 만든다.
-                    if (rasters.TryGetValue(key, out TextRaster old) && old.Failure == null)
-                    {
-                        next[key] = old;
-                        continue;
-                    }
                     TextRaster made;
                     try
                     {
@@ -285,10 +303,6 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
                     used += made.Bytes;
                     next[key] = made;
                 }
-            }
-            foreach (KeyValuePair<string, TextRaster> pair in rasters)
-            {
-                if (!next.TryGetValue(pair.Key, out TextRaster kept) || !ReferenceEquals(kept, pair.Value)) pair.Value.Dispose();
             }
             rasters = next;
         }
@@ -543,7 +557,7 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
                 // 설정은 열린 서식의 ^Q·^W를 바꾸지 않는다. 보정에 따라 칸 표시와 미리보기만 다시 계산한다.
                 if (form.ShowDialog(this) == DialogResult.OK)
                 {
-                    fontFace = SdkTextRenderer.FontFace(out fontConfigured);
+                    LoadFont();
                     DisposeRasters();
                     SyncMediaRows(false);
                 }
@@ -804,29 +818,26 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
             return null;
         }
 
-        // 사용자가 칸을 확정하면 서식과 연결된 설정만 바로 반영한다. 연결 확인 때 칸이 서식을 그대로 만들었으므로
-        // 바꾸지 않은 쪽 설정은 같은 객체가 돌아와 바뀌지 않는다(받침지 너비만 고치면 ^W만 바뀐다).
+        // 값이 바뀐 칸은 미리보기와 상태만 다시 그린다. 서식 반영은 편집기를 닫을 때 그 칸 기준으로 한다.
         private void gridBlackMark_CellValueChanged(object sender, DevExpress.XtraVerticalGrid.Events.CellValueChangedEventArgs e)
         {
             if (syncing || e.Row == rowResult || e.Row == rowMediaState) return;
-            if (!busy && doc.Template != null)
-            {
-                // 직전 연결 확인이 계산 오류로 실패했으면 칸을 서식 값으로 다시 채워 연결부터 다시 확인한다.
-                if (syncFailed) SyncMediaRows(false);
-                BtplBlackMarkMedia media = CreateMedia(out _);
-                if (media != null && (labelLinked || widthLinked))
-                {
-                    bool label = labelLinked;
-                    bool width = widthLinked;
-                    if (ApplyEdit(t =>
-                    {
-                        BtplTemplate next = t;
-                        if (label) next = next.WithSetting(media.LabelSetting);
-                        if (width) next = next.WithSetting(media.WidthSetting);
-                        return next;
-                    })) SyncMediaRows(false);
-                }
-            }
+            RefreshView();
+        }
+
+        // 사용자가 칸 편집을 마치면(같은 값을 다시 확정해도) 그 칸이 들어가는 설정만 연결돼 있을 때 바로 반영한다.
+        // 받침지 너비는 ^W만, 마크 세 칸은 ^Q만 바꾼다. 라벨 치수는 미리보기 전용이라 앞서 거부된 다른 칸 값을 반영하지 않는다.
+        private void gridBlackMark_HiddenEditor(object sender, EventArgs e)
+        {
+            BaseRow row = gridBlackMark.FocusedRow;
+            if (syncing || busy || doc.Template == null || row == rowResult || row == rowMediaState) return;
+            // 직전 연결 확인이 계산 오류로 실패했으면 서식 값으로 다시 채워 연결부터 다시 확인한다(라벨 치수는 유지).
+            if (syncFailed) SyncMediaRows(false);
+            BtplSetting target = null;
+            BtplBlackMarkMedia media = CreateMedia(out _);
+            if (media != null && row == rowLinerWidth && widthLinked) target = media.WidthSetting;
+            else if (media != null && (row == rowSegment || row == rowMarkWidth || row == rowMarkToLabel) && labelLinked) target = media.LabelSetting;
+            if (target != null && ApplyEdit(t => t.WithSetting(target))) SyncMediaRows(false);
             RefreshView();
         }
 
@@ -896,7 +907,7 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
             g.SmoothingMode = SmoothingMode.AntiAlias;
             g.FillRectangle(Brushes.White, left, top, width * scale, height * scale);
             g.DrawRectangle(Pens.Gray, left, top, width * scale, height * scale);
-            string legend = "계산 입력 기준 (실선 라벨, 점선 안전 영역) · 글꼴 " + fontFace + (fontConfigured ? "" : "(SDK 기본값)");
+            string legend = "계산 입력 기준 (실선 라벨, 점선 안전 영역) · 글꼴 " + FontLegend();
             if (media != null) DrawAreas(g, media, left, top, scale, legend);
             g.InterpolationMode = InterpolationMode.HighQualityBilinear;
             g.PixelOffsetMode = PixelOffsetMode.Half;

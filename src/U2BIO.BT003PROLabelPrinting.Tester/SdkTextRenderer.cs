@@ -36,6 +36,7 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
         internal const int MaxSide = 8000;
         internal const long MaxPixels = 16000000;
         internal const long BudgetBytes = 32L * 1024 * 1024;
+        internal const string BudgetFailure = "미리보기 메모리 한도";
         private const string SdkSettingsKey = @"Software\BitekTechnology\AXBT003";
         private static readonly Encoding Cp949 = Encoding.GetEncoding(949, EncoderFallback.ExceptionFallback, DecoderFallback.ExceptionFallback);
 
@@ -57,6 +58,42 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
             }
             catch (Exception error) when (error is SecurityException || error is UnauthorizedAccessException || error is IOException) { }
             return DefaultFace;
+        }
+
+        // GDI가 요청한 글꼴 대신 고른 실제 글꼴 이름이다. 만들거나 고르지 못하면 null이다.
+        internal static string RealizedFace(string face)
+        {
+            var font = new LOGFONT { lfHeight = 47, lfWeight = 400, lfCharSet = 1, lfPitchAndFamily = 0x12, lfFaceName = new byte[32] };
+            if (!TryEncode(face, out byte[] name)) return null;
+            Array.Copy(name, font.lfFaceName, Math.Min(name.Length, 31));
+            IntPtr dc = CreateCompatibleDC(IntPtr.Zero);
+            if (dc == IntPtr.Zero) return null;
+            IntPtr hfont = CreateFontIndirectA(font);
+            try
+            {
+                if (hfont == IntPtr.Zero) return null;
+                IntPtr old = SelectObject(dc, hfont);
+                if (old == IntPtr.Zero) return null;
+                try
+                {
+                    var buffer = new byte[64];
+                    int length = GetTextFaceA(dc, buffer.Length, buffer);
+                    return length <= 1 ? null : Cp949.GetString(buffer, 0, Array.IndexOf(buffer, (byte)0) is int end && end >= 0 ? end : length);
+                }
+                finally
+                {
+                    SelectObject(dc, old);
+                }
+            }
+            catch (DecoderFallbackException)
+            {
+                return null;
+            }
+            finally
+            {
+                if (hfont != IntPtr.Zero) DeleteObject(hfont);
+                DeleteDC(dc);
+            }
         }
 
         internal static int Weight(int weight) => weight == 0 || weight == 1 ? 400 : weight == 2 ? 600 : weight == 3 ? 700 : weight;
@@ -82,6 +119,8 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
                 hfont = CreateFontIndirectA(font);
                 if (hfont == IntPtr.Zero) return Fail("글꼴을 만들지 못함");
                 oldFont = SelectObject(dc, hfont);
+                // 선택에 실패하면 기본 글꼴로 그려지므로 정상 그림으로 보지 않는다.
+                if (oldFont == IntPtr.Zero) return Fail("글꼴을 선택하지 못함");
                 if (!GetTextExtentPoint32A(dc, bytes, bytes.Length, out SIZE extent) || extent.cx <= 0 || extent.cy <= 0) return Fail("크기를 재지 못함");
                 // SDK와 같이 폭을 32픽셀 배수로 올린다. 행 바이트가 4의 배수라 GDI·GDI+ 정렬이 같다.
                 long width = ((long)extent.cx + 31) / 32 * 32;
@@ -89,10 +128,11 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
                 if (width > MaxSide || height > MaxSide || width * height > MaxPixels) return Fail("크기 한도 초과");
                 long stride = width / 8;
                 long total = stride * height;
-                if (!Fits(total, used)) return Fail("미리보기 메모리 한도");
+                if (!Fits(total, used)) return Fail(BudgetFailure);
                 bitmap = CreateBitmap((int)width, (int)height, 1, 1, IntPtr.Zero);
                 if (bitmap == IntPtr.Zero) return Fail("그림을 만들지 못함");
                 oldBitmap = SelectObject(dc, bitmap);
+                if (oldBitmap == IntPtr.Zero) return Fail("그림을 선택하지 못함");
                 // 검은 배경(0)에 흰 글자(1)를 그리므로 1인 비트가 잉크다.
                 if (!PatBlt(dc, 0, 0, (int)width, (int)height, Blackness)) return Fail("배경을 칠하지 못함");
                 SetTextColor(dc, 0xFFFFFF);
@@ -100,6 +140,11 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
                 if (!TextOutA(dc, 0, 0, bytes, bytes.Length)) return Fail("글자를 그리지 못함");
                 var bits = new byte[total];
                 if (GetBitmapBits(bitmap, (int)total, bits) != total) return Fail("그림을 읽지 못함");
+                // 표시용 그림을 만들기 전에 GDI 그림을 놓아 비트 배열과 표시용 그림 두 벌만 함께 있게 한다.
+                SelectObject(dc, oldBitmap);
+                oldBitmap = IntPtr.Zero;
+                DeleteObject(bitmap);
+                bitmap = IntPtr.Zero;
                 Rectangle? ink = InkBounds(bits, (int)width, (int)height, (int)stride);
                 return new TextRaster(ToImage(bits, (int)width, (int)height, (int)stride), ink, total, null);
             }
@@ -223,5 +268,6 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
         [DllImport("gdi32.dll")] private static extern uint SetBkColor(IntPtr dc, int color);
         [DllImport("gdi32.dll")] private static extern bool TextOutA(IntPtr dc, int x, int y, byte[] text, int length);
         [DllImport("gdi32.dll")] private static extern int GetBitmapBits(IntPtr bitmap, int length, byte[] bits);
+        [DllImport("gdi32.dll")] private static extern int GetTextFaceA(IntPtr dc, int length, byte[] face);
     }
 }
