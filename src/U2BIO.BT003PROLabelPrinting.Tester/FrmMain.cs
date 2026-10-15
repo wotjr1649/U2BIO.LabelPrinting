@@ -818,37 +818,43 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
             return null;
         }
 
-        // 값이 바뀐 칸은 미리보기와 상태만 다시 그린다. 서식 반영은 편집기를 닫을 때 그 칸 기준으로 한다.
+        // 계산할 수 없는 입력은 칸에서 거부한다(ESC로 취소). 거부된 값이 칸에 남지 않으므로 서식과 연결된 칸은 늘 서식 값과 같다.
+        private void gridBlackMark_ValidatingEditor(object sender, BaseContainerValidateEditorEventArgs e)
+        {
+            if (!(gridBlackMark.FocusedRow is EditorRow row) || Array.IndexOf(MediaRows, row) < 0) return;
+            if (CreateMedia(out string error, row, e.Value) != null) return;
+            e.Valid = false;
+            e.ErrorText = error + ": 숫자(mm)와, 라벨이 받침지 너비·마크 사이 길이 안에 들어가는지 확인하세요.";
+        }
+
+        // 사용자가 바꾼 칸이 들어가는 설정만, 서식과 연결돼 있을 때 바로 반영한다. 받침지 너비는 ^W만, 마크 세 칸은 ^Q만 바꾸고
+        // 라벨 치수는 미리보기 전용이다. 연결된 칸은 서식 값과 같으므로 계산한 ^Q에서 바뀌는 인수는 고친 칸뿐이다.
         private void gridBlackMark_CellValueChanged(object sender, DevExpress.XtraVerticalGrid.Events.CellValueChangedEventArgs e)
         {
             if (syncing || e.Row == rowResult || e.Row == rowMediaState) return;
+            if (!busy && doc.Template != null)
+            {
+                // 직전 연결 확인이 계산 오류로 실패했으면 서식 값으로 다시 채워 연결부터 다시 확인한다(라벨 치수는 유지).
+                if (syncFailed) SyncMediaRows(false);
+                BtplSetting target = null;
+                BtplBlackMarkMedia media = CreateMedia(out _);
+                if (media != null && e.Row == rowLinerWidth && widthLinked) target = media.WidthSetting;
+                else if (media != null && (e.Row == rowSegment || e.Row == rowMarkWidth || e.Row == rowMarkToLabel) && labelLinked) target = media.LabelSetting;
+                if (target != null && ApplyEdit(t => t.WithSetting(target))) SyncMediaRows(false);
+            }
             RefreshView();
         }
 
-        // 사용자가 칸 편집을 마치면(같은 값을 다시 확정해도) 그 칸이 들어가는 설정만 연결돼 있을 때 바로 반영한다.
-        // 받침지 너비는 ^W만, 마크 세 칸은 ^Q만 바꾼다. 라벨 치수는 미리보기 전용이라 앞서 거부된 다른 칸 값을 반영하지 않는다.
-        private void gridBlackMark_HiddenEditor(object sender, EventArgs e)
-        {
-            BaseRow row = gridBlackMark.FocusedRow;
-            if (syncing || busy || doc.Template == null || row == rowResult || row == rowMediaState) return;
-            // 직전 연결 확인이 계산 오류로 실패했으면 서식 값으로 다시 채워 연결부터 다시 확인한다(라벨 치수는 유지).
-            if (syncFailed) SyncMediaRows(false);
-            BtplSetting target = null;
-            BtplBlackMarkMedia media = CreateMedia(out _);
-            if (media != null && row == rowLinerWidth && widthLinked) target = media.WidthSetting;
-            else if (media != null && (row == rowSegment || row == rowMarkWidth || row == rowMarkToLabel) && labelLinked) target = media.LabelSetting;
-            if (target != null && ApplyEdit(t => t.WithSetting(target))) SyncMediaRows(false);
-            RefreshView();
-        }
-
-        private BtplBlackMarkMedia CreateMedia(out string error)
+        // candidateRow가 있으면 그 칸만 candidateValue로 바꿔 계산한다(셀 검증용).
+        private BtplBlackMarkMedia CreateMedia(out string error, EditorRow candidateRow = null, object candidateValue = null)
         {
             error = "InvalidArguments";
             EditorRow[] rows = MediaRows;
             var mm = new decimal[rows.Length];
             for (int i = 0; i < rows.Length; i++)
             {
-                if (!decimal.TryParse(Convert.ToString(rows[i].Properties.Value, CultureInfo.InvariantCulture), MmStyle, CultureInfo.InvariantCulture, out mm[i])) return null;
+                object value = rows[i] == candidateRow ? candidateValue : rows[i].Properties.Value;
+                if (!decimal.TryParse(Convert.ToString(value, CultureInfo.InvariantCulture), MmStyle, CultureInfo.InvariantCulture, out mm[i])) return null;
             }
             PrinterCalibration calibration = settings.Calibration;
             try

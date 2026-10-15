@@ -598,7 +598,7 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
             this.gridBlackMark.Size = new System.Drawing.Size(510, 574);
             this.gridBlackMark.TabIndex = 0;
             this.gridBlackMark.CellValueChanged += new DevExpress.XtraVerticalGrid.Events.CellValueChangedEventHandler(this.gridBlackMark_CellValueChanged);
-            this.gridBlackMark.HiddenEditor += new System.EventHandler(this.gridBlackMark_HiddenEditor);
+            this.gridBlackMark.ValidatingEditor += new DevExpress.XtraEditors.Controls.BaseContainerValidateEditorEventHandler(this.gridBlackMark_ValidatingEditor);
             //
             // repositoryBlackMark
             //
