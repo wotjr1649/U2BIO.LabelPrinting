@@ -928,35 +928,46 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
             g.SmoothingMode = SmoothingMode.AntiAlias;
             g.FillRectangle(Brushes.White, left, top, width * scale, height * scale);
             g.DrawRectangle(Pens.Gray, left, top, width * scale, height * scale);
-            string legend = "계산 입력 기준 (실선 라벨, 점선 안전 영역) · 글꼴 " + FontLegend();
-            if (media != null) DrawAreas(g, media, left, top, scale, width * scale, legend);
-            g.InterpolationMode = InterpolationMode.HighQualityBilinear;
-            g.PixelOffsetMode = PixelOffsetMode.Half;
-            foreach (BtplTextElement text in template.TextElements)
+            // 캔버스(받침지 폭) 밖의 잉크는 종이에 찍히지 않으므로 캔버스 안에서만 그려 눈금·경계값과 겹치지 않게 한다.
+            // 벗어난 사실은 경고 줄과 선택 줄 설명에 남는다.
+            GraphicsState canvasState = g.Save();
+            try
             {
-                TextRaster raster = RasterOf(text, variable);
-                float x = left + text.X * scale;
-                float y = top + text.Y * scale;
-                if (raster?.Image == null)
+                g.SetClip(new RectangleF(left, top, width * scale, height * scale));
+                string legend = "계산 입력 기준 (실선 라벨, 점선 안전 영역) · 글꼴 " + FontLegend();
+                if (media != null) DrawAreas(g, media, left, top, scale, width * scale, legend);
+                g.InterpolationMode = InterpolationMode.HighQualityBilinear;
+                g.PixelOffsetMode = PixelOffsetMode.Half;
+                foreach (BtplTextElement text in template.TextElements)
                 {
-                    // 그리지 못한 줄은 SDK 셀 높이 상자로만 자리를 보인다. 빈 문구는 그리지 않는다.
-                    if (raster?.Failure == null) continue;
-                    using (var pen = new Pen(Color.Red) { DashStyle = DashStyle.Dot })
-                        g.DrawRectangle(pen, x, y, Math.Max(1f, CellDots(text) * scale), Math.Max(1f, CellDots(text) * scale));
-                    continue;
+                    TextRaster raster = RasterOf(text, variable);
+                    float x = left + text.X * scale;
+                    float y = top + text.Y * scale;
+                    if (raster?.Image == null)
+                    {
+                        // 그리지 못한 줄은 SDK 셀 높이 상자로만 자리를 보인다. 빈 문구는 그리지 않는다.
+                        if (raster?.Failure == null) continue;
+                        using (var pen = new Pen(Color.Red) { DashStyle = DashStyle.Dot })
+                            g.DrawRectangle(pen, x, y, Math.Max(1f, CellDots(text) * scale), Math.Max(1f, CellDots(text) * scale));
+                        continue;
+                    }
+                    InkState state = media == null ? InkState.Inside : TemplateDocument.Classify(text, raster, media.LabelArea, media.SafeArea, out _);
+                    SdkTextRenderer.SetInkColor(raster.Image, state == InkState.Cut ? Color.Red : state == InkState.Unsafe ? Color.DarkOrange : Color.Black);
+                    g.DrawImage(raster.Image, x, y, raster.Image.Width * scale, raster.Image.Height * scale);
                 }
-                InkState state = media == null ? InkState.Inside : TemplateDocument.Classify(text, raster, media.LabelArea, media.SafeArea, out _);
-                SdkTextRenderer.SetInkColor(raster.Image, state == InkState.Cut ? Color.Red : state == InkState.Unsafe ? Color.DarkOrange : Color.Black);
-                g.DrawImage(raster.Image, x, y, raster.Image.Width * scale, raster.Image.Height * scale);
+                g.InterpolationMode = InterpolationMode.Default;
+                g.PixelOffsetMode = PixelOffsetMode.Default;
             }
-            g.InterpolationMode = InterpolationMode.Default;
-            g.PixelOffsetMode = PixelOffsetMode.Default;
+            finally
+            {
+                g.Restore(canvasState);
+            }
             using (var small = new Font("굴림", 7f))
             {
                 DrawRulers(g, small, left, top, scale, width, height);
                 if (media != null) DrawBoundaryValues(g, small, media, left + width * scale, top, scale, client.Top + 2, client.Bottom - InfoHeight);
             }
-            DrawSelection(g, template, variable, left, top, scale, width, client);
+            DrawSelection(g, template, variable, left, top, scale, width, height, client);
         }
 
         // 지난 눈금 라벨처럼 서식 좌표(dot)를 읽을 수 있게 캔버스 왼쪽·위에 눈금을 그린다. 숫자가 겹치지 않게 간격을 두 배씩 늘린다.
@@ -1013,7 +1024,7 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
         }
 
         // AW 목록에서 고른 줄의 Y 기준선과 SDK 글자 그림 범위를 그리고, 셀·잉크 범위를 아래 설명 줄에 적는다. 문서와 경고는 바꾸지 않는다.
-        private void DrawSelection(Graphics g, BtplTemplate template, string variable, float left, float top, float scale, int width, Rectangle client)
+        private void DrawSelection(Graphics g, BtplTemplate template, string variable, float left, float top, float scale, int width, int height, Rectangle client)
         {
             if (!(gridViewTexts.GetFocusedRow() is TextRow row) || row.Index < 0 || row.Index >= template.TextElements.Count) return;
             BtplTextElement text = template.TextElements[row.Index];
@@ -1021,11 +1032,21 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
             // 그림이 없으면(빈 문구·판정 불가) SDK 셀 높이 상자로 자리만 보인다.
             Size box = raster?.Image != null ? raster.Image.Size : new Size(CellDots(text), CellDots(text));
             float y = top + text.Y * scale;
-            using (var line = new Pen(Color.MediumOrchid) { DashStyle = DashStyle.Dash })
-            using (var frame = new Pen(Color.MediumOrchid) { DashStyle = DashStyle.Dot })
+            // 캔버스 밖으로 나간 상자가 눈금·경계값 위에 겹치지 않게 캔버스 안에서만 그린다. 벗어난 사실은 경고와 설명에 남는다.
+            GraphicsState state = g.Save();
+            try
             {
-                g.DrawLine(line, left, y, left + width * scale, y);
-                g.DrawRectangle(frame, left + text.X * scale, y, Math.Max(1f, box.Width * scale), Math.Max(1f, box.Height * scale));
+                g.SetClip(new RectangleF(left, top, width * scale, height * scale));
+                using (var line = new Pen(Color.MediumOrchid) { DashStyle = DashStyle.Dash })
+                using (var frame = new Pen(Color.MediumOrchid) { DashStyle = DashStyle.Dot })
+                {
+                    g.DrawLine(line, left, y, left + width * scale, y);
+                    g.DrawRectangle(frame, left + text.X * scale, y, Math.Max(1f, box.Width * scale), Math.Max(1f, box.Height * scale));
+                }
+            }
+            finally
+            {
+                g.Restore(state);
             }
             Rectangle strip = Rectangle.FromLTRB(client.Left + 4, client.Bottom - InfoHeight, client.Right - 4, client.Bottom);
             TextRenderer.DrawText(g, TemplateDocument.DescribeText(text, raster), Font, strip, Color.MediumOrchid,
