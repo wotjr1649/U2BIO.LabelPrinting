@@ -2,6 +2,8 @@
 
 현재 작업은 이슈 #16의 동기 USB 인쇄 MVP다. [스펙](docs/specs/SYNC_USB_MVP.md), [공개 API](docs/PRINTER_API.ko.md), [계획](docs/IMPLEMENTATION_PLAN.md)을 따른다. #15의 공개 API 호환·포인터 bridge 유지 조건은 사용자 결정으로 대체됐다.
 
+서식 Tester(#8)는 [설계](docs/specs/DEVEXPRESS_TESTER.md)를 따른다. 제품 DLL에 DevExpress를 넣지 않는다.
+
 - 기본 제품 코드는 Bt003Printer.cs와 PrinterModels.cs 두 파일이다. 제조사 HFSample Wrapper 원본 39개 선언을 직접 사용한다. SDK 원본·바이너리·매뉴얼은 읽기 전용이다.
 - 호출 순서·실패 중단·자원 수명의 이유를 한글 주석으로 설명한다. 자체 로더·실행 프레임워크·BTPL 해석기를 추가하지 않는다. Templates는 선택 기능으로 보존한다.
 - 한 프로그램에서만 물리 프린터를 사용한다. 프로세스 안의 단일 연결과 직렬화를 유지한다. SDK 정상 응답은 물리 출력 완료 증거가 아니다.

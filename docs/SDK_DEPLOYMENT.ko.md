@@ -13,7 +13,7 @@ MSBuild src\U2BIO.BT003PROLabelPrinting\U2BIO.BT003PROLabelPrinting.csproj /t:Re
 
 각 명령의 출력은 프로젝트 아래 `bin/x86/Release/` 또는 `bin/x64/Release/`다. 관리 DLL과 선택한 제조사 DLL 두 개가 같은 폴더에 생성된다. Debug도 같은 방식이다. `Bt003NativePlatform`을 생략하면 기존 `bin/<Configuration>/`의 관리 전용 빌드이며 SDK를 자동 복사하지 않는다. x86/x64 이외의 값은 빌드 오류다.
 
-호출 프로그램에서 `ProjectReference`를 사용하면 앱을 빌드하는 MSBuild 명령에 동일한 속성을 전달한다. 예를 들어 앱의 플랫폼이 x64면 `/p:Platform=x64 /p:Bt003NativePlatform=x64`를 지정한다. SDK 복사는 참조 프로젝트를 거쳐 앱 출력 폴더까지 전달된다. 플랫폼을 명시하지 않은 AnyCPU 실행 프로그램에 SDK 비트 수를 자동 추정하지 않는다.
+호출 프로그램에서 `ProjectReference`를 사용하면 앱을 빌드하는 MSBuild 명령에 동일한 속성을 전달한다. 예를 들어 앱의 플랫폼이 x64면 `/p:Platform=x64 /p:Bt003NativePlatform=x64`를 지정한다. SDK 복사는 참조 프로젝트를 거쳐 앱 출력 폴더까지 전달된다. 플랫폼을 명시하지 않은 AnyCPU 실행 프로그램에 SDK 비트 수를 자동 추정하지 않는다. 저장소의 [서식 Tester](specs/DEVEXPRESS_TESTER.md)는 솔루션 빌드에서 제품을 두 번 빌드하지 않도록 `Sdk/<Platform>`의 두 파일을 직접 링크해 같은 실행 폴더 구성을 만든다.
 
 컴파일된 관리 DLL을 파일 참조로 사용하는 기존 Checkup·SmartCheckup에서는 그 참조만으로 native DLL이 복사되지 않는다. 아래 파일 세 개를 앱의 실행 폴더에 배포한다. 프린터 SDK로 로드할 DLL에는 .NET 참조나 COM 등록을 추가하지 않는다.
 
