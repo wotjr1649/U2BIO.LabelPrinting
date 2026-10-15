@@ -21,6 +21,19 @@ namespace U2BIO.BT003PROLabelPrinting
         public IReadOnlyList<BtplSetting> Settings { get; }
         public IReadOnlyList<int> UnsupportedLineNumbers { get; }
 
+        /// <summary>
+        /// 이 서식을 인쇄할 때의 라벨 방식입니다. ^Q 줄이 없으면 Unspecified, 둘 이상이면 Ambiguous이고,
+        /// 하나면 해석된 세 인수는 BlackMark, 두 인수는 Gap, 그 밖(네 인수 이상, 해석 불가, 앞 공백)은 Ambiguous입니다.
+        /// </summary>
+        /// <remarks>읽기만 합니다. 인쇄할지는 호출 프로그램이 넣어 둔 용지 방식과 비교해 정합니다. 두 인수 ^Q는 프린터 라벨 유형을 간격 라벨로 바꿉니다.</remarks>
+        public BtplLabelMode LabelMode { get; }
+
+        /// <summary>LabelMode 판정에 쓴 줄 번호(1부터)입니다. 앞 공백을 뺀 줄이 ^Q로 시작하는 줄을 모두 담습니다.</summary>
+        public IReadOnlyList<int> LabelSettingLineNumbers { get; }
+
+        /// <summary>SDK 인쇄 예외를 내는 AW 줄 번호(1부터)입니다. 해석된 줄과 해석하지 못한 줄 모두 X가 1 이상 정수가 아니면 담습니다.</summary>
+        public IReadOnlyList<int> UnprintableTextLineNumbers { get; }
+
         // 행 본문과 각 줄끝을 따로 보관해야 혼합 줄끝과 마지막 줄끝 유무를 잃지 않는다.
         private sealed class TextLine
         {
@@ -53,6 +66,34 @@ namespace U2BIO.BT003PROLabelPrinting
             TextElements = Array.AsReadOnly(texts.ToArray());
             Settings = Array.AsReadOnly(settings.ToArray());
             UnsupportedLineNumbers = Array.AsReadOnly(unsupported.ToArray());
+
+            // 인쇄 판정은 여기서 한 번만 계산한다. CheckPrintable도 이 목록만 읽어 저장 검사와 공개 판정이 어긋나지 않는다.
+            var labelLines = new List<int>();
+            var unprintable = new List<int>();
+            for (int index = 0; index < lines.Length; index++)
+            {
+                string trimmed = lines[index].Text.TrimStart();
+                if (trimmed.StartsWith("^Q", StringComparison.Ordinal)) labelLines.Add(index + 1);
+                // 펌웨어가 공백·빈 인수를 어떻게 읽는지 모르므로 해석하지 못한 AW 줄도 X 칸이 1 이상 정수일 때만 인쇄할 수 있다.
+                string[] aw = trimmed.Split(',');
+                int x;
+                if (aw.Length > 1 && aw[0] == "AW" && !(int.TryParse(aw[1].Trim(), NumberStyles.AllowLeadingSign, CultureInfo.InvariantCulture, out x) && x >= 1))
+                    unprintable.Add(index + 1);
+            }
+            LabelSettingLineNumbers = Array.AsReadOnly(labelLines.ToArray());
+            UnprintableTextLineNumbers = Array.AsReadOnly(unprintable.ToArray());
+            LabelMode = labelLines.Count == 0 ? BtplLabelMode.Unspecified
+                : labelLines.Count > 1 ? BtplLabelMode.Ambiguous
+                : LabelModeOf(labelLines[0]);
+        }
+
+        // 해석된 ^Q 설정만 인수 수로 방식을 정한다. 앞 공백·네 인수처럼 해석하지 못한 줄은 펌웨어 동작을 모르므로 Ambiguous다.
+        private BtplLabelMode LabelModeOf(int line)
+        {
+            BtplSetting setting = Settings.FirstOrDefault(value => value.TemplateLine == line && value.Command == "^Q");
+            if (setting == null) return BtplLabelMode.Ambiguous;
+            int count = setting.Parameters.Split(',').Length;
+            return count == 3 ? BtplLabelMode.BlackMark : count == 2 ? BtplLabelMode.Gap : BtplLabelMode.Ambiguous;
         }
 
         /// <summary>현재 파일의 인코딩과 변경 감지 기준을 보관한다. 읽기 잠금은 이 호출 안에서만 유지한다.</summary>
@@ -306,22 +347,11 @@ namespace U2BIO.BT003PROLabelPrinting
 
         private void CheckPrintable()
         {
-            // AW X=0은 SDK StartLabelPrint 예외를 낸다. 읽기는 허용하되 편집 결과와 저장에서는 거부한다.
-            var zeroX = TextElements.FirstOrDefault(text => text.X < 1);
-            if (zeroX != null) throw new BtplFormatException("InvalidArguments", zeroX.TemplateLine);
-            // 펌웨어가 공백·빈 인수를 어떻게 읽는지 모르므로 세 인수로 해석된 Q 줄만 남기고,
-            // 해석하지 못한 AW 줄도 X가 1 이상 정수로 읽히는 경우만 남긴다.
-            for (int index = 0; index < lines.Length; index++)
-            {
-                string[] aw = lines[index].Text.TrimStart().Split(',');
-                int x;
-                if (aw.Length > 1 && aw[0] == "AW" && !(int.TryParse(aw[1].Trim(), NumberStyles.AllowLeadingSign, CultureInfo.InvariantCulture, out x) && x >= 1))
-                    throw new BtplFormatException("InvalidArguments", index + 1);
-                if (!lines[index].Text.TrimStart().StartsWith("^Q", StringComparison.Ordinal)) continue;
-                bool blackMark = Settings.Any(setting => setting.TemplateLine == index + 1 && setting.Command == "^Q"
-                    && setting.Parameters.Split(',').Length == 3);
-                if (!blackMark) throw new BtplFormatException("GapLabelSetting", index + 1);
-            }
+            // AW X=0은 SDK StartLabelPrint 예외를 낸다. 읽기는 허용하되 편집 결과와 저장에서는 거부하고, ^Q보다 먼저 보고한다.
+            if (UnprintableTextLineNumbers.Count > 0) throw new BtplFormatException("InvalidArguments", UnprintableTextLineNumbers[0]);
+            // 편집·저장은 세 인수로 해석된 ^Q만 남긴다. 두 인수(간격)와 해석하지 못한 ^Q는 프린터 라벨 유형을 바꿀 수 있다.
+            int gap = LabelSettingLineNumbers.FirstOrDefault(line => LabelModeOf(line) != BtplLabelMode.BlackMark);
+            if (gap > 0) throw new BtplFormatException("GapLabelSetting", gap);
         }
 
         private BtplSetting ExistingSetting(string command)
