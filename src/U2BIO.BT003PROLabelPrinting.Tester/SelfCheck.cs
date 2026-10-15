@@ -33,11 +33,11 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
                 CheckPreview();
                 CheckMedia();
                 CheckRenderer();
-                CheckGapLabel();
+                CheckGapLabel(directory);
                 CheckUsbPorts();
                 CheckNoNativeOrUi();
                 Console.WriteLine("PASS: tester self-check " + (expect64 ? "x64" : "x86")
-                    + " settings/document/preview/media/ink-area/renderer/gap-label/usb-list; nativeSDK=not-loaded; no UI/device");
+                    + " settings/document/preview/media/ink-area/renderer/gap-label/print-file-lock/usb-list; nativeSDK=not-loaded; no UI/device");
                 return 0;
             }
             catch (Exception error)
@@ -451,19 +451,59 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
         [DllImport("user32.dll")]
         private static extern uint GetGuiResources(IntPtr process, uint flags);
 
-        private static void CheckGapLabel()
+        // 인쇄 전 검사는 DLL WithRawText의 저장 검사와 같다. 두 인수·해석 불가 ^Q와 AW X 0을 거부한다.
+        private static void CheckGapLabel(string directory)
         {
             step = "gap-label";
-            Check(TemplateDocument.HasGapLabelSetting(BtplTemplate.Parse(SampleText.Replace("^Q35,5,9+", "^Q35,5"))));
-            Check(TemplateDocument.HasGapLabelSetting(BtplTemplate.Parse(SampleText.Replace("^Q35,5,9+", " ^Q35,5,9+"))));
-            Check(TemplateDocument.HasGapLabelSetting(BtplTemplate.Parse(SampleText.Replace("^Q35,5,9+", "^Q35,5,9+,1"))));
-            // 줄 번호는 CRLF·LF·CR 어느 줄끝이든 DLL의 TemplateLine과 같은 기준이어야 한다.
-            Check(TemplateDocument.HasGapLabelSetting(BtplTemplate.Parse("^XX1\n ^Q35,5,9+\n^W70\n^L\nE\n")));
-            Check(TemplateDocument.HasGapLabelSetting(BtplTemplate.Parse("^XX1\r ^Q35,5,9+\r^W70\r^L\rE\r")));
-            Check(TemplateDocument.HasGapLabelSetting(BtplTemplate.Parse("^XX1\r\n^W70\r\n^Q35,5,9+,1\r\n^L\r\nE\r\n")));
-            Check(!TemplateDocument.HasGapLabelSetting(BtplTemplate.Parse("^XX1\n^Q35,5,9+\n^W70\n^L\nE\n")));
-            Check(!TemplateDocument.HasGapLabelSetting(BtplTemplate.Parse(SampleText)));
-            Check(!TemplateDocument.HasGapLabelSetting(BtplTemplate.Parse(SampleText.Replace("^H19", "^H19\r\n^XX1"))));
+            Check(PrintRejection(SampleText.Replace("^Q35,5,9+", "^Q35,5")) == "GapLabelSetting");
+            Check(PrintRejection(SampleText.Replace("^Q35,5,9+", " ^Q35,5,9+")) == "GapLabelSetting");
+            Check(PrintRejection(SampleText.Replace("^Q35,5,9+", "^Q35,5,9+,1")) == "GapLabelSetting");
+            // 줄끝이 CRLF·LF·CR 어느 것이든 같은 기준으로 거부한다.
+            Check(PrintRejection("^XX1\n ^Q35,5,9+\n^W70\n^L\nE\n") == "GapLabelSetting");
+            Check(PrintRejection("^XX1\r ^Q35,5,9+\r^W70\r^L\rE\r") == "GapLabelSetting");
+            Check(PrintRejection("^XX1\r\n^W70\r\n^Q35,5,9+,1\r\n^L\r\nE\r\n") == "GapLabelSetting");
+            Check(PrintRejection("^XX1\n^Q35,5,9+\n^W70\n^L\nE\n") == null);
+            Check(PrintRejection(SampleText) == null);
+            Check(PrintRejection(SampleText.Replace("^H19", "^H19\r\n^XX1")) == null);
+            // 기존 파일의 AW X 0은 읽을 수 있지만 SDK 예외를 내므로 인쇄 전에 거부한다(해석된 줄과 해석하지 못한 줄 모두).
+            Check(PrintRejection(SampleText.Replace("AW,80,120,", "AW,0,120,")) == "InvalidArguments");
+            Check(PrintRejection(SampleText.Replace("AW,80,120,", "AW, 0,120,")) == "InvalidArguments");
+
+            step = "print-file-lock";
+            // 검사부터 인쇄 호출이 끝날 때까지 파일 쓰기·교체를 막고, 끝나거나 예외가 나면 잠금을 푼다.
+            string path = WriteTemplate(directory, "print-lock.txt", SampleText);
+            bool blocked = TemplateDocument.WithPrintableFile(path, () =>
+            {
+                try
+                {
+                    File.WriteAllText(path, SampleText.Replace("^Q35,5,9+", "^Q35,5"), Cp949);
+                    return false;
+                }
+                catch (IOException)
+                {
+                    return true;
+                }
+            });
+            Check(blocked && ReadText(path) == SampleText);
+            File.WriteAllText(path, SampleText.Replace("AW,80,120,", "AW,0,120,"), Cp949);
+            bool printed = false;
+            Expect<BtplFormatException>(() => TemplateDocument.WithPrintableFile(path, () => printed = true));
+            Check(!printed);
+            File.WriteAllText(path, SampleText, Cp949);
+            Check(ReadText(path) == SampleText);
+        }
+
+        private static string PrintRejection(string text)
+        {
+            try
+            {
+                TemplateDocument.EnsurePrintable(BtplTemplate.Parse(text));
+                return null;
+            }
+            catch (BtplFormatException error)
+            {
+                return error.Code;
+            }
         }
 
         // 실행 폴더에는 같은 비트수 SDK 한 쌍이 있지만 이 검사는 로드하지 않고 화면도 만들지 않는다.

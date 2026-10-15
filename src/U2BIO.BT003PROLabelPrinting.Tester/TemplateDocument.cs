@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Globalization;
+using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
 
@@ -109,13 +110,19 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
             }, RegexOptions.CultureInvariant);
         }
 
-        internal static bool HasGapLabelSetting(BtplTemplate template)
+        // 인쇄 전 검사다. DLL의 WithRawText가 저장 때와 같은 검사(두 인수·해석 불가 ^Q, AW X 0 이하)로 거부하면
+        // BtplFormatException이 난다. 반환 객체는 버리고 문서는 바꾸지 않는다.
+        internal static void EnsurePrintable(BtplTemplate template) => template.WithRawText(template.ToBtpl());
+
+        // 저장된 파일 인쇄: 검사부터 인쇄 호출이 끝날 때까지 파일을 읽기 공유로 열어 두어 그 사이 쓰기·교체를 막는다.
+        // Load와 PrintFile도 읽기 공유로 열므로 함께 읽을 수 있다.
+        internal static T WithPrintableFile<T>(string path, Func<T> print)
         {
-            if (template.Settings.Any(setting => setting.Command == "^Q" && setting.Parameters.Split(',').Length != 3)) return true;
-            // 줄 번호는 DLL의 TemplateLine과 같은 줄끝 기준으로 센다.
-            string[] lines = Regex.Split(template.ToBtpl(), "\r\n|\n|\r");
-            return template.UnsupportedLineNumbers.Any(number => number >= 1 && number <= lines.Length
-                && lines[number - 1].TrimStart().StartsWith("^Q", StringComparison.Ordinal));
+            using (new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read))
+            {
+                EnsurePrintable(BtplTemplate.Load(path));
+                return print();
+            }
         }
 
         // 문서에 넣지 않고 DLL에 적용해 보기만 한다. 같은 객체가 돌아오면 서식 값이 이 설정과 같다. 적용할 수 없는 구조면 BtplFormatException이 난다.

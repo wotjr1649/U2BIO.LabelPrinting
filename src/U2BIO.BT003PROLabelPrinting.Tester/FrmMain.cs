@@ -34,7 +34,6 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
         // 블랙마크 탭 칸과 운영 기준값이다. 앞의 네 칸은 ^W·^Q에서 채우고 라벨 너비·길이는 미리보기에만 쓴다.
         private static readonly string[] MediaDefaults = { "70", "35", "5", "7.5", "60", "20" };
         private const decimal MaxWidthMm = 10000;
-        private const string GapBlocked = "GapLabelSetting";
         private const string NoResponse = "미응답";
         private const string ActionConnect = "연결";
         private const string ActionStatus = "상태";
@@ -638,7 +637,8 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
             catch (Exception error)
             {
                 Record(new ResultRow(action, false, null, null, null, error.GetType().Name + ": " + error.Message));
-                if (error is InvalidOperationException && error.Message.StartsWith(GapBlocked, StringComparison.Ordinal)) ShowError(error.Message);
+                // 인쇄 전 검사에서 거부된 서식은 공통 오류 줄에도 이유와 줄 번호를 보인다.
+                if (error is BtplFormatException format) ShowException(format);
             }
             finally
             {
@@ -697,10 +697,14 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
         private async void btnPrintEdit_Click(object sender, EventArgs e)
         {
             if (busy || doc.Template == null || !CommitEditors()) return;
-            // 두 인수 ^Q를 보내면 프린터 라벨 유형이 간격 라벨로 바뀐다.
-            if (TemplateDocument.HasGapLabelSetting(doc.Template))
+            // 두 인수 ^Q는 프린터 라벨 유형을 간격 라벨로 바꾸고 AW X 0은 SDK 예외를 내므로 DLL 검사로 먼저 거부한다.
+            try
             {
-                ShowError(GapBlocked + ": 인수 두 개 ^Q가 있어 인쇄하지 않습니다. 프린터 라벨 유형이 간격 라벨로 바뀝니다.");
+                TemplateDocument.EnsurePrintable(doc.Template);
+            }
+            catch (BtplFormatException error)
+            {
+                ShowException(error);
                 return;
             }
             string btpl = doc.Template.ToBtpl();
@@ -715,13 +719,8 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
             if (doc.IsDirty && XtraMessageBox.Show(this, "저장하지 않은 수정은 이 인쇄에 반영되지 않습니다. 계속할까요?", Title,
                 MessageBoxButtons.YesNo, MessageBoxIcon.Warning, MessageBoxDefaultButton.Button2) != DialogResult.Yes) return;
             string data = VariableData();
-            // 편집본이 아니라 실제로 인쇄할 디스크 내용으로 두 인수 ^Q를 검사한다.
-            await RunDevice("저장된 파일 인쇄", () =>
-            {
-                if (TemplateDocument.HasGapLabelSetting(BtplTemplate.Load(path)))
-                    throw new InvalidOperationException(GapBlocked + ": 디스크 서식에 인수 두 개 ^Q가 있어 인쇄하지 않습니다.");
-                return printer.PrintFile(path, data);
-            });
+            // 편집본이 아니라 실제로 인쇄할 디스크 내용을 검사하고, 검사부터 인쇄까지 파일을 잠가 그 사이 교체를 막는다.
+            await RunDevice("저장된 파일 인쇄", () => TemplateDocument.WithPrintableFile(path, () => printer.PrintFile(path, data)));
         }
 
         // 구조 오류는 입력 칸이 아니라 서식 전체 문제이므로 공통 오류 줄에 표시한다.
