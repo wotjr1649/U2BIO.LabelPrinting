@@ -822,6 +822,14 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
         private void gridBlackMark_ValidatingEditor(object sender, BaseContainerValidateEditorEventArgs e)
         {
             if (!(gridBlackMark.FocusedRow is EditorRow row) || Array.IndexOf(MediaRows, row) < 0) return;
+            // 라벨 치수는 서식에 넣지 않으므로 숫자만 확인한다. 둘 다 맞지 않는 서식에서도 하나씩 고칠 수 있고, 조합이 맞을 때까지 영역 판정만 멈춘다.
+            if (row == rowLabelWidth || row == rowLabelHeight)
+            {
+                if (decimal.TryParse(Convert.ToString(e.Value, CultureInfo.InvariantCulture), MmStyle, CultureInfo.InvariantCulture, out _)) return;
+                e.Valid = false;
+                e.ErrorText = "InvalidArguments: 숫자(mm)를 입력하세요.";
+                return;
+            }
             if (CreateMedia(out string error, row, e.Value) != null) return;
             e.Valid = false;
             e.ErrorText = error + ": 숫자(mm)와, 라벨이 받침지 너비·마크 사이 길이 안에 들어가는지 확인하세요.";
