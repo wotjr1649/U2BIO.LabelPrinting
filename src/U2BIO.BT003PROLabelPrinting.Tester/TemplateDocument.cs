@@ -122,6 +122,55 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
             return detail != null ? InkState.Unsafe : InkState.Inside;
         }
 
+        // 화면 간격이 needPixels 이상이 될 때까지 눈금 간격(dot)을 두 배로 늘린다. 캔버스 최대 크기를 넘으면 더 늘리지 않는다.
+        internal static int RulerStep(int start, float scale, float needPixels)
+        {
+            long step = Math.Max(1, start);
+            while (step * scale < needPixels && step < MaxRulerStep) step *= 2;
+            return (int)Math.Min(step, MaxRulerStep);
+        }
+
+        private const long MaxRulerStep = 1 << 20;
+
+        // 원하는 위치(desired, 같은 순서로 돌려준다)에 높이 height인 글자를 겹치지 않게 놓는다. 아래로 밀다가 maxY를 넘으면
+        // 마지막부터 위로 되돌린다. 모두 담을 높이가 없으면 null이다.
+        internal static float[] StackLabels(float[] desired, float height, float minY, float maxY)
+        {
+            int[] order = Enumerable.Range(0, desired.Length).OrderBy(i => desired[i]).ToArray();
+            if (order.Length * height > maxY - minY) return null;
+            var places = new float[desired.Length];
+            float next = minY;
+            foreach (int i in order)
+            {
+                places[i] = Math.Max(desired[i], next);
+                next = places[i] + height;
+            }
+            float limit = maxY;
+            for (int k = order.Length - 1; k >= 0; k--)
+            {
+                places[order[k]] = Math.Min(places[order[k]], limit - height);
+                limit = places[order[k]];
+            }
+            return places;
+        }
+
+        // 미리보기 아래 설명 줄 문구다. 좌표는 서식 dot이며 끝 좌표는 반열림이다. 경고 판정과 별개로 표시만 한다.
+        internal static string DescribeText(BtplTextElement text, TextRaster raster)
+        {
+            string body;
+            if (raster == null || raster.Failure != null) body = "판정 불가: " + (raster?.Failure ?? "그림 없음");
+            else if (raster.Image == null) body = "잉크 없음(빈 문구)";
+            else
+            {
+                body = "셀 Y" + text.Y + "~" + ((long)text.Y + raster.Image.Height) + " · 그림 폭 " + raster.Image.Width;
+                body += raster.Ink.HasValue
+                    ? " · 잉크 Y" + ((long)text.Y + raster.Ink.Value.Top) + "~" + ((long)text.Y + raster.Ink.Value.Bottom)
+                        + ", X" + ((long)text.X + raster.Ink.Value.Left) + "~" + ((long)text.X + raster.Ink.Value.Right)
+                    : " · 잉크 없음";
+            }
+            return "줄 " + text.TemplateLine + " · X" + text.X + " Y" + text.Y + " · " + body + (CanJudge(text) ? "" : " (정렬·회전 미반영 참고값)");
+        }
+
         // 경고 줄 목록이다. 한 줄은 한 목록에만 들어간다.
         internal static void CheckInk(BtplTemplate template, BtplArea label, BtplArea safe, Func<BtplTextElement, TextRaster> rasterOf,
             List<string> cut, List<string> unsafeLines, List<string> skipped, List<string> failed)

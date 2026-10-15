@@ -402,6 +402,7 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
             this.gridViewTexts.OptionsCustomization.AllowSort = false;
             this.gridViewTexts.OptionsView.ShowGroupPanel = false;
             this.gridViewTexts.ValidatingEditor += new DevExpress.XtraEditors.Controls.BaseContainerValidateEditorEventHandler(this.gridViewTexts_ValidatingEditor);
+            this.gridViewTexts.FocusedRowChanged += new DevExpress.XtraGrid.Views.Base.FocusedRowChangedEventHandler(this.gridViewTexts_FocusedRowChanged);
             //
             // colLine
             //

@@ -26,6 +26,11 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
         private const NumberStyles MmStyle = NumberStyles.AllowLeadingWhite | NumberStyles.AllowTrailingWhite
             | NumberStyles.AllowLeadingSign | NumberStyles.AllowDecimalPoint;
         private const int MaxDots = 100000;
+        // 미리보기 패널 안 여백(px): 왼쪽 Y 눈금, 위쪽 X 눈금, 오른쪽 경계값, 아래 선택 줄 설명.
+        private const int RulerLeft = 34;
+        private const int RulerTop = 16;
+        private const int RulerRight = 38;
+        private const int InfoHeight = 18;
         // 블랙마크 탭 칸과 운영 기준값이다. 앞의 네 칸은 ^W·^Q에서 채우고 라벨 너비·길이는 미리보기에만 쓴다.
         private static readonly string[] MediaDefaults = { "70", "35", "5", "7.5", "60", "20" };
         private const decimal MaxWidthMm = 10000;
@@ -914,15 +919,17 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
             int width = CanvasWidth(template, media);
             int height = Clamp(Math.Max(media?.LabelArea.Bottom ?? 0,
                 template.TextElements.Select(text => (long)text.Y + (RasterOf(text, variable)?.Image?.Height ?? CellDots(text))).DefaultIfEmpty(0).Max()) + 40);
-            float scale = Math.Min((client.Width - 8f) / width, (client.Height - 8f) / height);
+            Rectangle area = Rectangle.FromLTRB(client.Left + RulerLeft, client.Top + RulerTop, client.Right - RulerRight, client.Bottom - InfoHeight);
+            if (area.Width <= 8 || area.Height <= 8) return;
+            float scale = Math.Min((area.Width - 4f) / width, (area.Height - 4f) / height);
             if (scale <= 0) return;
-            float left = client.Left + (client.Width - width * scale) / 2;
-            float top = client.Top + (client.Height - height * scale) / 2;
+            float left = area.Left + (area.Width - width * scale) / 2;
+            float top = area.Top + (area.Height - height * scale) / 2;
             g.SmoothingMode = SmoothingMode.AntiAlias;
             g.FillRectangle(Brushes.White, left, top, width * scale, height * scale);
             g.DrawRectangle(Pens.Gray, left, top, width * scale, height * scale);
             string legend = "계산 입력 기준 (실선 라벨, 점선 안전 영역) · 글꼴 " + FontLegend();
-            if (media != null) DrawAreas(g, media, left, top, scale, legend);
+            if (media != null) DrawAreas(g, media, left, top, scale, width * scale, legend);
             g.InterpolationMode = InterpolationMode.HighQualityBilinear;
             g.PixelOffsetMode = PixelOffsetMode.Half;
             foreach (BtplTextElement text in template.TextElements)
@@ -942,7 +949,90 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
                 SdkTextRenderer.SetInkColor(raster.Image, state == InkState.Cut ? Color.Red : state == InkState.Unsafe ? Color.DarkOrange : Color.Black);
                 g.DrawImage(raster.Image, x, y, raster.Image.Width * scale, raster.Image.Height * scale);
             }
+            g.InterpolationMode = InterpolationMode.Default;
+            g.PixelOffsetMode = PixelOffsetMode.Default;
+            using (var small = new Font("굴림", 7f))
+            {
+                DrawRulers(g, small, left, top, scale, width, height);
+                if (media != null) DrawBoundaryValues(g, small, media, left + width * scale, top, scale, client.Top + 2, client.Bottom - InfoHeight);
+            }
+            DrawSelection(g, template, variable, left, top, scale, width, client);
         }
+
+        // 지난 눈금 라벨처럼 서식 좌표(dot)를 읽을 수 있게 캔버스 왼쪽·위에 눈금을 그린다. 숫자가 겹치지 않게 간격을 두 배씩 늘린다.
+        private static void DrawRulers(Graphics g, Font font, float left, float top, float scale, int width, int height)
+        {
+            float textHeight = font.GetHeight(g);
+            int yStep = TemplateDocument.RulerStep(40, scale, textHeight + 2);
+            int xStep = TemplateDocument.RulerStep(100, scale, g.MeasureString(width.ToString(CultureInfo.InvariantCulture), font).Width + 6);
+            int yMinor = 10 * scale >= 3 ? 10 : yStep;
+            int xMinor = 50 * scale >= 3 ? 50 : xStep;
+            using (var pen = new Pen(Color.DimGray))
+            {
+                for (int y = 0; y <= height; y += yMinor)
+                {
+                    bool major = y % yStep == 0;
+                    float py = top + y * scale;
+                    g.DrawLine(pen, left - (major ? 6 : 3), py, left, py);
+                    if (!major) continue;
+                    string label = y.ToString(CultureInfo.InvariantCulture);
+                    SizeF size = g.MeasureString(label, font);
+                    g.DrawString(label, font, Brushes.DimGray, left - 7 - size.Width, py - size.Height / 2);
+                }
+                for (int x = 0; x <= width; x += xMinor)
+                {
+                    bool major = x % xStep == 0;
+                    float px = left + x * scale;
+                    g.DrawLine(pen, px, top - (major ? 6 : 3), px, top);
+                    if (!major) continue;
+                    string label = x.ToString(CultureInfo.InvariantCulture);
+                    SizeF size = g.MeasureString(label, font);
+                    g.DrawString(label, font, Brushes.DimGray, px - size.Width / 2, top - 7 - size.Height);
+                }
+            }
+        }
+
+        // 라벨(실선)·안전 영역(점선)의 위·아래 끝 값을 캔버스 오른쪽 바깥에 적고 원래 Y에서 짧은 선으로 잇는다.
+        // 숫자는 minY~maxY(설명 줄 위) 안에서 겹치지 않게 놓는다. 네 줄을 담을 높이가 없으면 경계값을 생략한다.
+        private static void DrawBoundaryValues(Graphics g, Font font, BtplBlackMarkMedia media, float right, float top, float scale, float minY, float maxY)
+        {
+            int[] values = { media.LabelArea.Top, media.SafeArea.Top, media.SafeArea.Bottom, media.LabelArea.Bottom };
+            Color[] colors = { Color.SteelBlue, Color.SeaGreen, Color.SeaGreen, Color.SteelBlue };
+            float height = font.GetHeight(g);
+            float[] places = TemplateDocument.StackLabels(values.Select(value => top + value * scale - height / 2).ToArray(), height, minY, maxY);
+            if (places == null) return;
+            for (int index = 0; index < values.Length; index++)
+            {
+                using (var pen = new Pen(colors[index]))
+                using (var brush = new SolidBrush(colors[index]))
+                {
+                    g.DrawLine(pen, right, top + values[index] * scale, right + 4, places[index] + height / 2);
+                    g.DrawString(values[index].ToString(CultureInfo.InvariantCulture), font, brush, right + 5, places[index]);
+                }
+            }
+        }
+
+        // AW 목록에서 고른 줄의 Y 기준선과 SDK 글자 그림 범위를 그리고, 셀·잉크 범위를 아래 설명 줄에 적는다. 문서와 경고는 바꾸지 않는다.
+        private void DrawSelection(Graphics g, BtplTemplate template, string variable, float left, float top, float scale, int width, Rectangle client)
+        {
+            if (!(gridViewTexts.GetFocusedRow() is TextRow row) || row.Index < 0 || row.Index >= template.TextElements.Count) return;
+            BtplTextElement text = template.TextElements[row.Index];
+            TextRaster raster = RasterOf(text, variable);
+            // 그림이 없으면(빈 문구·판정 불가) SDK 셀 높이 상자로 자리만 보인다.
+            Size box = raster?.Image != null ? raster.Image.Size : new Size(CellDots(text), CellDots(text));
+            float y = top + text.Y * scale;
+            using (var line = new Pen(Color.MediumOrchid) { DashStyle = DashStyle.Dash })
+            using (var frame = new Pen(Color.MediumOrchid) { DashStyle = DashStyle.Dot })
+            {
+                g.DrawLine(line, left, y, left + width * scale, y);
+                g.DrawRectangle(frame, left + text.X * scale, y, Math.Max(1f, box.Width * scale), Math.Max(1f, box.Height * scale));
+            }
+            Rectangle strip = Rectangle.FromLTRB(client.Left + 4, client.Bottom - InfoHeight, client.Right - 4, client.Bottom);
+            TextRenderer.DrawText(g, TemplateDocument.DescribeText(text, raster), Font, strip, Color.MediumOrchid,
+                TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.SingleLine | TextFormatFlags.EndEllipsis);
+        }
+
+        private void gridViewTexts_FocusedRowChanged(object sender, DevExpress.XtraGrid.Views.Base.FocusedRowChangedEventArgs e) => previewPanel.Invalidate();
 
         // SDK가 LOGFONT 셀 높이를 size*340/72 dot로 계산한다. 그림을 만들지 못한 줄의 자리 표시와 캔버스 크기에만 쓴다.
         private static int CellDots(BtplTextElement text) => Clamp((long)text.Size * 340 / 72);
@@ -959,7 +1049,7 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
             return Clamp(right + 40);
         }
 
-        private static void DrawAreas(Graphics g, BtplBlackMarkMedia media, float left, float top, float scale, string legend)
+        private static void DrawAreas(Graphics g, BtplBlackMarkMedia media, float left, float top, float scale, float canvasWidth, string legend)
         {
             RectangleF label = Scale(media.LabelArea, left, top, scale);
             using (var solid = new Pen(Color.SteelBlue, 1.5f))
@@ -969,9 +1059,11 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
                 RectangleF safe = Scale(media.SafeArea, left, top, scale);
                 g.DrawRectangle(dashed, safe.X, safe.Y, safe.Width, safe.Height);
             }
+            // 범례는 캔버스 폭 안에서만 그려 오른쪽 경계값과 겹치지 않게 하고, 넘치면 끝을 줄인다.
             using (var font = new Font("굴림", 8f))
+            using (var format = new StringFormat(StringFormatFlags.NoWrap) { Trimming = StringTrimming.EllipsisCharacter })
             {
-                g.DrawString(legend, font, Brushes.SteelBlue, left + 2, top + 2);
+                g.DrawString(legend, font, Brushes.SteelBlue, new RectangleF(left + 2, top + 2, Math.Max(1f, canvasWidth - 4), font.GetHeight(g) + 1), format);
             }
         }
 

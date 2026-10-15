@@ -325,6 +325,29 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
             var failed = new List<string>();
             TemplateDocument.CheckInk(mixed, label, safe, text => raster, cut, unsafeLines, skipped, failed);
             Check(cut.Count == 0 && unsafeLines.SequenceEqual(new[] { "줄 7(아래 15 dot)" }) && skipped.SequenceEqual(new[] { "줄 6" }) && failed.Count == 0);
+
+            step = "preview-guide";
+            // 눈금 숫자 간격은 화면 간격이 필요한 픽셀 이상이 될 때까지 두 배로 늘린다.
+            Check(TemplateDocument.RulerStep(40, 1f, 11f) == 40 && TemplateDocument.RulerStep(40, 0.25f, 11f) == 80
+                && TemplateDocument.RulerStep(40, 0.027f, 11f) == 640 && TemplateDocument.RulerStep(100, 0.00001f, 30f) == 1 << 20);
+            // 경계값 배치: 겹치면 아래로 밀고, 아래 끝을 넘으면 위로 되돌리며, 높이가 모자라면 생략한다.
+            float[] spread = TemplateDocument.StackLabels(new[] { 10f, 12f, 100f, 103f }, 9f, 0f, 200f);
+            Check(spread.SequenceEqual(new[] { 10f, 19f, 100f, 109f }));
+            float[] bottom = TemplateDocument.StackLabels(new[] { 255f, 255f, 260f, 260f }, 9f, 0f, 266f);
+            Check(bottom.SequenceEqual(new[] { 230f, 239f, 248f, 257f }));
+            Check(TemplateDocument.StackLabels(new[] { 0f, 0f, 0f, 0f }, 9f, 0f, 30f) == null);
+            // 선택 줄 설명: 잉크 있음, 공백(그림 있고 잉크 없음), 빈 문구(그림 없음), 판정 불가, 정렬 줄.
+            using (var image = new Bitmap(192, 47))
+            {
+                Check(TemplateDocument.DescribeText(low.TextElements[0], new TextRaster(image, ink, 0, null))
+                    == "줄 6 · X80 Y260 · 셀 Y260~307 · 그림 폭 192 · 잉크 Y266~300, X83~269");
+                Check(TemplateDocument.DescribeText(low.TextElements[0], new TextRaster(image, null, 0, null))
+                    == "줄 6 · X80 Y260 · 셀 Y260~307 · 그림 폭 192 · 잉크 없음");
+                Check(TemplateDocument.DescribeText(mixed.TextElements[0], new TextRaster(image, ink, 0, null)).EndsWith(" (정렬·회전 미반영 참고값)"));
+            }
+            Check(TemplateDocument.DescribeText(low.TextElements[0], new TextRaster(null, null, 0, null)) == "줄 6 · X80 Y260 · 잉크 없음(빈 문구)");
+            Check(TemplateDocument.DescribeText(low.TextElements[0], new TextRaster(null, null, 0, "크기 한도 초과")) == "줄 6 · X80 Y260 · 판정 불가: 크기 한도 초과");
+            Check(TemplateDocument.DescribeText(low.TextElements[0], null) == "줄 6 · X80 Y260 · 판정 불가: 그림 없음");
         }
 
         // 화면 없이 SDK와 같은 GDI 경로로 그림을 만든다. 글꼴이 PC마다 다를 수 있어 잉크 수치 대신 성공·실패와 자원만 확인한다.
