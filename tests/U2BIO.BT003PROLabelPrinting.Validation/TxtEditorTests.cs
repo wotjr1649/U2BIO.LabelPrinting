@@ -40,7 +40,9 @@ namespace U2BIO.BT003PROLabelPrinting.Validation
             Files();
             RemovedApi();
             BlackMarkMedia();
-            Console.WriteLine("PASS: TXT source/field preservation, named AW edits, frame limits, file origin and Save/SaveAs; nativeSDK=not-loaded");
+            LabelModeAndPrintability();
+            PreviewText();
+            Console.WriteLine("PASS: TXT source/field preservation, named AW edits, frame limits, file origin and Save/SaveAs, label mode, preview text; nativeSDK=not-loaded");
         }
 
         private static void SourceAndEdits()
@@ -236,6 +238,94 @@ namespace U2BIO.BT003PROLabelPrinting.Validation
                 Format("TemplateTooLarge", () => BtplTemplate.Load(largePath));
             }
             finally { Directory.Delete(directory, true); }
+        }
+
+        private const string BlackMark = "^Q35,5,9+\r\n^W70\r\n^L\r\nAW,80,120,10,1,0,0,A ^Q35,5\r\nE\r\n";
+
+        private static void Mode(string text, BtplLabelMode mode, params int[] lines)
+        {
+            var template = BtplTemplate.Parse(text);
+            Check(template.LabelMode == mode && template.LabelSettingLineNumbers.SequenceEqual(lines),
+                "label mode " + mode + " for " + text.Replace("\r", "\\r").Replace("\n", "\\n"));
+        }
+
+        // 공개 목록으로 예상한 인쇄 거부(코드·줄)가 저장 검사(WithRawText)의 실제 결과와 같아야 한다. AW가 ^Q보다 먼저다.
+        private static void SamePrintCheck(string text)
+        {
+            var template = BtplTemplate.Parse(text);
+            string expectedCode = null;
+            int? expectedLine = null;
+            if (template.UnprintableTextLineNumbers.Count > 0)
+            {
+                expectedCode = "InvalidArguments";
+                expectedLine = template.UnprintableTextLineNumbers[0];
+            }
+            else
+            {
+                int gap = template.LabelSettingLineNumbers.FirstOrDefault(line => !template.Settings.Any(setting =>
+                    setting.Command == "^Q" && setting.TemplateLine == line && setting.Parameters.Split(',').Length == 3));
+                if (gap > 0)
+                {
+                    expectedCode = "GapLabelSetting";
+                    expectedLine = gap;
+                }
+            }
+            string actualCode = null;
+            int? actualLine = null;
+            try { template.WithRawText(template.ToBtpl()); }
+            catch (BtplFormatException error)
+            {
+                actualCode = error.Code;
+                actualLine = error.TemplateLine;
+            }
+            Check(actualCode == expectedCode && actualLine == expectedLine,
+                "print check matches public lines for " + text.Replace("\r", "\\r").Replace("\n", "\\n"));
+        }
+
+        private static void LabelModeAndPrintability()
+        {
+            Mode("^W70\r\n^L\r\nAW,80,120,10,1,0,0,A ^Q35,5\r\nE\r\n", BtplLabelMode.Unspecified);
+            Mode(BlackMark, BtplLabelMode.BlackMark, 1);
+            Mode(BlackMark.Replace("^Q35,5,9+", "^Q35,5,9-"), BtplLabelMode.BlackMark, 1);
+            Mode(BlackMark.Replace("^Q35,5,9+", "^Q35,5"), BtplLabelMode.Gap, 1);
+            Mode(BlackMark.Replace("^Q35,5,9+", " ^Q35,5,9+"), BtplLabelMode.Ambiguous, 1);
+            Mode(BlackMark.Replace("^Q35,5,9+", "^Q35,5,9+,1"), BtplLabelMode.Ambiguous, 1);
+            Mode(BlackMark.Replace("^Q35,5,9+", "^Q35,5,"), BtplLabelMode.Ambiguous, 1);
+            Mode("^Q35,5,9+\r\n" + BlackMark, BtplLabelMode.Ambiguous, 1, 2);
+            Mode("^Q35,5,9+\r\n^L\r\nE\r\n^Q35,5,9+\r\n^L\r\nE\r\n", BtplLabelMode.Ambiguous, 1, 4);
+            Mode("^XX1\n^W70\n ^Q35,5,9+\n^L\nE\n", BtplLabelMode.Ambiguous, 3);
+            Mode("^XX1\r^Q35,5\r^L\rE\r", BtplLabelMode.Gap, 2);
+            Mode("^XX1\r\n^Q35,5,9+\r\n^L\r\nE\r\n", BtplLabelMode.BlackMark, 2);
+
+            Check(BtplTemplate.Parse(BlackMark).UnprintableTextLineNumbers.Count == 0, "printable AW");
+            Check(BtplTemplate.Parse(BlackMark.Replace("AW,80,", "AW,0,")).UnprintableTextLineNumbers.SequenceEqual(new[] { 4 }), "parsed AW X 0");
+            Check(BtplTemplate.Parse(BlackMark.Replace("AW,80,", "AW, 0,")).UnprintableTextLineNumbers.SequenceEqual(new[] { 4 }), "unparsed AW X 0");
+            Check(BtplTemplate.Parse(BlackMark.Replace("AW,80,", "AW,x,")).UnprintableTextLineNumbers.SequenceEqual(new[] { 4 }), "unparsed AW X text");
+
+            foreach (string text in new[]
+            {
+                BlackMark, BlackMark.Replace("^Q35,5,9+", "^Q35,5"), BlackMark.Replace("^Q35,5,9+", " ^Q35,5,9+"),
+                BlackMark.Replace("^Q35,5,9+", "^Q35,5,9+,1"), "^Q35,5,9+\r\n" + BlackMark, "^W70\r\n^L\r\nAW,80,120,10,1,0,0,A\r\nE\r\n",
+                BlackMark.Replace("AW,80,", "AW,0,"), BlackMark.Replace("AW,80,", "AW, 0,"),
+                // AW와 ^Q 오류가 함께 있으면 AW를 먼저 보고한다.
+                BlackMark.Replace("^Q35,5,9+", "^Q35,5").Replace("AW,80,", "AW, 0,"),
+                BlackMark.Replace("^Q35,5,9+", "^Q35,5").Replace("AW,80,", "AW,0,"),
+            })
+                SamePrintCheck(text);
+            Format("InvalidArguments", () => BtplTemplate.Parse(BlackMark.Replace("^Q35,5,9+", "^Q35,5").Replace("AW,80,", "AW, 0,")).WithRawText(
+                BlackMark.Replace("^Q35,5,9+", "^Q35,5").Replace("AW,80,", "AW, 0,")));
+        }
+
+        private static void PreviewText()
+        {
+            var text = BtplTemplate.Parse("^L\r\nAW,1,1,10,1,0,0,^V00/^V01/^V02/^V03\r\nE").TextElements[0];
+            Check(text.GetPreviewText("A!!!!C!!") == "A//C/", "empty items stay empty");
+            Check(text.GetPreviewText(null) == "^V00/^V01/^V02/^V03" && text.GetPreviewText() == text.Payload, "no data keeps markers");
+            Check(text.GetPreviewText("FIRST!!SECOND") == "FIRST/SECOND/^V02/^V03", "missing numbers keep markers");
+            var nested = BtplTemplate.Parse("^L\r\nAW,1,1,10,1,0,0,^V00|^V000\r\nE").TextElements[0];
+            Check(nested.GetPreviewText("^V01!!SAFE") == "^V01|^V010", "values are not substituted again and only two digits are read");
+            Check(nested.GetPreviewText("") == "|0", "empty data is one empty item");
+            Check(text.Payload == "^V00/^V01/^V02/^V03", "payload unchanged");
         }
 
         private static bool Area(BtplArea area, int left, int top, int right, int bottom)
