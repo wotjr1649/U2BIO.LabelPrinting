@@ -181,8 +181,10 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
                     }
                 }
                 bool open = template != null;
-                rowSegment.Properties.ReadOnly = rowMarkWidth.Properties.ReadOnly = rowMarkToLabel.Properties.ReadOnly = open && !labelLinked;
-                rowLinerWidth.Properties.ReadOnly = open && !widthLinked;
+                // 서식이 없으면 열 때 칸을 서식 값으로 덮어쓰므로 입력이 버려지지 않게 모두 읽기 전용으로 둔다.
+                rowSegment.Properties.ReadOnly = rowMarkWidth.Properties.ReadOnly = rowMarkToLabel.Properties.ReadOnly = !open || !labelLinked;
+                rowLinerWidth.Properties.ReadOnly = !open || !widthLinked;
+                rowLabelWidth.Properties.ReadOnly = rowLabelHeight.Properties.ReadOnly = !open;
             }
             finally
             {
@@ -355,7 +357,7 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
             gridTexts.Enabled = open;
             btnAddText.Enabled = open;
             btnRemoveText.Enabled = open && template.TextElements.Count > 0;
-            // 블랙마크 칸은 서식 없이도 미리보기용으로 고칠 수 있다. 서식 명령 칸은 서식이 있을 때만 편집한다.
+            // 서식이 없으면 블랙마크 칸(SyncMediaRows)과 서식 명령 칸 모두 읽기 전용이다.
             gridSettings.Enabled = idle;
             rowQ.Properties.ReadOnly = rowW.Properties.ReadOnly = rowS.Properties.ReadOnly = rowH.Properties.ReadOnly = template == null;
             // 드롭다운은 네 동작 중 하나라도 가능하면 켜고, 본체(한 단계 되돌리기)와 메뉴 항목은 각자 조건으로 판단한다.
