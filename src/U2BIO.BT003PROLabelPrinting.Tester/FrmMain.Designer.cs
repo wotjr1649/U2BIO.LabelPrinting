@@ -82,6 +82,9 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
             this.rowSensor = new DevExpress.XtraVerticalGrid.Rows.EditorRow();
             this.rowVertical = new DevExpress.XtraVerticalGrid.Rows.EditorRow();
             this.rowHorizontal = new DevExpress.XtraVerticalGrid.Rows.EditorRow();
+            this.categoryResult = new DevExpress.XtraVerticalGrid.Rows.CategoryRow();
+            this.rowResult = new DevExpress.XtraVerticalGrid.Rows.EditorRow();
+            this.rowCompare = new DevExpress.XtraVerticalGrid.Rows.EditorRow();
             this.btnApplyBlackMark = new DevExpress.XtraEditors.SimpleButton();
             this.pageRaw = new DevExpress.XtraTab.XtraTabPage();
             this.memoRaw = new DevExpress.XtraEditors.MemoEdit();
@@ -598,7 +601,8 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
             this.gridBlackMark.RowHeaderWidth = 280;
             this.gridBlackMark.Rows.AddRange(new DevExpress.XtraVerticalGrid.Rows.BaseRow[] {
             this.categoryMeasure,
-            this.categoryOffset});
+            this.categoryOffset,
+            this.categoryResult});
             this.gridBlackMark.Size = new System.Drawing.Size(510, 547);
             this.gridBlackMark.TabIndex = 0;
             this.gridBlackMark.CellValueChanged += new DevExpress.XtraVerticalGrid.Events.CellValueChangedEventHandler(this.gridBlackMark_CellValueChanged);
@@ -709,6 +713,26 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
             this.rowHorizontal.Properties.RowEdit = this.repositoryBlackMark;
             this.rowHorizontal.Properties.Value = "-1.0";
             //
+            // categoryResult
+            //
+            this.categoryResult.ChildRows.AddRange(new DevExpress.XtraVerticalGrid.Rows.BaseRow[] {
+            this.rowResult,
+            this.rowCompare});
+            this.categoryResult.Name = "categoryResult";
+            this.categoryResult.Properties.Caption = "계산 결과";
+            //
+            // rowResult
+            //
+            this.rowResult.Name = "rowResult";
+            this.rowResult.Properties.Caption = "^Q / ^W";
+            this.rowResult.Properties.ReadOnly = true;
+            //
+            // rowCompare
+            //
+            this.rowCompare.Name = "rowCompare";
+            this.rowCompare.Properties.Caption = "열린 서식과 비교";
+            this.rowCompare.Properties.ReadOnly = true;
+            //
             // btnApplyBlackMark
             //
             this.btnApplyBlackMark.Dock = System.Windows.Forms.DockStyle.Bottom;
@@ -716,7 +740,7 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
             this.btnApplyBlackMark.Name = "btnApplyBlackMark";
             this.btnApplyBlackMark.Size = new System.Drawing.Size(510, 27);
             this.btnApplyBlackMark.TabIndex = 1;
-            this.btnApplyBlackMark.Text = "서식에 반영";
+            this.btnApplyBlackMark.Text = "계산값을 ^Q·^W에 적용";
             this.btnApplyBlackMark.Click += new System.EventHandler(this.btnApplyBlackMark_Click);
             //
             // pageRaw
@@ -1342,6 +1366,9 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
         private DevExpress.XtraVerticalGrid.Rows.EditorRow rowSensor;
         private DevExpress.XtraVerticalGrid.Rows.EditorRow rowVertical;
         private DevExpress.XtraVerticalGrid.Rows.EditorRow rowHorizontal;
+        private DevExpress.XtraVerticalGrid.Rows.CategoryRow categoryResult;
+        private DevExpress.XtraVerticalGrid.Rows.EditorRow rowResult;
+        private DevExpress.XtraVerticalGrid.Rows.EditorRow rowCompare;
         private DevExpress.XtraEditors.SimpleButton btnApplyBlackMark;
         private DevExpress.XtraTab.XtraTabPage pageRaw;
         private DevExpress.XtraEditors.MemoEdit memoRaw;

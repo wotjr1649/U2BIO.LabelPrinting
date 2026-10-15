@@ -29,11 +29,12 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
                 CheckSettings(directory);
                 CheckDocument(directory);
                 CheckPreview();
+                CheckMedia();
                 CheckGapLabel();
                 CheckUsbPorts();
                 CheckNoNativeOrUi();
                 Console.WriteLine("PASS: tester self-check " + (expect64 ? "x64" : "x86")
-                    + " settings/document/preview/gap-label/usb-list; nativeSDK=not-loaded; no UI/device");
+                    + " settings/document/preview/media/safe-area/gap-label/usb-list; nativeSDK=not-loaded; no UI/device");
                 return 0;
             }
             catch (Exception error)
@@ -139,6 +140,22 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
             Check(ReferenceEquals(document.Template, opened) && !document.IsDirty);
             CheckBlackMarkAtomic(directory);
 
+            step = "document-revert";
+            document.Apply(t => t.WithText(0, t.TextElements[0].WithPosition(80, 140)));
+            Check(document.IsDirty);
+            document.Apply(t => t.WithText(0, t.TextElements[0].WithPosition(80, 120)));
+            Check(!document.IsDirty && document.Template.ToBtpl() == SampleText);
+            document.Apply(t => t.WithSetting(new BtplSetting("^Q", "36,5,9+")));
+            Check(document.IsDirty);
+            document.Apply(t => t.WithSetting(new BtplSetting("^Q", "35,5,9+")));
+            Check(!document.IsDirty);
+            // 비표준 표기는 값만 되돌려도 DLL이 표준 표기로 써서 원문이 달라지므로 수정됨으로 남는다.
+            var padded = new TemplateDocument();
+            padded.Open(WriteTemplate(directory, "padded.txt", SampleText.Replace("AW,80,120,", "AW,80,00120,")));
+            padded.Apply(t => t.WithText(0, t.TextElements[0].WithPosition(80, 140)));
+            padded.Apply(t => t.WithText(0, t.TextElements[0].WithPosition(80, 120)));
+            Check(padded.IsDirty);
+
             step = "document-save";
             Edit(document, "첫 저장");
             Check(document.IsDirty);
@@ -176,6 +193,7 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
         {
             string external = SampleText.Replace("^S5", "^S6");
             File.WriteAllText(copy, external, Cp949);
+            string before = document.Template.TextElements[1].Payload;
             Edit(document, "충돌 편집");
             var edited = document.Template;
             Expect<BtplSaveConflictException>(() => document.Save());
@@ -184,6 +202,9 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
             string other = WriteTemplate(directory, "other.txt", SampleText);
             Expect<IOException>(() => document.SaveAs(other, false));
             Check(ReferenceEquals(document.Template, edited) && document.IsDirty && document.DisplayPath == copy && ReadText(other) == SampleText);
+            // 실패한 저장은 비교 기준을 바꾸지 않으므로 되돌리면 수정됨이 아니다.
+            document.Apply(t => t.WithText(1, t.TextElements[1].WithPayload(before)));
+            Check(!document.IsDirty);
 
             step = "document-reload";
             document.Reload();
@@ -217,6 +238,36 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
             Check(TemplateDocument.PreviewText("^V00", "^V01!!SAFE") == "^V01");
             Check(TemplateDocument.PreviewText("^V02", variableData) == "^V02");
             Check(TemplateDocument.PreviewText("^V00", null) == "^V00");
+        }
+
+        // 계산값 비교는 DLL에 적용해 보기만 한다. 영역 판정은 운영 기준 용지의 SafeArea(X 71~732, Y 66~255)로 확인한다.
+        private static void CheckMedia()
+        {
+            step = "media";
+            var media = new BtplBlackMarkMedia(70m, 35m, 5m, 7.5m, 60m, 20m);
+            BtplTemplate sample = BtplTemplate.Parse(SampleText);
+            Check(TemplateDocument.SameMedia(sample, media));
+            Check(!TemplateDocument.SameMedia(BtplTemplate.Parse(SampleText.Replace("^W70", "^W60")), media));
+            Check(!TemplateDocument.SameMedia(BtplTemplate.Parse(SampleText.Replace("^W70\r\n", "")), media));
+            Check(!TemplateDocument.SameMedia(BtplTemplate.Parse(SampleText.Replace("^Q35,5,9+", "^Q35,5")), media));
+            Expect<BtplFormatException>(() => TemplateDocument.SameMedia(BtplTemplate.Parse(SampleText.Replace("^W70\r\n", "^W70\r\n^W70\r\n")), media));
+
+            step = "safe-area";
+            BtplArea safe = media.SafeArea;
+            Check(safe.Left == 71 && safe.Top == 66 && safe.Right == 732 && safe.Bottom == 255);
+            BtplTemplate edge = BtplTemplate.Parse(SampleText.Replace("AW,80,120,", "AW,80,208,").Replace("AW,80,160,", "AW,80,209,"));
+            Check(TemplateDocument.OutsideSafeArea(edge.TextElements[0], safe, 100) == null);
+            Check(TemplateDocument.OutsideSafeArea(edge.TextElements[1], safe, 100) == "아래 1 dot");
+            BtplTemplate far = BtplTemplate.Parse(SampleText.Replace("AW,80,120,", "AW,80,260,").Replace("AW,80,160,10,", "AW,70,65,10,"));
+            Check(TemplateDocument.OutsideSafeArea(far.TextElements[0], safe, 100) == "아래 52 dot");
+            Check(TemplateDocument.OutsideSafeArea(far.TextElements[1], safe, 663) == "위 1 dot, 왼쪽 1 dot, 오른쪽 1 dot 추정");
+            // 경고 거리는 그리기 제한(100000) 전 높이로 구한다.
+            BtplTemplate huge = BtplTemplate.Parse(SampleText.Replace("AW,80,120,10,", "AW,80,66,30000,"));
+            Check(TemplateDocument.OutsideSafeArea(huge.TextElements[0], safe, 100) == "아래 141477 dot");
+            BtplTemplate turned = BtplTemplate.Parse(SampleText.Replace("AW,80,120,10,1,0,0,", "AW,80,120,10,1,1,0,")
+                .Replace("AW,80,160,10,1,0,0,", "AW,80,160,10,1,0,1,"));
+            Check(TemplateDocument.CanJudge(sample.TextElements[0]) && !TemplateDocument.CanJudge(turned.TextElements[0])
+                && !TemplateDocument.CanJudge(turned.TextElements[1]));
         }
 
         private static void CheckGapLabel()

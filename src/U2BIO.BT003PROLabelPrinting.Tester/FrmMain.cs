@@ -43,6 +43,7 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
         private readonly BindingList<ResultRow> results = new BindingList<ResultRow>();
         private string[] recentShown;
         private bool previewFailed;
+        private bool canApplyMedia;
         private bool busy;
         private bool closeRequested;
         private bool connectAttempted;
@@ -107,14 +108,74 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
             rowS.Properties.Value = Parameters(template, "^S") ?? "";
             rowH.Properties.Value = Parameters(template, "^H") ?? "";
             memoRaw.Text = open ? template.ToBtpl() : "";
-            // 줄을 숨기거나 글자 길이로 너비를 바꾸면 왼쪽 열 배치가 흔들리므로 항상 같은 자리에 둔다.
-            bool unsupported = open && template.UnsupportedLineNumbers.Count > 0;
-            lblUnsupported.Text = !open ? "" : "미지원 줄: " + (unsupported ? string.Join(", ", template.UnsupportedLineNumbers) : "없음");
-            lblUnsupported.ToolTip = lblUnsupported.Text;
-            lblUnsupported.Appearance.ForeColor = unsupported ? Color.Red : Color.Gray;
+            RefreshMedia();
             RefreshRecentMenu();
             UpdateEnabled();
             lblStatus.Text = "연결: " + connectionState + connectionTarget + " · 위치: " + positionState;
+        }
+
+        // 블랙마크 계산 결과, 열린 서식과의 비교, 미리보기 아래 경고 줄을 함께 갱신한다. 문서는 바꾸지 않는다.
+        private void RefreshMedia()
+        {
+            BtplTemplate template = doc.Template;
+            BtplBlackMarkMedia media = CreateMedia(out string error);
+            rowResult.Properties.Value = media == null ? "계산 입력 오류: " + error
+                : media.LabelSetting.Command + media.LabelSetting.Parameters + " / " + media.WidthSetting.Command + media.WidthSetting.Parameters;
+            string compare;
+            string tip = "^Q·^W가 같아도 라벨 크기·dpi·보정까지 같다는 뜻은 아닙니다.";
+            canApplyMedia = false;
+            if (template == null) compare = "열린 서식 없음";
+            else if (media == null) compare = "계산 입력 오류";
+            else
+            {
+                try
+                {
+                    bool same = TemplateDocument.SameMedia(template, media);
+                    compare = same ? "같음" : "다름";
+                    canApplyMedia = !same;
+                }
+                // 버튼은 켜 두어 누르면 공통 오류 줄에 이유와 외부 편집 안내가 나오게 한다.
+                catch (BtplFormatException format)
+                {
+                    compare = "적용 불가 예상: " + format.Code;
+                    tip = format.Message;
+                    canApplyMedia = true;
+                }
+            }
+            rowCompare.Properties.Value = compare;
+            rowCompare.Properties.ToolTip = tip;
+
+            // 줄을 숨기거나 글자 길이로 너비를 바꾸면 왼쪽 열 배치가 흔들리므로 항상 같은 자리에 두고 긴 내용은 툴팁으로 본다.
+            bool unsupported = template != null && template.UnsupportedLineNumbers.Count > 0;
+            bool outside = false;
+            var notes = new List<string>();
+            if (template != null)
+            {
+                notes.Add("미지원 줄: " + (unsupported ? string.Join(", ", template.UnsupportedLineNumbers) : "없음"));
+                if (media == null) notes.Add("계산 입력 오류로 영역 판정 안 함");
+                else
+                {
+                    string variable = VariableData();
+                    var outsideLines = new List<string>();
+                    var skipped = new List<string>();
+                    foreach (BtplTextElement text in template.TextElements)
+                    {
+                        string line = "줄 " + text.TemplateLine;
+                        if (!TemplateDocument.CanJudge(text)) skipped.Add(line);
+                        else
+                        {
+                            string where = TemplateDocument.OutsideSafeArea(text, media.SafeArea, MeasureDots(text, variable));
+                            if (where != null) outsideLines.Add(line + "(" + where + ")");
+                        }
+                    }
+                    outside = outsideLines.Count > 0;
+                    if (outside) notes.Add("안전 영역 밖: " + string.Join(", ", outsideLines));
+                    if (skipped.Count > 0) notes.Add("판정 제외(정렬·회전): " + string.Join(", ", skipped));
+                }
+            }
+            lblUnsupported.Text = string.Join(" · ", notes);
+            lblUnsupported.ToolTip = lblUnsupported.Text;
+            lblUnsupported.Appearance.ForeColor = unsupported || outside ? Color.Red : Color.Gray;
             previewPanel.Invalidate();
         }
 
@@ -134,7 +195,7 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
             btnRemoveText.Enabled = open && template.TextElements.Count > 0;
             gridSettings.Enabled = open;
             gridBlackMark.Enabled = idle;
-            btnApplyBlackMark.Enabled = open;
+            btnApplyBlackMark.Enabled = open && canApplyMedia;
             btnConnect.Enabled = idle;
             btnDisconnect.Enabled = idle;
             btnStatus.Enabled = idle;
@@ -604,8 +665,11 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
             RefreshView();
         }
 
-        private void gridBlackMark_CellValueChanged(object sender, DevExpress.XtraVerticalGrid.Events.CellValueChangedEventArgs e) =>
-            previewPanel.Invalidate();
+        private void gridBlackMark_CellValueChanged(object sender, DevExpress.XtraVerticalGrid.Events.CellValueChangedEventArgs e)
+        {
+            RefreshMedia();
+            UpdateEnabled();
+        }
 
         private BtplBlackMarkMedia CreateMedia(out string error)
         {
@@ -677,16 +741,36 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
             if (media != null) DrawAreas(g, media, left, top, scale);
             foreach (BtplTextElement text in template.TextElements)
             {
-                float pixels = Math.Max(1f, DotHeight(text) * scale);
-                using (var font = new Font("굴림", pixels, text.Weight >= 2 ? FontStyle.Bold : FontStyle.Regular, GraphicsUnit.Pixel))
+                bool outside = media != null && TemplateDocument.CanJudge(text)
+                    && TemplateDocument.OutsideSafeArea(text, media.SafeArea, MeasureDots(text, variable)) != null;
+                using (Font font = PreviewFont(text, Math.Max(1f, DotHeight(text) * scale)))
                 {
-                    g.DrawString(TemplateDocument.PreviewText(text.Payload, variable), font, Brushes.Black, left + text.X * scale, top + text.Y * scale);
+                    // 폭 측정과 같은 조건으로 그려 빨간 표시와 경고 줄이 같은 상자를 가리키게 한다.
+                    g.DrawString(TemplateDocument.PreviewText(text.Payload, variable), font, outside ? Brushes.Red : Brushes.Black,
+                        left + text.X * scale, top + text.Y * scale, StringFormat.GenericTypographic);
                 }
             }
         }
 
-        // SDK가 LOGFONT 높이를 size*340/72 dot로 계산한다.
-        private static int DotHeight(BtplTextElement text) => Clamp((long)text.Size * 340 / 72);
+        private static Font PreviewFont(BtplTextElement text, float pixels) =>
+            new Font("굴림", pixels, text.Weight >= 2 ? FontStyle.Bold : FontStyle.Regular, GraphicsUnit.Pixel);
+
+        // 미리보기 글꼴로 잰 문구 폭(dot)이다. 프린터 글꼴 폭과 같다는 보장이 없는 추정이며, 큰 글자는 1000 px로 재고 비례로 늘린다.
+        private static long MeasureDots(BtplTextElement text, string variable)
+        {
+            int height = DotHeight(text);
+            float em = Math.Min(height, 1000);
+            using (var bitmap = new Bitmap(1, 1))
+            using (Graphics g = Graphics.FromImage(bitmap))
+            using (Font font = PreviewFont(text, em))
+            {
+                SizeF size = g.MeasureString(TemplateDocument.PreviewText(text.Payload, variable), font, PointF.Empty, StringFormat.GenericTypographic);
+                return (long)Math.Ceiling(size.Width * height / em);
+            }
+        }
+
+        // 그리기용 높이다. 극단적인 크기는 Clamp로 제한하고, 경고 거리는 제한 전 TextHeight로 구한다.
+        private static int DotHeight(BtplTextElement text) => Clamp(TemplateDocument.TextHeight(text));
 
         // 극단적인 서식 값으로 int 계산이 넘치거나 그리기가 실패하지 않게 dot 값을 제한한다.
         private static int Clamp(long dots) => (int)Math.Max(1, Math.Min(MaxDots, dots));
