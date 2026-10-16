@@ -43,6 +43,7 @@ internal static class Program
                 Check(!result.IsSuccess && result.NativeCode == null && !result.PrintInvoked && !string.IsNullOrWhiteSpace(result.Message));
                 Check(printer.Disconnect().IsSuccess);
             }
+            CheckupExamples.VerifyOffline(directory);
             foreach (string file in new[] { "BlackfishNfcLib.dll", "HFModule.dll" })
                 Check(!File.Exists(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, file)));
             using (var process = Process.GetCurrentProcess())
