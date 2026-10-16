@@ -177,7 +177,7 @@ SDK 코드 0과 `SendData` 코드 0은 물리 출력·이동 완료 증거가 �
 
 Message가 용지 위치 불명을 안내하면 실제 위치를 확인하고 수동으로 정렬한 뒤 `ConfirmPrintPosition`을 호출하거나, 대기 화면에서 아래 `FeedAndConfirmPosition`을 호출한다. 이 함수는 기록을 0으로 바꿀 뿐 센서를 조회하거나 용지를 이동하지 않는다.
 
-`FeedAndConfirmPosition`은 FEED 키 + `ConfirmPrintPosition` 절차를 DLL이 대신한다. 연결 확인과 2초 간격 대기 뒤 위치를 불명으로 저장하고 `SendData("~S,FEED")`를 보낸 다음, 응답 0이면 기록을 0으로 저장한다. 배출 상태여도 복귀하지 않으며, 응답 실패·예외·저장 실패이면 위치를 불명으로 남긴다. 프린터는 마지막으로 받은 ^Q로 마크를 맞추므로 ^Q를 바꾼 직후에는 새 서식으로 한 장 인쇄한 뒤 호출하고, LCD 메뉴가 열린 상태에서는 호출하지 않는다. 응답 0도 정렬 완료 증거가 아니다. `~S,FEED` 전송 경로는 아직 실기로 확인하지 않았다(물리 FEED 키 + ConfirmPrintPosition 절차만 확인).
+`FeedAndConfirmPosition`은 FEED 키 + `ConfirmPrintPosition` 절차를 DLL이 대신한다. 연결 확인과 2초 간격 대기 뒤 위치를 불명으로 저장하고 `SendData("~S,FEED")`를 보낸 다음, 응답 0이면 기록을 0으로 저장한다. 배출 상태여도 복귀하지 않으며, 응답 실패·예외·저장 실패이면 위치를 불명으로 남긴다. 프린터는 마지막으로 받은 ^Q로 마크를 맞추므로 ^Q를 바꾼 직후에는 새 서식으로 한 장 인쇄한 뒤 호출하고, LCD 메뉴가 열린 상태에서는 호출하지 않는다. 응답 0도 정렬 완료 증거가 아니다. 2026-10-16 운영 기준 블랙마크 용지의 x64·x86 실기에서 배출 상태와 위치 불명 상태의 FEED 후 출력이 수동 절차와 같은 것을 사용자 관측으로 확인했다. 확인 범위와 한계는 [운영 기준](PRINT_PRESENTATION.ko.md#feed-헬퍼-실기-확인-2026-10-16-19)을 따른다.
 
 Message가 SDK 연결 복구를 안내하면 `Disconnect`로 닫힘을 확인한 뒤 재연결한다. `GetConnectionStatus`가 Open을 반환하거나 `ConfirmPrintPosition`을 호출해도 faulted는 해제되지 않으며, faulted 연결에서 `FeedAndConfirmPosition`은 FEED를 보내지 않는다. 연결 상태와 용지 위치에 모두 문제가 있으면 각각 복구해야 한다.
 
