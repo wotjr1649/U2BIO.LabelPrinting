@@ -45,6 +45,13 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
         private readonly TemplateDocument doc = new TemplateDocument();
         private readonly DXPopupMenu recentMenu = new DXPopupMenu();
         private readonly DXPopupMenu undoMenu = new DXPopupMenu();
+        private readonly DXPopupMenu saveMenu = new DXPopupMenu();
+        private readonly DXPopupMenu connectMenu = new DXPopupMenu();
+        private readonly DXPopupMenu feedMenu = new DXPopupMenu();
+        private DXMenuItem closeItem;
+        private DXMenuItem saveAsItem;
+        private DXMenuItem statusItem;
+        private DXMenuItem confirmItem;
         private DXMenuItem redoItem;
         private DXMenuItem revertSavedItem;
         private DXMenuItem revertOpenedItem;
@@ -66,6 +73,8 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
         private string fontRealized;
         private Dictionary<string, TextRaster> rasters = new Dictionary<string, TextRaster>();
         private bool busy;
+        private bool printing;
+        private bool stopRequested;
         private bool closeRequested;
         private bool connectAttempted;
         private string connectionState = "미연결";
@@ -77,6 +86,16 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
         {
             InitializeComponent();
             settings = TesterSettings.Load(TesterSettings.DefaultFilePath);
+            closeItem = new DXMenuItem("서식 닫기", btnClose_Click) { BeginGroup = true };
+            saveAsItem = new DXMenuItem("다른 이름 저장", btnSaveAs_Click);
+            statusItem = new DXMenuItem("연결 상태 조회", btnStatus_Click);
+            confirmItem = new DXMenuItem("수동 정렬 완료 확인", btnConfirmPosition_Click);
+            saveMenu.Items.Add(saveAsItem);
+            connectMenu.Items.Add(statusItem);
+            feedMenu.Items.Add(confirmItem);
+            btnSave.DropDownControl = saveMenu;
+            btnConnect.DropDownControl = connectMenu;
+            btnFeed.DropDownControl = feedMenu;
             btnOpen.DropDownControl = recentMenu;
             redoItem = new DXMenuItem("다시 실행 (Ctrl+Y)", (sender, e) => RunHistory(doc.Redo));
             revertSavedItem = new DXMenuItem("마지막 저장 상태로", (sender, e) => RunHistory(doc.RevertToSaved));
@@ -350,8 +369,8 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
             bool open = idle && template != null;
             btnOpen.Enabled = idle;
             btnSave.Enabled = open;
-            btnSaveAs.Enabled = open;
-            btnClose.Enabled = open;
+            saveAsItem.Enabled = open;
+            closeItem.Enabled = open;
             btnSettings.Enabled = idle;
             gridTexts.Enabled = open;
             btnAddText.Enabled = open;
@@ -366,11 +385,15 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
             revertOpenedItem.Enabled = open && doc.DiffersFromOpened;
             btnConnect.Enabled = idle;
             btnDisconnect.Enabled = idle;
-            btnStatus.Enabled = idle;
-            btnConfirmPosition.Enabled = idle;
+            statusItem.Enabled = idle;
+            confirmItem.Enabled = idle;
             btnFeed.Enabled = idle;
             btnPrintEdit.Enabled = open;
             btnPrintFile.Enabled = open && template.FilePath != null;
+            txtVariable.Enabled = idle;
+            spinPrintCount.Enabled = idle;
+            btnStopPrint.Enabled = busy && printing && !stopRequested;
+            foreach (DXMenuItem item in recentMenu.Items) item.Enabled = (idle && item.Tag != null) || (item == closeItem && open);
         }
 
         private void RefreshTexts(BtplTemplate template)
@@ -391,6 +414,7 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
                 recentMenu.Items.Add(new DXMenuItem(file, recentItem_Click) { Tag = file });
             }
             if (settings.RecentFiles.Count == 0) recentMenu.Items.Add(new DXMenuItem("최근 파일 없음") { Enabled = false });
+            recentMenu.Items.Add(closeItem);
         }
 
         private static string Parameters(BtplTemplate template, string command) =>
@@ -425,12 +449,21 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
 
         private void btnOpen_Click(object sender, EventArgs e)
         {
+            if (busy) return;
             using (var dialog = new OpenFileDialog { Filter = FileFilter })
             {
-                if (settings.TemplateFolder.Length > 0) dialog.InitialDirectory = settings.TemplateFolder;
+                dialog.InitialDirectory = OpenDirectory(doc.Template?.FilePath, settings.RecentFiles);
                 if (dialog.ShowDialog(this) != DialogResult.OK) return;
                 OpenTemplate(dialog.FileName);
             }
+        }
+
+        internal static string OpenDirectory(string currentPath, IEnumerable<string> recentFiles)
+        {
+            string currentDirectory = currentPath == null ? null : Path.GetDirectoryName(currentPath);
+            if (Directory.Exists(currentDirectory)) return currentDirectory;
+            string recent = recentFiles.FirstOrDefault(File.Exists);
+            return recent == null ? null : Path.GetDirectoryName(recent);
         }
 
         private void recentItem_Click(object sender, EventArgs e)
@@ -572,6 +605,7 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
 
         private void btnSettings_Click(object sender, EventArgs e)
         {
+            if (busy) return;
             using (var form = new FrmSettings(settings))
             {
                 // 설정은 열린 서식의 ^Q·^W를 바꾸지 않는다. 보정에 따라 칸 표시와 미리보기만 다시 계산한다.
@@ -593,6 +627,7 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
             {
                 e.Cancel = true;
                 closeRequested = true;
+                stopRequested = true;
                 return;
             }
             if (!ConfirmDiscard())
@@ -624,28 +659,70 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
         }
 
         // 모든 장치 호출은 여기서만 실행해 중복 호출을 막고 예외도 결과 행으로 남긴다. 자동 재시도는 하지 않는다.
-        private async Task RunDevice(string action, Func<PrinterResult> call)
+        private async Task RunDevice(string action, Func<PrinterResult> call, int? printCount = null)
         {
             if (busy) return;
             busy = true;
+            printing = printCount.HasValue;
+            stopRequested = false;
+            int requested = printCount ?? 1;
+            int attempted = 0, succeeded = 0;
             UpdateEnabled();
             try
             {
-                PrinterResult result = await Task.Run(call);
-                Record(new ResultRow(action, result.IsSuccess, result.NativeCode, result.PrintInvoked, result.PrintCode, result.Message));
-            }
-            catch (Exception error)
-            {
-                Record(new ResultRow(action, false, null, null, null, error.GetType().Name + ": " + error.Message));
-                // 인쇄 직전 파일 읽기 실패·확인 뒤 변경은 공통 오류 줄에도 보인다.
-                if (error is BtplFormatException || error is IOException) ShowException(error);
+                // 한 호출이 돌아온 뒤에만 다음 장을 요청한다. SDK 강제 취소나 실패 장 자동 재인쇄는 하지 않는다.
+                while (attempted < requested && !stopRequested)
+                {
+                    attempted++;
+                    string rowAction = printing ? action + " (" + attempted + "/" + requested + ")" : action;
+                    if (printing) lblPrintProgress.Text = "요청 " + attempted + "/" + requested + " 처리 중 (SDK 응답 대기)";
+                    try
+                    {
+                        PrinterResult result = await Task.Run(call);
+                        Record(new ResultRow(rowAction, result.IsSuccess, result.NativeCode, result.PrintInvoked, result.PrintCode, result.Message));
+                        if (!result.IsSuccess) break;
+                        succeeded++;
+                    }
+                    catch (Exception error)
+                    {
+                        Record(new ResultRow(rowAction, false, null, null, null, error.GetType().Name + ": " + error.Message));
+                        if (error is BtplFormatException || error is IOException) ShowException(error);
+                        break;
+                    }
+                }
             }
             finally
             {
+                if (printing) lblPrintProgress.Text = "요청 " + requested + " · SDK 정상 " + succeeded
+                    + " · 실패/불명 " + (attempted - succeeded) + " · 미시도 " + (requested - attempted)
+                    + (stopRequested ? " · 중단됨" : "") + " (실제 출력 완료 수 아님)";
+                printing = false;
                 busy = false;
                 RefreshView();
                 if (closeRequested) BeginInvoke(new Action(Close));
             }
+        }
+
+        private void btnStopPrint_Click(object sender, EventArgs e)
+        {
+            if (!busy || !printing) return;
+            stopRequested = true;
+            lblPrintProgress.Text = "중단 요청됨 · 현재 SDK 호출이 돌아오면 종료합니다.";
+            UpdateEnabled();
+        }
+
+        internal static int ReadPrintCount(object value)
+        {
+            if (!decimal.TryParse(Convert.ToString(value, CultureInfo.InvariantCulture), MmStyle,
+                CultureInfo.InvariantCulture, out decimal count) || count != decimal.Truncate(count) || count < 1 || count > 20)
+                throw new ArgumentException("요청 장수는 1~20 정수여야 합니다.");
+            return (int)count;
+        }
+
+        private int? PrintCount()
+        {
+            try { return ReadPrintCount(spinPrintCount.EditValue); }
+            catch (ArgumentException error) { ShowError(error.Message); return null; }
         }
 
         private void Record(ResultRow row)
@@ -697,15 +774,19 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
         private async void btnPrintEdit_Click(object sender, EventArgs e)
         {
             if (busy || doc.Template == null || !CommitEditors()) return;
+            int? count = PrintCount();
+            if (!count.HasValue) return;
             if (!ConfirmPrint(doc.Template)) return;
             string btpl = doc.Template.ToBtpl();
             string data = VariableData();
-            await RunDevice("편집 중 서식 인쇄", () => printer.Print(btpl, data));
+            await RunDevice("편집 중 서식 인쇄", () => printer.Print(btpl, data), count);
         }
 
         private async void btnPrintFile_Click(object sender, EventArgs e)
         {
             if (busy || doc.Template?.FilePath == null || !CommitEditors()) return;
+            int? count = PrintCount();
+            if (!count.HasValue) return;
             string path = doc.Template.FilePath;
             if (doc.IsDirty && XtraMessageBox.Show(this, "저장하지 않은 수정은 이 인쇄에 반영되지 않습니다. 계속할까요?", Title,
                 MessageBoxButtons.YesNo, MessageBoxIcon.Warning, MessageBoxDefaultButton.Button2) != DialogResult.Yes) return;
@@ -723,7 +804,7 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
             }
             if (!ConfirmPrint(disk)) return;
             string confirmed = disk.ToBtpl();
-            await RunDevice("저장된 파일 인쇄", () => TemplateDocument.WithConfirmedFile(path, confirmed, () => printer.PrintFile(path, data)));
+            await RunDevice("저장된 파일 인쇄", () => TemplateDocument.WithConfirmedFile(path, confirmed, () => printer.PrintFile(path, data)), count);
         }
 
         // AW X가 1 이상 정수가 아니면 SDK 예외가 나므로 확인으로도 넘기지 않는다. 라벨 방식이 설정 용지와 다르거나 정할 수 없으면 확인을 받는다.
