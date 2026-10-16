@@ -1,6 +1,6 @@
 # 동기 USB MVP 설계
 
-이슈 #16의 [확정 스펙](specs/SYNC_USB_MVP.md)이 현재 계약이다. [결정 기록](design/decisions/2026-10-12-sync-usb-mvp.md)에 사용자 선택과 제외 범위를 보존한다. 이전 #15 계약은 [역사 설계](history/DESIGN_wrapper_issue15.md)에 있다.
+이 문서는 유지보수자용 내부 설계다. 기본 사용은 [공개 API](PRINTER_API.ko.md), 사용자 문서 읽는 순서는 [README](../README.md)를 따른다. 인쇄 계약은 [동기 USB 스펙](specs/SYNC_USB_MVP.md)이다. [결정 기록](design/decisions/2026-10-12-sync-usb-mvp.md)에 사용자 선택과 제외 범위를 보존한다. 이전 #15 계약은 [역사 설계](history/DESIGN_wrapper_issue15.md)에 있다.
 
 Bt003Printer.cs는 공개 메서드, 입력 검사, SDK 호출 순서와 자원 수명을 한 파일에서 보여 준다. PrinterModels.cs는 SDK 수준 결과만 담는다. 제조사 Wrapper 선언을 수정하거나 자체 로더·delegate 카탈로그로 감싸지 않는다. Templates의 선택 해석은 기본 인쇄 경로와 독립이다.
 
@@ -14,4 +14,4 @@ PrintCore는 연결 확인 → 이전 배출 복귀 → ResetForm → 선택 옵
 
 검사 책임은 세 부분이다. 실제 제품 DLL은 공개 API·원본 선언·검색 제한을 검사한다. 제품 소스를 그대로 링크한 관리 harness는 실패 순서와 수명을 검사한다. verify-build는 배포한 SDK 파일이 고정 제조사 해시와 같은지 검사한다. 어느 것도 실제 SDK 인쇄 성공을 증명하지 않는다.
 
-Print/PrintFile의 선택 인수는 `string variableData = null`이다. 제조사 `!!` 가변데이터 문자열을 기본 검사 후 변경 없이 전달하며 변수 번호 해석은 SDK가 맡는다. 배열/params overload는 제거했고 기존 호출 앱은 새 DLL로 재빌드해야 한다. 가변데이터 전환 당시 Templates는 유지했다. 이후 선택 기능은 [TXT 원문 편집과 저장 계약](specs/TXT_TEMPLATE_EDITOR.md)으로 재설계하며 기본 인쇄 경로는 유지한다.
+Print/PrintFile의 선택 인수는 `string variableData = null`이다. 제조사 `!!` 가변데이터 문자열을 기본 검사 후 변경 없이 전달하며 변수 번호 해석은 SDK가 맡는다. 배열/params overload는 제거했고 기존 호출 앱은 새 DLL로 재빌드해야 한다. 가변데이터 전환 당시 Templates는 유지했다. 현재 선택 기능은 [TXT 원문 편집과 저장 계약](specs/TXT_TEMPLATE_EDITOR.md)을 따르며 기본 인쇄 경로와 독립이다.

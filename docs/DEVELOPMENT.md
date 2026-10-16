@@ -1,53 +1,44 @@
-# 저장소 개발 환경과 기본 템플릿
+# 저장소 개발 환경과 검증
 
-공통 DLL은 .NET Framework 4.6.1, Tester는 WinForms / DevExpress 20.2.6을 사용한다. TASK-01의 솔루션·DLL·최소 검증 콘솔 프로젝트를 구성했다. 저장소 구조 검사, 제품 기반 빌드 검사, 실제 장치 시험의 증거를 구분한다.
+유지보수자용 안내다. 일반 사용자는 [README의 읽는 순서](../README.md#무엇부터-읽으면-되나요)를 따른다. 공통 DLL은 .NET Framework 4.6.1, Tester는 WinForms / DevExpress 20.2.6을 사용한다. 소스 빌드·관리 검사·실제 SDK·물리 시험을 구분한다.
 
 ## 기본 파일
 
-| 파일 | 역할 |
+| 자료 | 역할 |
 | --- | --- |
-| AGENTS.md | 작업별 문서 지도, 명령, 저장소 경계 |
-| .gitignore | devflow 비공개 경로, VS 빌드 산출물, 로컬 참고 자료 제외 |
-| .gitattributes | Git 텍스트 LF, cmd/bat CRLF, 바이너리 구분 |
-| .editorconfig | 새 파일의 기본 인코딩·들여쓰기·줄바꿈 |
-| .devflow.json | 작업 브랜치 형식·검사·참고 자료 보호 프로필 |
-| .github/ISSUE_TEMPLATE/intent.md | devflow Issue의 의도·수용 기준·현재 상태 |
-| .github/PULL_REQUEST_TEMPLATE.md | 변경 범위·검증·제한 기록 |
-| tools/verify-repository.js | 설치된 devflow doctor 및 설계 기준·인수 ID 검사 |
-| U2BIO.LabelPrinting.sln | Debug/Release × Any CPU/x86/x64 구성. DLL은 AnyCPU, 검증 exe와 Tester는 x86/x64이며 Any CPU solution은 둘을 x86으로 매핑 |
-| src/U2BIO.BT003PROLabelPrinting | 공통 DLL 프로젝트, internal SDK 선언·배포 검사·로더 구현 중 |
-| src/U2BIO.BT003PROLabelPrinting.Tester | DevExpress 서식 Tester(이슈 #8, [설계](specs/DEVEXPRESS_TESTER.md)). 출력 `bin/<x86 또는 x64>/<Configuration>/`에 같은 비트수 SDK 한 쌍과 DevExpress DLL을 복사한다 |
-| tests/U2BIO.BT003PROLabelPrinting.Validation | DLL 독립 로드·framework·PE·실행 비트 수 검사 |
-| tools/verify-build.js | 실제 재빌드·실행, 평가된 설정과 산출물 증거 기록 |
-
-통합 방식은 `push-on-request`다. 훅 활성화·전역 설치·저장소 권한 설정은 하지 않는다. 기존 계약이 docs의 개별 파일에 있으므로 specs/decisions 폴더를 새로 강제하거나 문서를 이동하지 않는다. `.devflow.json`의 `specs`와 `decisions`는 false이며 계약의 위치는 AGENTS.md에서 안내한다.
+| `AGENTS.md` | 작업에 따른 문서 안내와 안정적인 제품·보호 경계 |
+| `docs/specs/SYNC_USB_MVP.md`, `TXT_TEMPLATE_EDITOR.md`, `DEVEXPRESS_TESTER.md` | 인쇄·TXT·Tester 구현 계약 |
+| `docs/DESIGN.md` | 내부 연결·인쇄·정리 구조 |
+| `docs/BASELINE.md` | 구현 전 기준 태그와 해시 |
+| `docs/SDK_API_COVERAGE.md`, 제품 `Sdk/README.ko.md` | 제조사 선언·파일 출처·고정 해시 및 과거 대조 |
+| `docs/design/decisions/`, `docs/history/`, `docs/IMPLEMENTATION_PLAN.md` | 결정 이유·당시 계획·과거 검증 근거 |
+| `.devflow.json`, `.github/` 템플릿 | Issue 연결·검사·공개 기록 정책 |
+| `tools/verify-repository.js`, `tools/verify-build.js` | 저장소 구조 검사와 전체 빌드·관리 검증 |
 
 ## 저장소 검사
-
-Node.js는 설치된 devflow의 검사 실행에 사용한다. 제품 DLL에 Node.js 의존성을 넣지 않는다.
 
 ```text
 node tools/verify-repository.js
 git diff --check
 ```
 
-정상 출력은 doctor의 `ok`와 `Repository checks passed`다. 실행 프로세스 제한은 각 30초다. 검사기는 기본적으로 Codex 플러그인 캐시의 devflow 0.3.0을 찾는다. 다른 설치 위치를 사용하는 환경에서는 `DEVFLOW_ROOT` 환경 변수를 설치된 devflow 플러그인 루트로 지정한다. 값은 로컬 세션에서 설정하며 저장소 파일에 사용자 절대 경로를 넣지 않는다.
+정상 출력은 doctor의 `ok`와 `Repository checks passed`다. Node.js는 개발 검사 도구이며 제품 DLL의 런타임 의존성이 아니다. 검사기는 기본으로 설치된 devflow 0.3.0 경로를 찾는다. 설치 위치가 다르면 `DEVFLOW_ROOT`를 설치된 플러그인 루트로 **프로세스 환경**에 지정하고 개인 절대 경로를 저장소에 쓰지 않는다.
 
-기준 문서 해시는 현재 작업 파일이 아니라 `v0.1.1-design` 태그의 Git 내용과 비교한다. 후속 문서 수정은 태그를 바꾸지 않는 새 커밋으로 남긴다. 신규 clone에서 검사를 수행할 때 기준 태그도 가져와야 한다.
+문서 검사는 `BASELINE.md`의 네 해시를 현재 문서가 아니라 `v0.1.1-design` 태그의 Git 내용과 비교한다. 신규 clone에는 기준 태그도 가져온다. 문서를 고쳤다는 이유로 기준 태그·해시를 갱신하지 않는다. 검사기가 직접 읽는 문서 경로와 README/AGENTS/DESIGN/IMPLEMENTATION_PLAN/PRINTER_API의 `SYNC_USB_MVP.md` 참고 링크를 유지한다.
 
 ## 추적과 로컬 자료
 
-Issue 본문·체크포인트와 장부는 설치된 devflow의 `devflow-state` 명령을 사용한다. 재개 카드의 Tool 줄 또는 설치 플러그인의 `bin/devflow-state`가 실행 경로다. 인수 없이 실행하면 사용법을 확인할 수 있다. 템플릿은 게시 권한을 새로 부여하지 않는다.
+변경은 연결된 Issue와 `<type>/<issue>-<slug>` 전용 브랜치에서 진행한다. Issue I/O와 장부는 설치된 `devflow-state`를 사용하며, 본문·체크포인트에는 공개 가능한 요약만 남긴다. 통합 방식은 `push-on-request`다. 설정 파일이나 템플릿만으로 push·merge·배포 권한이 생기지는 않는다.
 
-빌드 산출물, 검토 임시 폴더, 제조사 변환 문서, 로컬 BTPL 참고 가이드와 그 검증 스크립트는 Git에서 제외한다. native DLL은 `src/U2BIO.BT003PROLabelPrinting/Sdk`의 고정 x86/x64 런타임 네 파일만 예외로 관리한다. 다른 SDK 사본과 기존 참고 자료는 이동·삭제·수정하지 않는다. 공개 설계 문서에서는 제외된 로컬 자료를 파일명으로 안내하고, clone에 포함된 것처럼 링크하지 않는다. [SDK 빌드·배포](SDK_DEPLOYMENT.ko.md)는 선택한 비트 수의 파일을 앱 출력 폴더에 복사하는 방법을 설명한다.
+`.devflow.json`의 `specs`와 `decisions`가 false여도 기존 계약·결정 문서를 삭제하거나 비공개로 만든다는 뜻은 아니다. 현재 구조와 경로를 유지하고 필요한 자료를 작업별로 읽는다.
 
-Issue가 생기기 전 저장소 최초 구성에는 `chore/repository-bootstrap`을 사용했다. 이후 작업은 `<type>/<issue>-<slug>` 형식으로 연결된 Issue와 함께 진행한다. 실제 빌드 명령은 아래에 기록하고 CI는 별도 구성 작업으로 남긴다.
+빌드 산출물·비공개 계획·검토 보고서·변환한 제조사 문서와 로컬 참고 자료는 Git에서 제외한다. 제조사 native 파일은 제품 `Sdk/x86`, `Sdk/x64`의 고정 네 파일만 추적한다. 원본·사용자 서식·다른 worktree를 정리 명목으로 바꾸지 않는다.
+
+`tests/`와 `examples/OfflineSmoke/`는 **개발 소스와 자동 검증에 보존**한다. Validation은 솔루션에 포함되고 SdkHarness와 OfflineSmoke는 검사기가 별도로 빌드·실행한다. 제품 배포에서 제외한다는 정책을 소스 삭제·추적 해제·검사 생략으로 구현하지 않는다. 추적된 개발 자료는 사용자 필독에서 빠져도 공개 상태이며 `.gitignore` 추가로 기존 Git 이력이 비공개가 되지는 않는다.
 
 ## DLL 기반 빌드와 실행 검사
 
-TASK-02의 추가 검사와 native 실행 경계는 [NATIVE_SDK_IMPLEMENTATION.md](history/NATIVE_SDK_IMPLEMENTATION.md)를 따른다. 아래 최초 missing-library 시험과 [BUILD_EVIDENCE.md](history/BUILD_EVIDENCE.md)는 TASK-01 당시의 근거다.
-
-검증한 커밋·구성별 결과·산출물 해시는 [BUILD_EVIDENCE.md](history/BUILD_EVIDENCE.md)에 기록한다.
+Visual Studio/MSBuild와 .NET Framework 4.6.1 targeting pack이 필요하다. 솔루션 전체에는 DevExpress 20.2.6이 설치된 개발 PC가 필요하지만 공통 DLL에는 DevExpress·DB 의존성이 없다.
 
 ```text
 node tools/verify-build.js
@@ -55,27 +46,35 @@ node tools/verify-build.js --configuration Debug
 node tools/verify-build.js --scope txt
 ```
 
-첫 명령은 Release의 x86/x64 두 구성을 재빌드하고 각각의 검증 실행 파일을 실행한다. 두 번째 명령은 Debug에 같은 검사를 적용한다. MSBuild를 vswhere로 설치된 Visual Studio에서 찾고 .NET Framework 4.6.1 targeting pack 존재 여부를 검사한다. 이번 구성에서 사용한 MSBuild는 16.11.6.22506, C# compiler는 3.11.0-4.26426.1이다. C# 언어 기준은 7.3이며 외부 NuGet 패키지·restore·DB 접속 설정을 추가하지 않았다. 제품 DLL에는 DevExpress가 없고 Tester만 DevExpress 20.2.6을 GAC 참조로 사용하므로, 솔루션 빌드와 verify-build에는 DevExpress 20.2.6이 설치된 개발 PC가 필요하다. 각 플랫폼 끝에서 Tester의 빌드 설정을 확인하고 `--self-check --expect-x86|x64`(화면·SDK 없이 설정·서식 규칙 검사)를 실행하며, 실행 폴더의 제품 DLL과 SDK 두 파일 해시를 검사한다.
+기본 명령은 Release x86/x64를 재빌드한다. DLL은 AnyCPU, 검증 exe와 Tester는 x86/x64이며 Any CPU 솔루션 구성은 exe를 x86으로 매핑한다. `--scope txt`도 현재 TXT와 공통 프린터 범위를 검사하고 harness·OfflineSmoke를 생략하지 않는다. Debug와 범위를 함께 지정하려면 `node tools/verify-build.js --configuration Debug --scope txt`처럼 범위를 마지막에 둔다.
 
-실제 MSBuild 호출 인수는 다음과 같다. 설치된 MSBuild 실행 파일에 전달하며 호스트별 절대 경로는 공개 문서에 저장하지 않는다.
+| 검사 | 확인하는 내용 |
+| --- | --- |
+| 실제 제품 DLL의 Validation | Framework·PE·실행 비트수·공개 API·원본 Wrapper 선언·TXT 편집/저장 |
+| 제품 두 소스를 링크한 SdkHarness | SDK 대체 호출로 순서·실패 중단·소유권·파일 잠금·배출/복귀·정리 수명 |
+| OfflineSmoke | 독립 호출자의 TXT 편집/저장·표시용 변수 치환·미연결 API·합성 DataTable 예시 |
+| Tester `--self-check` | 화면·SDK 초기화 전 설정·서식·표시/입력 규칙 |
+| 배포 파일 대조 | 관리 DLL 동일성과 해당 플랫폼 제조사 DLL 두 파일의 고정 해시 |
+
+이 검사는 제조사 SDK를 로드하거나 장치 인쇄·이송을 하지 않는다. 성공 출력은 각 검사 PASS와 `Build checks passed`다. SDK 응답·실제 출력 완료·사용자 관측은 별도 근거다.
+
+검사기는 vswhere로 MSBuild를 찾고 평가된 프로젝트 설정·컴파일러·targeting pack과 산출물 해시를 기록한다. 각 하위 프로세스는 120초·출력 2 MiB 제한이며 제한 초과는 실패다. 도구·로그 실제 경로와 프로세스 종료를 확인하고 compiler 공유와 MSBuild node reuse를 끈다. 명령·종료 코드·revision·dirty 상태·로그·관리 DLL/검증 exe 사본은 실행별 `.work/foundation/`에 남긴다. dirty 결과는 해당 작업 파일의 검사이며 같은 커밋 자체를 검증한 결과로 바꾸어 쓰지 않는다.
+
+TASK-01 당시의 기반 DLL·missing-library 시험은 [BUILD_EVIDENCE](history/BUILD_EVIDENCE.md), 초기 native 단계는 [NATIVE_SDK_IMPLEMENTATION](history/NATIVE_SDK_IMPLEMENTATION.md)에 보존한다. 당시의 미구현/미검증은 현재 제품 상태가 아니다. 현행 API는 [프린터 안내](PRINTER_API.ko.md)를 따른다.
+
+## SDK 배포용 빌드
+
+Visual Studio Developer Command Prompt에서 실행한다.
 
 ```text
-U2BIO.LabelPrinting.sln /t:Rebuild /m:1 /nr:false /nologo /v:minimal /p:Configuration=Release /p:Platform=x86 /p:UseSharedCompilation=false
-U2BIO.LabelPrinting.sln /t:Rebuild /m:1 /nr:false /nologo /v:minimal /p:Configuration=Release /p:Platform=x64 /p:UseSharedCompilation=false
+MSBuild src\U2BIO.BT003PROLabelPrinting\U2BIO.BT003PROLabelPrinting.csproj /t:Rebuild /m:1 /nr:false /p:Configuration=Release /p:Bt003NativePlatform=x86
+MSBuild src\U2BIO.BT003PROLabelPrinting\U2BIO.BT003PROLabelPrinting.csproj /t:Rebuild /m:1 /nr:false /p:Configuration=Release /p:Bt003NativePlatform=x64
 ```
 
-Debug는 Configuration 값을 Debug로 바꾼다. DLL은 `src/U2BIO.BT003PROLabelPrinting/bin/<Configuration>/U2BIO.BT003PROLabelPrinting.dll`에 생성한다. 검증 프로그램과 참조된 DLL 사본은 `tests/U2BIO.BT003PROLabelPrinting.Validation/bin/<x86 또는 x64>/<Configuration>/`에 각각 생성한다. 검증 실행 파일에는 해당 플랫폼의 `--expect-x86` 또는 `--expect-x64` 인수를 전달한다.
+출력은 제품 프로젝트의 `bin/x86/Release/` 또는 `bin/x64/Release/`이며 관리 DLL과 지정한 제조사 DLL 두 개가 생성된다. Debug는 Configuration을 바꾼다. `Bt003NativePlatform`을 생략하면 `bin/<Configuration>/`에 관리 DLL만 빌드하며 기존 출력의 SDK를 지우지는 않는다. 오프라인 검사에는 SDK가 없는 별도 검증 출력 폴더를 사용한다.
 
-MSBuild가 평가한 TargetFrameworkVersion·PlatformTarget·Prefer32Bit를 확인한 뒤 실제 어셈블리의 TargetFrameworkAttribute·PE와 실행 프로세스 비트 수를 검사한다. 검증 DLL은 실행 파일과 같은 폴더의 정확한 경로에서 로드한다. DevExpress/DB provider 참조와 프린터 native 모듈 로드 여부도 검사한다. 성공 출력은 `PASS: framework=4.6.1 library=AnyCPU process=x86 또는 x64 nativeSDK=not-loaded`와 `Build checks passed`다.
-
-빌드·검증 각 프로세스는 120초, 출력은 2 MiB로 제한하며 실패·제한 초과는 검사 실패다. 제한 초과 시 해당 프로세스 트리 종료를 요청하고 child 종료를 최대 5초 확인하며 미확인은 실패로 표시한다. 공유 compiler와 MSBuild node reuse는 끈다. 하위 프로세스에는 필요한 Windows·도구 환경만 전달하고 TEMP/TMP는 실행별 작업 폴더로 지정한다. 실행 도구와 로그 폴더는 실제 경로를 확인하며 저장소 밖으로 이어지는 로그 junction을 거절한다.
-
-로그·선택한 도구·명령·종료 코드·Git 커밋·작업 트리 변경 여부·targeting pack 식별 해시·산출물 경로와 SHA-256은 `.work/foundation/` 아래 실행별 폴더에 저장한다. DLL과 검증 exe 사본도 실행별 x86/x64 폴더에 새 파일로 보존하여 다음 Rebuild가 이전 실행의 사본을 덮어쓰지 않는다. workingTreeDirty=true인 결과는 현재 작업 파일의 검증이며 해당 Git 커밋 자체를 검증한 증거로 사용하지 않는다. 로그는 UTF-8과 이 환경의 CP949 출력을 판별하여 읽으며 호스트의 코드 페이지 설정은 바꾸지 않는다.
-
-DLL을 만들기 전 같은 Program.cs를 .NET Framework 4.6.1 참조로 standalone x86 exe로 컴파일·실행하여 `MANAGED_LIBRARY_MISSING` 및 종료 코드 3을 확인했다. 시험 소스를 커밋하고 devflow 시험 잠금을 적용한 뒤 DLL을 추가했다. Release/Debug × x86/x64의 네 실제 빌드·실행이 통과했다. DLL은 현재 공개 인쇄 API가 없는 기반 어셈블리이며 실제 출력·RFID 보존·ABI 검증은 TASK-02 이후에 수행한다. 문서 기준 태그는 그대로 보존한다.
-
-`--scope txt`는 TXT 파싱/저장과 공통 연결·인쇄·배출/복귀 계약을 x86/x64로 검사한다. TXT 전용 재설계 후 JSON/XML·바인딩 API는 제거되며 미뤄 둔 검사로 기록하지 않는다. 기본 전체 검사와 --scope txt는 모두 현재 TXT/프린터 범위를 검사한다. 범위 인수는 마지막에 지정하고 Debug와 함께 사용하려면 `node tools/verify-build.js --configuration Debug --scope txt`를 사용한다. 검증 exe에는 `--expect-x86 --txt-only` 또는 `--expect-x64 --txt-only`를 전달한다. 관리 검사는 실제 SDK/장치 인쇄를 실행하지 않는다.
+`ProjectReference` 호출 앱을 빌드할 때도 `/p:Platform=x64 /p:Bt003NativePlatform=x64`처럼 실제 실행 비트수를 명시하면 SDK 복사가 앱 출력으로 전달된다. 파일 참조 앱은 직접 배포한다. Tester는 솔루션의 제품 재빌드 중복을 피하려고 `Sdk/<Platform>` 두 파일을 직접 링크한다. 실행 폴더와 제품 배포 제외 목록은 [배포 안내](SDK_DEPLOYMENT.ko.md)에 있다.
 
 ## 서식 Tester 실행
 
-빌드 출력 폴더의 `U2BIO.BT003PROLabelPrinting.Tester.exe`를 실행한다. 설정은 사용자 로컬 앱 데이터 폴더의 `U2BIO/BT003Tester/settings.xml` 하나에 저장하며 x86/x64가 함께 쓴다. 한 번에 하나만 실행된다. 연결·인쇄·위치 확인 버튼은 SDK를 로드하고 장치를 움직이므로 실기 승인과 직접 관측이 있을 때만 사용한다. 화면 구성과 동작은 [설계](specs/DEVEXPRESS_TESTER.md)를 따른다.
+빌드 출력의 Tester.exe를 사용한다. 사용자 조작법과 설정·저장·반복 인쇄·복구는 [Tester 사용](PRINT_PRESENTATION.ko.md#tester-사용), 화면·내부 처리·SelfCheck의 구현 계약은 [Tester 설계](specs/DEVEXPRESS_TESTER.md)에 있다. SDK 로딩·연결·인쇄·FEED는 실기 승인과 직접 관측이 있는 시험에서만 실행한다.

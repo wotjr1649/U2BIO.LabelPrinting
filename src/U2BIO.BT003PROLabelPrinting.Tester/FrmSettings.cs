@@ -25,7 +25,6 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
             FillPorts(settings.Port, repositoryPort.Items);
             rowPort.Properties.Value = settings.Port;
             rowDistance.Properties.Value = settings.PresentationDistanceMm;
-            rowFolder.Properties.Value = settings.TemplateFolder;
             PrinterCalibration calibration = settings.Calibration;
             // 저장 값이 열거형이라 항목은 코드에서 채운다.
             repositoryMediaMode.Items.AddRange(new[]
@@ -91,26 +90,13 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
             edit.EditValue = current;
         }
 
-        private void repositoryFolder_ButtonClick(object sender, ButtonPressedEventArgs e)
-        {
-            var edit = (ButtonEdit)sender;
-            using (var dialog = new FolderBrowserDialog { SelectedPath = edit.Text })
-            {
-                if (dialog.ShowDialog(this) != DialogResult.OK) return;
-                edit.EditValue = dialog.SelectedPath;
-                // 코드로 넣은 값은 수정으로 표시되지 않아 PostEditor가 행 값에 옮기지 않는다.
-                edit.IsModified = true;
-            }
-        }
-
         private void btnOK_Click(object sender, EventArgs e)
         {
-            if (!gridConnection.PostEditor() || !gridTemplate.PostEditor() || !gridCalibration.PostEditor()) return;
+            if (!gridConnection.PostEditor() || !gridCalibration.PostEditor()) return;
             gridConnection.CloseEditor();
-            gridTemplate.CloseEditor();
             gridCalibration.CloseEditor();
             if (ShowError(gridConnection, pageConnection, rowPort) || ShowError(gridConnection, pageConnection, rowDistance)
-                || ShowError(gridTemplate, pageTemplate, rowFolder) || ShowError(gridCalibration, pageCalibration, rowDpi)
+                || ShowError(gridCalibration, pageCalibration, rowDpi)
                 || ShowError(gridCalibration, pageCalibration, rowSensor) || ShowError(gridCalibration, pageCalibration, rowVertical)
                 || ShowError(gridCalibration, pageCalibration, rowHorizontal)) return;
             try
@@ -118,7 +104,7 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
                 var calibration = new PrinterCalibration(ReadDpi(rowDpi.Properties.Value), ReadMm(rowSensor.Properties.Value),
                     ReadMm(rowVertical.Properties.Value), ReadMm(rowHorizontal.Properties.Value));
                 settings.Update(Convert.ToString(rowPort.Properties.Value), ReadDistance(rowDistance.Properties.Value),
-                    Convert.ToString(rowFolder.Properties.Value), calibration, (BtplLabelMode)rowMediaMode.Properties.Value);
+                    calibration, (BtplLabelMode)rowMediaMode.Properties.Value);
                 // 버튼에 DialogResult를 두지 않고 저장이 성공했을 때만 닫는다.
                 DialogResult = DialogResult.OK;
             }
@@ -148,7 +134,6 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
         {
             if (row == rowPort) return TesterSettings.CheckPort(Convert.ToString(value));
             if (row == rowDistance) return TesterSettings.CheckDistance(ReadDistance(value));
-            if (row == rowFolder) return TesterSettings.CheckFolder(Convert.ToString(value));
             if (row == rowDpi) return PrinterCalibration.CheckDpi(ReadDpi(value));
             if (row == rowSensor || row == rowHorizontal || row == rowVertical)
             {

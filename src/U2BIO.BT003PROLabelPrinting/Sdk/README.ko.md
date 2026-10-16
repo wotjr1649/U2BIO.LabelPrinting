@@ -11,8 +11,8 @@
 
 두 Blackfish 파일의 버전은 2.1.0.0이다. 각 사본의 SHA-256은 [SDK API 대조표](../../../docs/SDK_API_COVERAGE.md)의 고정 쌍과 같다. 출처는 제공 SDK의 `라이브러리/x86/lib`와 `라이브러리/x64/lib`다. 원본 파일은 변경하지 않았다.
 
-Visual Studio 프로젝트에 네 DLL을 표시하되 기본 빌드에는 복사하지 않는다. 실제 앱 배포를 준비할 때 `Bt003NativePlatform=x86` 또는 `x64`를 지정하면 해당 두 파일만 관리 DLL과 같은 출력 폴더에 복사한다. 관리 DLL 자체는 AnyCPU다. [빌드·배포 방법](../../../docs/SDK_DEPLOYMENT.ko.md)을 따른다.
+Visual Studio 프로젝트에 네 DLL을 표시하되 기본 빌드에는 복사하지 않는다. 실제 앱 배포를 준비할 때 `Bt003NativePlatform=x86` 또는 `x64`를 지정하면 해당 두 파일만 관리 DLL과 같은 출력 폴더에 복사한다. 관리 DLL 자체는 AnyCPU다. 소스 [배포용 빌드](../../../docs/DEVELOPMENT.md#sdk-배포용-빌드)와 실행 파일의 [배포 안내](../../../docs/SDK_DEPLOYMENT.ko.md)를 따른다.
 
 사본 준비는 제품 연결·인쇄 API 구현 완료나 실기 지원 확대를 뜻하지 않는다. SDK 로드는 연결 시점으로 지연하고, 오프라인 템플릿 편집·검사는 SDK 없이 동작한다. 임의 버전 교체·다른 해시의 파일 혼합은 지원하지 않는다.
 
-현재 #16 제품은 제조사 원본 StartLabelPrint의 StringBuilder 선언을 사용한다. 자체 로더·실행 시 해시·포인터 bridge는 제거했으며 고정 해시 검사는 verify-build에서만 수행한다. [동기 MVP 스펙](../../../docs/specs/SYNC_USB_MVP.md)을 따른다.
+현재 제품은 제조사 원본 StartLabelPrint의 StringBuilder 선언을 사용한다. 자체 로더·실행 시 해시·포인터 bridge는 제거했으며 고정 해시 검사는 verify-build에서만 수행한다. [동기 MVP 스펙](../../../docs/specs/SYNC_USB_MVP.md)을 따른다.

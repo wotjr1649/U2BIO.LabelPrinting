@@ -7,6 +7,7 @@ using System.Linq;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Windows.Forms;
+using System.Xml.Linq;
 
 namespace U2BIO.BT003PROLabelPrinting.Tester
 {
@@ -28,7 +29,9 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
                 step = "bitness";
                 Check(Environment.Is64BitProcess == expect64);
                 Directory.CreateDirectory(directory);
+                CheckSettingsWithoutFolder(directory);
                 CheckSettings(directory);
+                CheckPrintCountAndOpenDirectory(directory);
                 CheckDocument(directory);
                 CheckMedia();
                 CheckRenderer();
@@ -53,6 +56,38 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
             }
         }
 
+        private static void CheckSettingsWithoutFolder(string directory)
+        {
+            step = "settings-without-folder-preserves-calibration";
+            string path = Path.Combine(directory, "without-folder.xml");
+            new XDocument(new XElement("TesterSettings", new XAttribute("version", "1"),
+                new XElement("Port", "7"), new XElement("PresentationDistanceMm", "23"),
+                new XElement("RecentFiles", new XElement("File", Path.Combine(directory, "recent.txt"))),
+                new XElement("Dpi", "300"), new XElement("SensorOffsetMm", "1.5"),
+                new XElement("VerticalOffsetMm", "4.47"), new XElement("HorizontalOffsetMm", "-2.06"),
+                new XElement("LabelMediaMode", "Gap"))).Save(path);
+            byte[] original = File.ReadAllBytes(path);
+            var settings = TesterSettings.Load(path);
+            Check(settings.LoadWarning == null && settings.Port == "7" && settings.PresentationDistanceMm == 23
+                && settings.Calibration.VerticalOffsetMm == 4.47m && settings.Calibration.HorizontalOffsetMm == -2.06m
+                && settings.LabelMediaMode == BtplLabelMode.Gap && settings.RecentFiles.Count == 1
+                && original.SequenceEqual(File.ReadAllBytes(path)));
+        }
+
+        private static void CheckPrintCountAndOpenDirectory(string directory)
+        {
+            step = "print-count-and-open-directory";
+            Check(FrmMain.ReadPrintCount(1m) == 1 && FrmMain.ReadPrintCount(20) == 20);
+            foreach (object value in new object[] { null, "", "wrong", 0, 21, 1.5m, decimal.MaxValue })
+                Expect<ArgumentException>(() => FrmMain.ReadPrintCount(value));
+            string recent = WriteTemplate(directory, "recent-open.txt", SampleText);
+            string currentDirectory = Path.Combine(directory, "current");
+            Directory.CreateDirectory(currentDirectory);
+            Check(FrmMain.OpenDirectory(Path.Combine(currentDirectory, "gone.txt"), new[] { recent }) == currentDirectory);
+            Check(FrmMain.OpenDirectory(null, new[] { Path.Combine(directory, "missing.txt"), recent }) == directory);
+            Check(FrmMain.OpenDirectory(null, new string[0]) == null);
+        }
+
         private static void CheckSettings(string directory)
         {
             step = "settings-default";
@@ -60,21 +95,19 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
             var settings = TesterSettings.Load(path);
             Check(settings.LoadWarning == null && File.Exists(path) && settings.FilePath == path);
             Check(settings.Port == TesterSettings.DefaultPort && settings.PresentationDistanceMm == TesterSettings.DefaultDistanceMm
-                && settings.TemplateFolder == "" && settings.RecentFiles.Count == 0);
+                && settings.RecentFiles.Count == 0);
 
             step = "settings-validation";
             Check(TesterSettings.CheckPort("") != null && TesterSettings.CheckPort("  ") != null
                 && TesterSettings.CheckPort("0\t") != null && TesterSettings.CheckPort("0") == null);
             Check(TesterSettings.CheckDistance(-1) != null && TesterSettings.CheckDistance(1001) != null
                 && TesterSettings.CheckDistance(0) == null && TesterSettings.CheckDistance(1000) == null);
-            Check(TesterSettings.CheckFolder("") == null && TesterSettings.CheckFolder(directory) == null
-                && TesterSettings.CheckFolder(Path.Combine(directory, "missing")) != null);
-            Expect<ArgumentException>(() => settings.Update("", 20, ""));
-            Expect<ArgumentException>(() => settings.Update("1", 1001, ""));
+            Expect<ArgumentException>(() => settings.Update("", 20));
+            Expect<ArgumentException>(() => settings.Update("1", 1001));
             Check(settings.Port == TesterSettings.DefaultPort && settings.PresentationDistanceMm == TesterSettings.DefaultDistanceMm);
 
             step = "settings-roundtrip";
-            settings.Update("1", 20, directory);
+            settings.Update("1", 20);
             for (int index = 0; index < TesterSettings.MaxRecentFiles + 2; index++)
                 settings.AddRecent(Path.Combine(directory, "label" + index + ".txt"));
             settings.AddRecent(Path.Combine(directory, "LABEL5.TXT"));
@@ -84,28 +117,28 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
                 && settings.RecentFiles[1] == Path.Combine(directory, "label11.txt"));
             var reloaded = TesterSettings.Load(path);
             Check(reloaded.LoadWarning == null && reloaded.Port == "1" && reloaded.PresentationDistanceMm == 20
-                && reloaded.TemplateFolder == directory && reloaded.RecentFiles.SequenceEqual(settings.RecentFiles));
+                && reloaded.RecentFiles.SequenceEqual(settings.RecentFiles));
 
             step = "settings-calibration";
             Check(reloaded.Calibration.Dpi == 300 && reloaded.Calibration.SensorOffsetMm == 1.5m
                 && reloaded.Calibration.VerticalOffsetMm == 3.6m && reloaded.Calibration.HorizontalOffsetMm == -1.0m);
-            settings.Update("1", 20, directory, new PrinterCalibration(203, -2.125m, 0m, 1000m));
+            settings.Update("1", 20, new PrinterCalibration(203, -2.125m, 0m, 1000m));
             PrinterCalibration saved = TesterSettings.Load(path).Calibration;
             Check(saved.Dpi == 203 && saved.SensorOffsetMm == -2.125m && saved.VerticalOffsetMm == 0m && saved.HorizontalOffsetMm == 1000m);
             // 세로 보정이 음수면 DLL이 항상 거부하므로 설정에서 막는다.
-            Expect<ArgumentException>(() => settings.Update("1", 20, directory, new PrinterCalibration(300, 1.5m, -0.5m, 0m)));
-            Expect<ArgumentException>(() => settings.Update("1", 20, directory, new PrinterCalibration(200, 1.5m, 1m, 0m)));
-            Expect<ArgumentException>(() => settings.Update("1", 20, directory, new PrinterCalibration(300, 1.0005m, 1m, 0m)));
+            Expect<ArgumentException>(() => settings.Update("1", 20, new PrinterCalibration(300, 1.5m, -0.5m, 0m)));
+            Expect<ArgumentException>(() => settings.Update("1", 20, new PrinterCalibration(200, 1.5m, 1m, 0m)));
+            Expect<ArgumentException>(() => settings.Update("1", 20, new PrinterCalibration(300, 1.0005m, 1m, 0m)));
             Check(TesterSettings.Load(path).Calibration.Dpi == 203);
 
             step = "settings-media-mode";
             Check(TesterSettings.Load(path).LabelMediaMode == BtplLabelMode.BlackMark);
-            settings.Update("1", 20, directory, null, BtplLabelMode.Gap);
+            settings.Update("1", 20, null, BtplLabelMode.Gap);
             Check(TesterSettings.Load(path).LabelMediaMode == BtplLabelMode.Gap && TesterSettings.Load(path).Calibration.Dpi == 203);
-            Expect<ArgumentException>(() => settings.Update("1", 20, directory, null, BtplLabelMode.Ambiguous));
-            Expect<ArgumentException>(() => settings.Update("1", 20, directory, null, BtplLabelMode.Unspecified));
+            Expect<ArgumentException>(() => settings.Update("1", 20, null, BtplLabelMode.Ambiguous));
+            Expect<ArgumentException>(() => settings.Update("1", 20, null, BtplLabelMode.Unspecified));
             Check(TesterSettings.Load(path).LabelMediaMode == BtplLabelMode.Gap);
-            settings.Update("1", 20, directory, null, BtplLabelMode.BlackMark);
+            settings.Update("1", 20, null, BtplLabelMode.BlackMark);
             // 보정 항목이 없는 이전 파일은 읽기만 해서는 다시 쓰지 않고, 최근 파일을 더하면 보정 기본값과 함께 저장한다.
             string legacy = Path.Combine(directory, "legacy.xml");
             File.WriteAllText(legacy, "<TesterSettings version=\"1\"><Port>0</Port><PresentationDistanceMm>15</PresentationDistanceMm>"
@@ -119,6 +152,21 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
             Check(upgraded.LoadWarning == null && upgraded.RecentFiles.Count == 1 && upgraded.Calibration.HorizontalOffsetMm == -1.0m
                 && File.ReadAllText(legacy).Contains("<VerticalOffsetMm>3.6</VerticalOffsetMm>")
                 && File.ReadAllText(legacy).Contains("<LabelMediaMode>BlackMark</LabelMediaMode>"));
+
+            step = "settings-legacy-folder-preserves-calibration";
+            XDocument legacyWithCalibration = XDocument.Load(path);
+            legacyWithCalibration.Root.Add(new XElement("TemplateFolder", Path.Combine(directory, "removed-folder")));
+            legacyWithCalibration.Save(legacy);
+            byte[] beforeRead = File.ReadAllBytes(legacy);
+            var withFolder = TesterSettings.Load(legacy);
+            Check(withFolder.LoadWarning == null && withFolder.Port == settings.Port
+                && withFolder.PresentationDistanceMm == settings.PresentationDistanceMm
+                && withFolder.Calibration.HorizontalOffsetMm == settings.Calibration.HorizontalOffsetMm
+                && withFolder.RecentFiles.SequenceEqual(settings.RecentFiles)
+                && beforeRead.SequenceEqual(File.ReadAllBytes(legacy)));
+            withFolder.Update(withFolder.Port, withFolder.PresentationDistanceMm);
+            Check(XDocument.Load(legacy).Root.Element("TemplateFolder") == null
+                && TesterSettings.Load(legacy).Calibration.HorizontalOffsetMm == settings.Calibration.HorizontalOffsetMm);
 
             step = "settings-corrupt";
             CheckDamagedSettings(Path.Combine(directory, "broken.xml"), "<TesterSettings version=\"1\"><Port>");
@@ -153,7 +201,7 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
             Check(settings.RecentFiles.Count == 1 && settings.RecentFiles[0] == recent);
             Check(File.ReadAllBytes(path).SequenceEqual(original));
             // 설정 화면에서 확인을 누르면 경고를 풀고 메모리의 최근 목록까지 함께 저장한다.
-            settings.Update("2", 30, "");
+            settings.Update("2", 30);
             var saved = TesterSettings.Load(path);
             Check(settings.LoadWarning == null && saved.LoadWarning == null && saved.Port == "2"
                 && saved.PresentationDistanceMm == 30 && saved.RecentFiles.SequenceEqual(new[] { recent }));

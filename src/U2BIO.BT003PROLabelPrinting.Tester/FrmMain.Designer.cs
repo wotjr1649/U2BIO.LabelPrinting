@@ -31,16 +31,12 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
             this.components = new System.ComponentModel.Container();
             this.layoutControl1 = new DevExpress.XtraLayout.LayoutControl();
             this.btnOpen = new DevExpress.XtraEditors.DropDownButton();
-            this.btnSave = new DevExpress.XtraEditors.SimpleButton();
-            this.btnSaveAs = new DevExpress.XtraEditors.SimpleButton();
-            this.btnClose = new DevExpress.XtraEditors.SimpleButton();
+            this.btnSave = new DevExpress.XtraEditors.DropDownButton();
             this.btnUndo = new DevExpress.XtraEditors.DropDownButton();
             this.btnSettings = new DevExpress.XtraEditors.SimpleButton();
-            this.btnConnect = new DevExpress.XtraEditors.SimpleButton();
+            this.btnConnect = new DevExpress.XtraEditors.DropDownButton();
             this.btnDisconnect = new DevExpress.XtraEditors.SimpleButton();
-            this.btnStatus = new DevExpress.XtraEditors.SimpleButton();
-            this.btnConfirmPosition = new DevExpress.XtraEditors.SimpleButton();
-            this.btnFeed = new DevExpress.XtraEditors.SimpleButton();
+            this.btnFeed = new DevExpress.XtraEditors.DropDownButton();
             this.txtPath = new DevExpress.XtraEditors.TextEdit();
             this.lblDirty = new DevExpress.XtraEditors.LabelControl();
             this.lblTime = new DevExpress.XtraEditors.LabelControl();
@@ -96,8 +92,6 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
             this.layoutControlGroup1 = new DevExpress.XtraLayout.LayoutControlGroup();
             this.layoutItemOpen = new DevExpress.XtraLayout.LayoutControlItem();
             this.layoutItemSave = new DevExpress.XtraLayout.LayoutControlItem();
-            this.layoutItemSaveAs = new DevExpress.XtraLayout.LayoutControlItem();
-            this.layoutItemClose = new DevExpress.XtraLayout.LayoutControlItem();
             this.layoutItemUndo = new DevExpress.XtraLayout.LayoutControlItem();
             this.emptySpaceToolbar = new DevExpress.XtraLayout.EmptySpaceItem();
             this.layoutItemSettings = new DevExpress.XtraLayout.LayoutControlItem();
@@ -117,8 +111,6 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
             this.layoutItemVariableHint = new DevExpress.XtraLayout.LayoutControlItem();
             this.layoutItemConnect = new DevExpress.XtraLayout.LayoutControlItem();
             this.layoutItemDisconnect = new DevExpress.XtraLayout.LayoutControlItem();
-            this.layoutItemStatus = new DevExpress.XtraLayout.LayoutControlItem();
-            this.layoutItemConfirmPosition = new DevExpress.XtraLayout.LayoutControlItem();
             this.layoutItemFeed = new DevExpress.XtraLayout.LayoutControlItem();
             this.layoutItemPrintEdit = new DevExpress.XtraLayout.LayoutControlItem();
             this.layoutItemPrintFile = new DevExpress.XtraLayout.LayoutControlItem();
@@ -144,8 +136,6 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
             ((System.ComponentModel.ISupportInitialize)(this.layoutControlGroup1)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.layoutItemOpen)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.layoutItemSave)).BeginInit();
-            ((System.ComponentModel.ISupportInitialize)(this.layoutItemSaveAs)).BeginInit();
-            ((System.ComponentModel.ISupportInitialize)(this.layoutItemClose)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.layoutItemUndo)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.emptySpaceToolbar)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.layoutItemSettings)).BeginInit();
@@ -165,21 +155,30 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
             ((System.ComponentModel.ISupportInitialize)(this.layoutItemVariableHint)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.layoutItemConnect)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.layoutItemDisconnect)).BeginInit();
-            ((System.ComponentModel.ISupportInitialize)(this.layoutItemStatus)).BeginInit();
-            ((System.ComponentModel.ISupportInitialize)(this.layoutItemConfirmPosition)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.layoutItemFeed)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.layoutItemPrintEdit)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.layoutItemPrintFile)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.layoutItemResults)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.layoutItemStatusLine)).BeginInit();
+            this.spinPrintCount = new DevExpress.XtraEditors.SpinEdit();
+            this.btnStopPrint = new DevExpress.XtraEditors.SimpleButton();
+            this.lblPrintProgress = new DevExpress.XtraEditors.LabelControl();
+            this.layoutItemPrintCount = new DevExpress.XtraLayout.LayoutControlItem();
+            this.layoutItemStopPrint = new DevExpress.XtraLayout.LayoutControlItem();
+            this.layoutItemPrintProgress = new DevExpress.XtraLayout.LayoutControlItem();
+            ((System.ComponentModel.ISupportInitialize)(this.spinPrintCount.Properties)).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)(this.layoutItemPrintCount)).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)(this.layoutItemStopPrint)).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)(this.layoutItemPrintProgress)).BeginInit();
             this.SuspendLayout();
             //
             // layoutControl1
             //
+            this.layoutControl1.Controls.Add(this.spinPrintCount);
+            this.layoutControl1.Controls.Add(this.btnStopPrint);
+            this.layoutControl1.Controls.Add(this.lblPrintProgress);
             this.layoutControl1.Controls.Add(this.btnOpen);
             this.layoutControl1.Controls.Add(this.btnSave);
-            this.layoutControl1.Controls.Add(this.btnSaveAs);
-            this.layoutControl1.Controls.Add(this.btnClose);
             this.layoutControl1.Controls.Add(this.btnUndo);
             this.layoutControl1.Controls.Add(this.btnSettings);
             this.layoutControl1.Controls.Add(this.txtPath);
@@ -196,8 +195,6 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
             this.layoutControl1.Controls.Add(this.lblVariableHint);
             this.layoutControl1.Controls.Add(this.btnConnect);
             this.layoutControl1.Controls.Add(this.btnDisconnect);
-            this.layoutControl1.Controls.Add(this.btnStatus);
-            this.layoutControl1.Controls.Add(this.btnConfirmPosition);
             this.layoutControl1.Controls.Add(this.btnFeed);
             this.layoutControl1.Controls.Add(this.btnPrintEdit);
             this.layoutControl1.Controls.Add(this.btnPrintFile);
@@ -231,29 +228,9 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
             this.btnSave.Text = "저장";
             this.btnSave.Click += new System.EventHandler(this.btnSave_Click);
             //
-            // btnSaveAs
-            //
-            this.btnSaveAs.Location = new System.Drawing.Point(204, 4);
-            this.btnSaveAs.Name = "btnSaveAs";
-            this.btnSaveAs.Size = new System.Drawing.Size(96, 23);
-            this.btnSaveAs.StyleController = this.layoutControl1;
-            this.btnSaveAs.TabIndex = 2;
-            this.btnSaveAs.Text = "다른 이름 저장";
-            this.btnSaveAs.Click += new System.EventHandler(this.btnSaveAs_Click);
-            //
-            // btnClose
-            //
-            this.btnClose.Location = new System.Drawing.Point(304, 4);
-            this.btnClose.Name = "btnClose";
-            this.btnClose.Size = new System.Drawing.Size(96, 23);
-            this.btnClose.StyleController = this.layoutControl1;
-            this.btnClose.TabIndex = 25;
-            this.btnClose.Text = "닫기";
-            this.btnClose.Click += new System.EventHandler(this.btnClose_Click);
-            //
             // btnUndo
             //
-            this.btnUndo.Location = new System.Drawing.Point(404, 4);
+            this.btnUndo.Location = new System.Drawing.Point(204, 4);
             this.btnUndo.Name = "btnUndo";
             this.btnUndo.Size = new System.Drawing.Size(96, 23);
             this.btnUndo.StyleController = this.layoutControl1;
@@ -273,7 +250,7 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
             //
             // btnConnect
             //
-            this.btnConnect.Location = new System.Drawing.Point(504, 4);
+            this.btnConnect.Location = new System.Drawing.Point(304, 4);
             this.btnConnect.Name = "btnConnect";
             this.btnConnect.Size = new System.Drawing.Size(96, 23);
             this.btnConnect.StyleController = this.layoutControl1;
@@ -283,7 +260,7 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
             //
             // btnDisconnect
             //
-            this.btnDisconnect.Location = new System.Drawing.Point(604, 4);
+            this.btnDisconnect.Location = new System.Drawing.Point(404, 4);
             this.btnDisconnect.Name = "btnDisconnect";
             this.btnDisconnect.Size = new System.Drawing.Size(96, 23);
             this.btnDisconnect.StyleController = this.layoutControl1;
@@ -291,29 +268,9 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
             this.btnDisconnect.Text = "해제";
             this.btnDisconnect.Click += new System.EventHandler(this.btnDisconnect_Click);
             //
-            // btnStatus
-            //
-            this.btnStatus.Location = new System.Drawing.Point(704, 4);
-            this.btnStatus.Name = "btnStatus";
-            this.btnStatus.Size = new System.Drawing.Size(96, 23);
-            this.btnStatus.StyleController = this.layoutControl1;
-            this.btnStatus.TabIndex = 18;
-            this.btnStatus.Text = "상태";
-            this.btnStatus.Click += new System.EventHandler(this.btnStatus_Click);
-            //
-            // btnConfirmPosition
-            //
-            this.btnConfirmPosition.Location = new System.Drawing.Point(804, 4);
-            this.btnConfirmPosition.Name = "btnConfirmPosition";
-            this.btnConfirmPosition.Size = new System.Drawing.Size(96, 23);
-            this.btnConfirmPosition.StyleController = this.layoutControl1;
-            this.btnConfirmPosition.TabIndex = 19;
-            this.btnConfirmPosition.Text = "위치 확인";
-            this.btnConfirmPosition.Click += new System.EventHandler(this.btnConfirmPosition_Click);
-            //
             // btnFeed
             //
-            this.btnFeed.Location = new System.Drawing.Point(904, 4);
+            this.btnFeed.Location = new System.Drawing.Point(504, 4);
             this.btnFeed.Name = "btnFeed";
             this.btnFeed.Size = new System.Drawing.Size(196, 23);
             this.btnFeed.StyleController = this.layoutControl1;
@@ -677,7 +634,7 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
             //
             this.txtVariable.Location = new System.Drawing.Point(68, 695);
             this.txtVariable.Name = "txtVariable";
-            this.txtVariable.Size = new System.Drawing.Size(492, 20);
+            this.txtVariable.Size = new System.Drawing.Size(772, 20);
             this.txtVariable.StyleController = this.layoutControl1;
             this.txtVariable.TabIndex = 14;
             this.txtVariable.EditValueChanged += new System.EventHandler(this.txtVariable_EditValueChanged);
@@ -693,7 +650,7 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
             //
             // btnPrintEdit
             //
-            this.btnPrintEdit.Location = new System.Drawing.Point(564, 695);
+            this.btnPrintEdit.Location = new System.Drawing.Point(184, 722);
             this.btnPrintEdit.Name = "btnPrintEdit";
             this.btnPrintEdit.Size = new System.Drawing.Size(136, 23);
             this.btnPrintEdit.StyleController = this.layoutControl1;
@@ -703,7 +660,7 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
             //
             // btnPrintFile
             //
-            this.btnPrintFile.Location = new System.Drawing.Point(704, 695);
+            this.btnPrintFile.Location = new System.Drawing.Point(324, 722);
             this.btnPrintFile.Name = "btnPrintFile";
             this.btnPrintFile.Size = new System.Drawing.Size(136, 23);
             this.btnPrintFile.StyleController = this.layoutControl1;
@@ -713,10 +670,10 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
             //
             // gridResults
             //
-            this.gridResults.Location = new System.Drawing.Point(4, 722);
+            this.gridResults.Location = new System.Drawing.Point(4, 749);
             this.gridResults.MainView = this.gridViewResults;
             this.gridResults.Name = "gridResults";
-            this.gridResults.Size = new System.Drawing.Size(1272, 156);
+            this.gridResults.Size = new System.Drawing.Size(1272, 129);
             this.gridResults.TabIndex = 23;
             this.gridResults.ViewCollection.AddRange(new DevExpress.XtraGrid.Views.Base.BaseView[] {
             this.gridViewResults});
@@ -818,8 +775,6 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
             this.layoutControlGroup1.Items.AddRange(new DevExpress.XtraLayout.BaseLayoutItem[] {
             this.layoutItemOpen,
             this.layoutItemSave,
-            this.layoutItemSaveAs,
-            this.layoutItemClose,
             this.layoutItemUndo,
             this.emptySpaceToolbar,
             this.layoutItemSettings,
@@ -839,9 +794,10 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
             this.layoutItemVariableHint,
             this.layoutItemConnect,
             this.layoutItemDisconnect,
-            this.layoutItemStatus,
-            this.layoutItemConfirmPosition,
             this.layoutItemFeed,
+            this.layoutItemPrintCount,
+            this.layoutItemStopPrint,
+            this.layoutItemPrintProgress,
             this.layoutItemPrintEdit,
             this.layoutItemPrintFile,
             this.layoutItemResults,
@@ -875,34 +831,10 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
             this.layoutItemSave.TextSize = new System.Drawing.Size(0, 0);
             this.layoutItemSave.TextVisible = false;
             //
-            // layoutItemSaveAs
-            //
-            this.layoutItemSaveAs.Control = this.btnSaveAs;
-            this.layoutItemSaveAs.Location = new System.Drawing.Point(200, 0);
-            this.layoutItemSaveAs.MaxSize = new System.Drawing.Size(100, 27);
-            this.layoutItemSaveAs.MinSize = new System.Drawing.Size(100, 27);
-            this.layoutItemSaveAs.Name = "layoutItemSaveAs";
-            this.layoutItemSaveAs.Size = new System.Drawing.Size(100, 27);
-            this.layoutItemSaveAs.SizeConstraintsType = DevExpress.XtraLayout.SizeConstraintsType.Custom;
-            this.layoutItemSaveAs.TextSize = new System.Drawing.Size(0, 0);
-            this.layoutItemSaveAs.TextVisible = false;
-            //
-            // layoutItemClose
-            //
-            this.layoutItemClose.Control = this.btnClose;
-            this.layoutItemClose.Location = new System.Drawing.Point(300, 0);
-            this.layoutItemClose.MaxSize = new System.Drawing.Size(100, 27);
-            this.layoutItemClose.MinSize = new System.Drawing.Size(100, 27);
-            this.layoutItemClose.Name = "layoutItemClose";
-            this.layoutItemClose.Size = new System.Drawing.Size(100, 27);
-            this.layoutItemClose.SizeConstraintsType = DevExpress.XtraLayout.SizeConstraintsType.Custom;
-            this.layoutItemClose.TextSize = new System.Drawing.Size(0, 0);
-            this.layoutItemClose.TextVisible = false;
-            //
             // layoutItemUndo
             //
             this.layoutItemUndo.Control = this.btnUndo;
-            this.layoutItemUndo.Location = new System.Drawing.Point(400, 0);
+            this.layoutItemUndo.Location = new System.Drawing.Point(200, 0);
             this.layoutItemUndo.MaxSize = new System.Drawing.Size(100, 27);
             this.layoutItemUndo.MinSize = new System.Drawing.Size(100, 27);
             this.layoutItemUndo.Name = "layoutItemUndo";
@@ -914,9 +846,9 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
             // emptySpaceToolbar
             //
             this.emptySpaceToolbar.AllowHotTrack = false;
-            this.emptySpaceToolbar.Location = new System.Drawing.Point(1100, 0);
+            this.emptySpaceToolbar.Location = new System.Drawing.Point(700, 0);
             this.emptySpaceToolbar.Name = "emptySpaceToolbar";
-            this.emptySpaceToolbar.Size = new System.Drawing.Size(76, 27);
+            this.emptySpaceToolbar.Size = new System.Drawing.Size(476, 27);
             this.emptySpaceToolbar.TextSize = new System.Drawing.Size(0, 0);
             //
             // layoutItemSettings
@@ -1059,7 +991,7 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
             this.layoutItemVariable.Control = this.txtVariable;
             this.layoutItemVariable.Location = new System.Drawing.Point(0, 691);
             this.layoutItemVariable.Name = "layoutItemVariable";
-            this.layoutItemVariable.Size = new System.Drawing.Size(560, 27);
+            this.layoutItemVariable.Size = new System.Drawing.Size(840, 27);
             this.layoutItemVariable.Text = "가변데이터";
             this.layoutItemVariable.TextSize = new System.Drawing.Size(60, 14);
             //
@@ -1075,7 +1007,7 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
             // layoutItemConnect
             //
             this.layoutItemConnect.Control = this.btnConnect;
-            this.layoutItemConnect.Location = new System.Drawing.Point(500, 0);
+            this.layoutItemConnect.Location = new System.Drawing.Point(300, 0);
             this.layoutItemConnect.MaxSize = new System.Drawing.Size(100, 27);
             this.layoutItemConnect.MinSize = new System.Drawing.Size(100, 27);
             this.layoutItemConnect.Name = "layoutItemConnect";
@@ -1087,7 +1019,7 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
             // layoutItemDisconnect
             //
             this.layoutItemDisconnect.Control = this.btnDisconnect;
-            this.layoutItemDisconnect.Location = new System.Drawing.Point(600, 0);
+            this.layoutItemDisconnect.Location = new System.Drawing.Point(400, 0);
             this.layoutItemDisconnect.MaxSize = new System.Drawing.Size(100, 27);
             this.layoutItemDisconnect.MinSize = new System.Drawing.Size(100, 27);
             this.layoutItemDisconnect.Name = "layoutItemDisconnect";
@@ -1096,34 +1028,10 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
             this.layoutItemDisconnect.TextSize = new System.Drawing.Size(0, 0);
             this.layoutItemDisconnect.TextVisible = false;
             //
-            // layoutItemStatus
-            //
-            this.layoutItemStatus.Control = this.btnStatus;
-            this.layoutItemStatus.Location = new System.Drawing.Point(700, 0);
-            this.layoutItemStatus.MaxSize = new System.Drawing.Size(100, 27);
-            this.layoutItemStatus.MinSize = new System.Drawing.Size(100, 27);
-            this.layoutItemStatus.Name = "layoutItemStatus";
-            this.layoutItemStatus.Size = new System.Drawing.Size(100, 27);
-            this.layoutItemStatus.SizeConstraintsType = DevExpress.XtraLayout.SizeConstraintsType.Custom;
-            this.layoutItemStatus.TextSize = new System.Drawing.Size(0, 0);
-            this.layoutItemStatus.TextVisible = false;
-            //
-            // layoutItemConfirmPosition
-            //
-            this.layoutItemConfirmPosition.Control = this.btnConfirmPosition;
-            this.layoutItemConfirmPosition.Location = new System.Drawing.Point(800, 0);
-            this.layoutItemConfirmPosition.MaxSize = new System.Drawing.Size(100, 27);
-            this.layoutItemConfirmPosition.MinSize = new System.Drawing.Size(100, 27);
-            this.layoutItemConfirmPosition.Name = "layoutItemConfirmPosition";
-            this.layoutItemConfirmPosition.Size = new System.Drawing.Size(100, 27);
-            this.layoutItemConfirmPosition.SizeConstraintsType = DevExpress.XtraLayout.SizeConstraintsType.Custom;
-            this.layoutItemConfirmPosition.TextSize = new System.Drawing.Size(0, 0);
-            this.layoutItemConfirmPosition.TextVisible = false;
-            //
             // layoutItemFeed
             //
             this.layoutItemFeed.Control = this.btnFeed;
-            this.layoutItemFeed.Location = new System.Drawing.Point(900, 0);
+            this.layoutItemFeed.Location = new System.Drawing.Point(500, 0);
             this.layoutItemFeed.MaxSize = new System.Drawing.Size(200, 27);
             this.layoutItemFeed.MinSize = new System.Drawing.Size(200, 27);
             this.layoutItemFeed.Name = "layoutItemFeed";
@@ -1135,7 +1043,7 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
             // layoutItemPrintEdit
             //
             this.layoutItemPrintEdit.Control = this.btnPrintEdit;
-            this.layoutItemPrintEdit.Location = new System.Drawing.Point(560, 691);
+            this.layoutItemPrintEdit.Location = new System.Drawing.Point(180, 718);
             this.layoutItemPrintEdit.MaxSize = new System.Drawing.Size(140, 27);
             this.layoutItemPrintEdit.MinSize = new System.Drawing.Size(140, 27);
             this.layoutItemPrintEdit.Name = "layoutItemPrintEdit";
@@ -1147,7 +1055,7 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
             // layoutItemPrintFile
             //
             this.layoutItemPrintFile.Control = this.btnPrintFile;
-            this.layoutItemPrintFile.Location = new System.Drawing.Point(700, 691);
+            this.layoutItemPrintFile.Location = new System.Drawing.Point(320, 718);
             this.layoutItemPrintFile.MaxSize = new System.Drawing.Size(140, 27);
             this.layoutItemPrintFile.MinSize = new System.Drawing.Size(140, 27);
             this.layoutItemPrintFile.Name = "layoutItemPrintFile";
@@ -1159,11 +1067,11 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
             // layoutItemResults
             //
             this.layoutItemResults.Control = this.gridResults;
-            this.layoutItemResults.Location = new System.Drawing.Point(0, 718);
-            this.layoutItemResults.MaxSize = new System.Drawing.Size(0, 160);
-            this.layoutItemResults.MinSize = new System.Drawing.Size(104, 160);
+            this.layoutItemResults.Location = new System.Drawing.Point(0, 745);
+            this.layoutItemResults.MaxSize = new System.Drawing.Size(0, 133);
+            this.layoutItemResults.MinSize = new System.Drawing.Size(104, 133);
             this.layoutItemResults.Name = "layoutItemResults";
-            this.layoutItemResults.Size = new System.Drawing.Size(1276, 160);
+            this.layoutItemResults.Size = new System.Drawing.Size(1276, 133);
             this.layoutItemResults.SizeConstraintsType = DevExpress.XtraLayout.SizeConstraintsType.Custom;
             this.layoutItemResults.TextSize = new System.Drawing.Size(0, 0);
             this.layoutItemResults.TextVisible = false;
@@ -1176,6 +1084,75 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
             this.layoutItemStatusLine.Size = new System.Drawing.Size(1276, 18);
             this.layoutItemStatusLine.TextSize = new System.Drawing.Size(0, 0);
             this.layoutItemStatusLine.TextVisible = false;
+            //
+            // spinPrintCount
+            //
+            this.spinPrintCount.EditValue = 1m;
+            // 범위나 정수 마스크로 입력을 반올림하지 않고 인쇄 직전에 정수인지 검사한다.
+            this.spinPrintCount.Properties.Buttons.AddRange(new DevExpress.XtraEditors.Controls.EditorButton[] {
+            new DevExpress.XtraEditors.Controls.EditorButton(DevExpress.XtraEditors.Controls.ButtonPredefines.Combo)});
+            this.spinPrintCount.ToolTip = "1~20장. 한 장씩 요청하며 SDK 실패/불명 시 다음 요청을 멈춥니다.";
+            //
+            // btnStopPrint
+            //
+            this.btnStopPrint.Text = "반복 중단";
+            this.btnStopPrint.ToolTip = "현재 SDK 호출이 돌아오면 다음 장을 요청하지 않습니다.";
+            this.btnStopPrint.Click += new System.EventHandler(this.btnStopPrint_Click);
+            //
+            // lblPrintProgress
+            //
+            this.lblPrintProgress.AutoSizeMode = DevExpress.XtraEditors.LabelAutoSizeMode.None;
+            this.spinPrintCount.Location = new System.Drawing.Point(68, 722);
+            this.spinPrintCount.Name = "spinPrintCount";
+            this.spinPrintCount.Size = new System.Drawing.Size(112, 23);
+            this.spinPrintCount.StyleController = this.layoutControl1;
+            this.spinPrintCount.TabIndex = 25;
+            //
+            // layoutItemPrintCount
+            //
+            this.layoutItemPrintCount.Control = this.spinPrintCount;
+            this.layoutItemPrintCount.Location = new System.Drawing.Point(0, 718);
+            this.layoutItemPrintCount.Name = "layoutItemPrintCount";
+            this.layoutItemPrintCount.Size = new System.Drawing.Size(180, 27);
+            this.layoutItemPrintCount.MaxSize = new System.Drawing.Size(180, 27);
+            this.layoutItemPrintCount.MinSize = new System.Drawing.Size(180, 27);
+            this.layoutItemPrintCount.SizeConstraintsType = DevExpress.XtraLayout.SizeConstraintsType.Custom;
+            this.layoutItemPrintCount.Text = "요청 장수";
+            this.layoutItemPrintCount.TextSize = new System.Drawing.Size(60, 14);
+            this.btnStopPrint.Location = new System.Drawing.Point(464, 722);
+            this.btnStopPrint.Name = "btnStopPrint";
+            this.btnStopPrint.Size = new System.Drawing.Size(96, 23);
+            this.btnStopPrint.StyleController = this.layoutControl1;
+            this.btnStopPrint.TabIndex = 26;
+            //
+            // layoutItemStopPrint
+            //
+            this.layoutItemStopPrint.Control = this.btnStopPrint;
+            this.layoutItemStopPrint.Location = new System.Drawing.Point(460, 718);
+            this.layoutItemStopPrint.Name = "layoutItemStopPrint";
+            this.layoutItemStopPrint.Size = new System.Drawing.Size(100, 27);
+            this.layoutItemStopPrint.MaxSize = new System.Drawing.Size(100, 27);
+            this.layoutItemStopPrint.MinSize = new System.Drawing.Size(100, 27);
+            this.layoutItemStopPrint.SizeConstraintsType = DevExpress.XtraLayout.SizeConstraintsType.Custom;
+            this.layoutItemStopPrint.TextVisible = false;
+            this.layoutItemStopPrint.TextSize = new System.Drawing.Size(0, 0);
+            this.lblPrintProgress.Location = new System.Drawing.Point(564, 722);
+            this.lblPrintProgress.Name = "lblPrintProgress";
+            this.lblPrintProgress.Size = new System.Drawing.Size(712, 23);
+            this.lblPrintProgress.StyleController = this.layoutControl1;
+            this.lblPrintProgress.TabIndex = 27;
+            //
+            // layoutItemPrintProgress
+            //
+            this.layoutItemPrintProgress.Control = this.lblPrintProgress;
+            this.layoutItemPrintProgress.Location = new System.Drawing.Point(560, 718);
+            this.layoutItemPrintProgress.Name = "layoutItemPrintProgress";
+            this.layoutItemPrintProgress.Size = new System.Drawing.Size(716, 27);
+            this.layoutItemPrintProgress.MaxSize = new System.Drawing.Size(0, 27);
+            this.layoutItemPrintProgress.MinSize = new System.Drawing.Size(104, 27);
+            this.layoutItemPrintProgress.SizeConstraintsType = DevExpress.XtraLayout.SizeConstraintsType.Custom;
+            this.layoutItemPrintProgress.TextVisible = false;
+            this.layoutItemPrintProgress.TextSize = new System.Drawing.Size(0, 0);
             //
             // FrmMain
             //
@@ -1209,8 +1186,6 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
             ((System.ComponentModel.ISupportInitialize)(this.layoutControlGroup1)).EndInit();
             ((System.ComponentModel.ISupportInitialize)(this.layoutItemOpen)).EndInit();
             ((System.ComponentModel.ISupportInitialize)(this.layoutItemSave)).EndInit();
-            ((System.ComponentModel.ISupportInitialize)(this.layoutItemSaveAs)).EndInit();
-            ((System.ComponentModel.ISupportInitialize)(this.layoutItemClose)).EndInit();
             ((System.ComponentModel.ISupportInitialize)(this.layoutItemUndo)).EndInit();
             ((System.ComponentModel.ISupportInitialize)(this.emptySpaceToolbar)).EndInit();
             ((System.ComponentModel.ISupportInitialize)(this.layoutItemSettings)).EndInit();
@@ -1230,13 +1205,15 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
             ((System.ComponentModel.ISupportInitialize)(this.layoutItemVariableHint)).EndInit();
             ((System.ComponentModel.ISupportInitialize)(this.layoutItemConnect)).EndInit();
             ((System.ComponentModel.ISupportInitialize)(this.layoutItemDisconnect)).EndInit();
-            ((System.ComponentModel.ISupportInitialize)(this.layoutItemStatus)).EndInit();
-            ((System.ComponentModel.ISupportInitialize)(this.layoutItemConfirmPosition)).EndInit();
             ((System.ComponentModel.ISupportInitialize)(this.layoutItemFeed)).EndInit();
             ((System.ComponentModel.ISupportInitialize)(this.layoutItemPrintEdit)).EndInit();
             ((System.ComponentModel.ISupportInitialize)(this.layoutItemPrintFile)).EndInit();
             ((System.ComponentModel.ISupportInitialize)(this.layoutItemResults)).EndInit();
             ((System.ComponentModel.ISupportInitialize)(this.layoutItemStatusLine)).EndInit();
+            ((System.ComponentModel.ISupportInitialize)(this.spinPrintCount.Properties)).EndInit();
+            ((System.ComponentModel.ISupportInitialize)(this.layoutItemPrintCount)).EndInit();
+            ((System.ComponentModel.ISupportInitialize)(this.layoutItemStopPrint)).EndInit();
+            ((System.ComponentModel.ISupportInitialize)(this.layoutItemPrintProgress)).EndInit();
             this.ResumeLayout(false);
 
         }
@@ -1246,9 +1223,7 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
         private DevExpress.XtraLayout.LayoutControl layoutControl1;
         private DevExpress.XtraLayout.LayoutControlGroup layoutControlGroup1;
         private DevExpress.XtraEditors.DropDownButton btnOpen;
-        private DevExpress.XtraEditors.SimpleButton btnSave;
-        private DevExpress.XtraEditors.SimpleButton btnSaveAs;
-        private DevExpress.XtraEditors.SimpleButton btnClose;
+        private DevExpress.XtraEditors.DropDownButton btnSave;
         private DevExpress.XtraEditors.DropDownButton btnUndo;
         private DevExpress.XtraEditors.SimpleButton btnSettings;
         private DevExpress.XtraEditors.TextEdit txtPath;
@@ -1289,12 +1264,16 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
         private DevExpress.XtraVerticalGrid.Rows.EditorRow rowMediaState;
         private DevExpress.XtraTab.XtraTabPage pageRaw;
         private DevExpress.XtraEditors.MemoEdit memoRaw;
+        private DevExpress.XtraEditors.SpinEdit spinPrintCount;
+        private DevExpress.XtraEditors.SimpleButton btnStopPrint;
+        private DevExpress.XtraEditors.LabelControl lblPrintProgress;
+        private DevExpress.XtraLayout.LayoutControlItem layoutItemPrintCount;
+        private DevExpress.XtraLayout.LayoutControlItem layoutItemStopPrint;
+        private DevExpress.XtraLayout.LayoutControlItem layoutItemPrintProgress;
         private DevExpress.XtraEditors.TextEdit txtVariable;
         private DevExpress.XtraEditors.LabelControl lblVariableHint;
         private DevExpress.XtraLayout.LayoutControlItem layoutItemOpen;
         private DevExpress.XtraLayout.LayoutControlItem layoutItemSave;
-        private DevExpress.XtraLayout.LayoutControlItem layoutItemSaveAs;
-        private DevExpress.XtraLayout.LayoutControlItem layoutItemClose;
         private DevExpress.XtraLayout.LayoutControlItem layoutItemUndo;
         private DevExpress.XtraLayout.EmptySpaceItem emptySpaceToolbar;
         private DevExpress.XtraLayout.LayoutControlItem layoutItemSettings;
@@ -1312,11 +1291,9 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
         private DevExpress.XtraLayout.LayoutControlItem layoutItemTabs;
         private DevExpress.XtraLayout.LayoutControlItem layoutItemVariable;
         private DevExpress.XtraLayout.LayoutControlItem layoutItemVariableHint;
-        private DevExpress.XtraEditors.SimpleButton btnConnect;
+        private DevExpress.XtraEditors.DropDownButton btnConnect;
         private DevExpress.XtraEditors.SimpleButton btnDisconnect;
-        private DevExpress.XtraEditors.SimpleButton btnStatus;
-        private DevExpress.XtraEditors.SimpleButton btnConfirmPosition;
-        private DevExpress.XtraEditors.SimpleButton btnFeed;
+        private DevExpress.XtraEditors.DropDownButton btnFeed;
         private DevExpress.XtraEditors.SimpleButton btnPrintEdit;
         private DevExpress.XtraEditors.SimpleButton btnPrintFile;
         private DevExpress.XtraGrid.GridControl gridResults;
@@ -1331,8 +1308,6 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
         private DevExpress.XtraEditors.LabelControl lblStatus;
         private DevExpress.XtraLayout.LayoutControlItem layoutItemConnect;
         private DevExpress.XtraLayout.LayoutControlItem layoutItemDisconnect;
-        private DevExpress.XtraLayout.LayoutControlItem layoutItemStatus;
-        private DevExpress.XtraLayout.LayoutControlItem layoutItemConfirmPosition;
         private DevExpress.XtraLayout.LayoutControlItem layoutItemFeed;
         private DevExpress.XtraLayout.LayoutControlItem layoutItemPrintEdit;
         private DevExpress.XtraLayout.LayoutControlItem layoutItemPrintFile;

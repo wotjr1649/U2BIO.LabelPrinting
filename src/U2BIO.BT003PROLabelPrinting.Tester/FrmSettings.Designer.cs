@@ -40,11 +40,6 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
             this.rowPort = new DevExpress.XtraVerticalGrid.Rows.EditorRow();
             this.rowDetected = new DevExpress.XtraVerticalGrid.Rows.EditorRow();
             this.rowDistance = new DevExpress.XtraVerticalGrid.Rows.EditorRow();
-            this.pageTemplate = new DevExpress.XtraTab.XtraTabPage();
-            this.gridTemplate = new DevExpress.XtraVerticalGrid.VGridControl();
-            this.repositoryFolder = new DevExpress.XtraEditors.Repository.RepositoryItemButtonEdit();
-            this.categoryTemplate = new DevExpress.XtraVerticalGrid.Rows.CategoryRow();
-            this.rowFolder = new DevExpress.XtraVerticalGrid.Rows.EditorRow();
             this.pageCalibration = new DevExpress.XtraTab.XtraTabPage();
             this.gridCalibration = new DevExpress.XtraVerticalGrid.VGridControl();
             this.repositoryDpi = new DevExpress.XtraEditors.Repository.RepositoryItemComboBox();
@@ -72,9 +67,6 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
             ((System.ComponentModel.ISupportInitialize)(this.gridConnection)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.repositoryPort)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.repositoryDistance)).BeginInit();
-            this.pageTemplate.SuspendLayout();
-            ((System.ComponentModel.ISupportInitialize)(this.gridTemplate)).BeginInit();
-            ((System.ComponentModel.ISupportInitialize)(this.repositoryFolder)).BeginInit();
             this.pageCalibration.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.gridCalibration)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.repositoryDpi)).BeginInit();
@@ -124,7 +116,6 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
             this.tabSettings.TabIndex = 0;
             this.tabSettings.TabPages.AddRange(new DevExpress.XtraTab.XtraTabPage[] {
             this.pageConnection,
-            this.pageTemplate,
             this.pageCalibration});
             //
             // pageConnection
@@ -198,54 +189,6 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
             this.rowDistance.Name = "rowDistance";
             this.rowDistance.Properties.Caption = "배출 거리(mm, 0~1000)";
             this.rowDistance.Properties.RowEdit = this.repositoryDistance;
-            //
-            // pageTemplate
-            //
-            this.pageTemplate.Controls.Add(this.gridTemplate);
-            this.pageTemplate.Name = "pageTemplate";
-            this.pageTemplate.Size = new System.Drawing.Size(630, 277);
-            this.pageTemplate.Text = "서식";
-            //
-            // gridTemplate
-            //
-            this.gridTemplate.Appearance.Category.Font = new System.Drawing.Font("굴림", 9F, System.Drawing.FontStyle.Bold);
-            this.gridTemplate.Appearance.Category.Options.UseFont = true;
-            this.gridTemplate.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.gridTemplate.Location = new System.Drawing.Point(0, 0);
-            this.gridTemplate.Name = "gridTemplate";
-            this.gridTemplate.OptionsFind.Visibility = DevExpress.XtraVerticalGrid.FindPanelVisibility.Never;
-            this.gridTemplate.OptionsView.MinRowAutoHeight = 20;
-            this.gridTemplate.RecordWidth = 200;
-            this.gridTemplate.RepositoryItems.AddRange(new DevExpress.XtraEditors.Repository.RepositoryItem[] {
-            this.repositoryFolder});
-            this.gridTemplate.RowHeaderWidth = 280;
-            this.gridTemplate.Rows.AddRange(new DevExpress.XtraVerticalGrid.Rows.BaseRow[] {
-            this.categoryTemplate});
-            this.gridTemplate.ShowButtonMode = DevExpress.XtraVerticalGrid.ShowButtonModeEnum.ShowAlways;
-            this.gridTemplate.Size = new System.Drawing.Size(630, 277);
-            this.gridTemplate.TabIndex = 0;
-            this.gridTemplate.ValidatingEditor += new DevExpress.XtraEditors.Controls.BaseContainerValidateEditorEventHandler(this.grid_ValidatingEditor);
-            //
-            // repositoryFolder
-            //
-            this.repositoryFolder.AutoHeight = false;
-            this.repositoryFolder.Buttons.AddRange(new DevExpress.XtraEditors.Controls.EditorButton[] {
-            new DevExpress.XtraEditors.Controls.EditorButton()});
-            this.repositoryFolder.Name = "repositoryFolder";
-            this.repositoryFolder.ButtonClick += new DevExpress.XtraEditors.Controls.ButtonPressedEventHandler(this.repositoryFolder_ButtonClick);
-            //
-            // categoryTemplate
-            //
-            this.categoryTemplate.ChildRows.AddRange(new DevExpress.XtraVerticalGrid.Rows.BaseRow[] {
-            this.rowFolder});
-            this.categoryTemplate.Name = "categoryTemplate";
-            this.categoryTemplate.Properties.Caption = "서식";
-            //
-            // rowFolder
-            //
-            this.rowFolder.Name = "rowFolder";
-            this.rowFolder.Properties.Caption = "서식 폴더";
-            this.rowFolder.Properties.RowEdit = this.repositoryFolder;
             //
             // pageCalibration
             //
@@ -453,9 +396,6 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
             ((System.ComponentModel.ISupportInitialize)(this.gridConnection)).EndInit();
             ((System.ComponentModel.ISupportInitialize)(this.repositoryPort)).EndInit();
             ((System.ComponentModel.ISupportInitialize)(this.repositoryDistance)).EndInit();
-            this.pageTemplate.ResumeLayout(false);
-            ((System.ComponentModel.ISupportInitialize)(this.gridTemplate)).EndInit();
-            ((System.ComponentModel.ISupportInitialize)(this.repositoryFolder)).EndInit();
             this.pageCalibration.ResumeLayout(false);
             ((System.ComponentModel.ISupportInitialize)(this.gridCalibration)).EndInit();
             ((System.ComponentModel.ISupportInitialize)(this.repositoryDpi)).EndInit();
@@ -486,11 +426,6 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
         private DevExpress.XtraVerticalGrid.Rows.EditorRow rowPort;
         private DevExpress.XtraVerticalGrid.Rows.EditorRow rowDetected;
         private DevExpress.XtraVerticalGrid.Rows.EditorRow rowDistance;
-        private DevExpress.XtraTab.XtraTabPage pageTemplate;
-        private DevExpress.XtraVerticalGrid.VGridControl gridTemplate;
-        private DevExpress.XtraEditors.Repository.RepositoryItemButtonEdit repositoryFolder;
-        private DevExpress.XtraVerticalGrid.Rows.CategoryRow categoryTemplate;
-        private DevExpress.XtraVerticalGrid.Rows.EditorRow rowFolder;
         private DevExpress.XtraTab.XtraTabPage pageCalibration;
         private DevExpress.XtraVerticalGrid.VGridControl gridCalibration;
         private DevExpress.XtraEditors.Repository.RepositoryItemComboBox repositoryDpi;
