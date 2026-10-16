@@ -7,6 +7,7 @@ using System.Linq;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Windows.Forms;
+using System.Xml.Linq;
 
 namespace U2BIO.BT003PROLabelPrinting.Tester
 {
@@ -28,6 +29,7 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
                 step = "bitness";
                 Check(Environment.Is64BitProcess == expect64);
                 Directory.CreateDirectory(directory);
+                CheckSettingsWithoutFolder(directory);
                 CheckSettings(directory);
                 CheckDocument(directory);
                 CheckMedia();
@@ -51,6 +53,24 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
                 catch (IOException) { }
                 catch (UnauthorizedAccessException) { }
             }
+        }
+
+        private static void CheckSettingsWithoutFolder(string directory)
+        {
+            step = "settings-without-folder-preserves-calibration";
+            string path = Path.Combine(directory, "without-folder.xml");
+            new XDocument(new XElement("TesterSettings", new XAttribute("version", "1"),
+                new XElement("Port", "7"), new XElement("PresentationDistanceMm", "23"),
+                new XElement("RecentFiles", new XElement("File", Path.Combine(directory, "recent.txt"))),
+                new XElement("Dpi", "300"), new XElement("SensorOffsetMm", "1.5"),
+                new XElement("VerticalOffsetMm", "4.47"), new XElement("HorizontalOffsetMm", "-2.06"),
+                new XElement("LabelMediaMode", "Gap"))).Save(path);
+            byte[] original = File.ReadAllBytes(path);
+            var settings = TesterSettings.Load(path);
+            Check(settings.LoadWarning == null && settings.Port == "7" && settings.PresentationDistanceMm == 23
+                && settings.Calibration.VerticalOffsetMm == 4.47m && settings.Calibration.HorizontalOffsetMm == -2.06m
+                && settings.LabelMediaMode == BtplLabelMode.Gap && settings.RecentFiles.Count == 1
+                && original.SequenceEqual(File.ReadAllBytes(path)));
         }
 
         private static void CheckSettings(string directory)
