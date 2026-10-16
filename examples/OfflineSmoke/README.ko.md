@@ -22,4 +22,3 @@ IsSuccess는 SDK 작업 결과이며 실제 출력 완료나 무출력을 보장
 검증은 기존 OfflineSmoke에 포함된다. 합성 DataTable로 NULL·빈 항목·공백·누락 열·구분자 충돌, 다른 두 서식의 미리보기, 미연결 Print/PrintFile 결과를 검사한다. x86/x64 빌드와 오프라인 실행은 기존 verify-build가 수행한다. 실제 연결·FEED·인쇄 함수는 자동 실행하지 않는다. 이 검증은 실제 업무 연동 완료나 SDK의 장치 출력 성공을 뜻하지 않는다.
 
 호출 프로그램은 .NET Framework 4.6.1 이상에서 관리 DLL을 참조하고 실제 프로세스 비트수와 맞는 BlackfishNfcLib.dll 및 HFModule.dll을 실행 파일 폴더에 배치한다. AnyCPU 호출자는 실행 비트수를 명확히 고정해야 한다. 제조사 파일을 관리 DLL에 포함하거나 COM 등록하지 않는다. 예제의 System.Data 참조는 호출 프로그램에만 추가한다.
-
