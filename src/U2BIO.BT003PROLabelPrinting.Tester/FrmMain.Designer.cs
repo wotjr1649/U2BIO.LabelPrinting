@@ -318,7 +318,7 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
             this.btnFeed.Size = new System.Drawing.Size(196, 23);
             this.btnFeed.StyleController = this.layoutControl1;
             this.btnFeed.TabIndex = 20;
-            this.btnFeed.Text = "FEED+확인 (#19 실기 확인 전)";
+            this.btnFeed.Text = "FEED+확인";
             this.btnFeed.Click += new System.EventHandler(this.btnFeed_Click);
             //
             // txtPath
