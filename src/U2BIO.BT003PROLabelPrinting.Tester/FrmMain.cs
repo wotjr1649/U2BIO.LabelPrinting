@@ -86,7 +86,6 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
         {
             InitializeComponent();
             settings = TesterSettings.Load(TesterSettings.DefaultFilePath);
-            closeItem = new DXMenuItem("서식 닫기", btnClose_Click) { BeginGroup = true };
             saveAsItem = new DXMenuItem("다른 이름 저장", btnSaveAs_Click);
             statusItem = new DXMenuItem("연결 상태 조회", btnStatus_Click);
             confirmItem = new DXMenuItem("수동 정렬 완료 확인", btnConfirmPosition_Click);
@@ -409,6 +408,8 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
             if (recentShown != null && recentShown.SequenceEqual(settings.RecentFiles)) return;
             recentShown = settings.RecentFiles.ToArray();
             recentMenu.Items.Clear();
+            // Clear가 항목의 Click도 해제하므로 이전 닫기 항목을 재사용하지 않는다.
+            closeItem = new DXMenuItem("서식 닫기", btnClose_Click) { BeginGroup = true };
             foreach (string file in settings.RecentFiles)
             {
                 recentMenu.Items.Add(new DXMenuItem(file, recentItem_Click) { Tag = file });
