@@ -1,10 +1,10 @@
 # TXT 서식 편집 API 사용 안내
 
-[TXT 편집 계약](specs/TXT_TEMPLATE_EDITOR.md)이 지원 범위와 저장 동작의 기준이다. 이슈 #16의 후속 재설계 안내이며, 새 API 적용 여부는 이슈 상태와 실행 검증으로 확인한다. 현재 구현을 이전 JSON/XML·바인딩 API와 혼동하지 않는다. 실제 인쇄는 [공개 프린터 API](PRINTER_API.ko.md)를 따른다.
+이 문서는 프로그램에서 TXT를 편집·저장하거나 표시용 변수 치환을 사용하는 개발자만 읽는 선택 안내다. 기본 인쇄는 [프린터 API](PRINTER_API.ko.md), Tester 조작은 [사용 안내](PRINT_PRESENTATION.ko.md#tester-사용)를 따른다. 세부 지원 범위와 저장 계약은 [TXT 편집 계약](specs/TXT_TEMPLATE_EDITOR.md)에 있다. 이전 JSON/XML·바인딩 API는 제공하지 않는다.
 
 ## 편집과 인쇄
 
-다음 코드는 새 계약의 사용 예시다. Load/편집/저장 자체는 SDK를 로드하거나 프린터를 실행하지 않는다. printer는 호출 프로그램이 연결하고 관리한다.
+다음은 현재 TXT 편집 API의 사용 예시다. Load/편집/저장 자체는 SDK를 로드하거나 프린터를 실행하지 않는다. printer는 호출 프로그램이 연결하고 관리한다.
 
 ```csharp
 var template = BtplTemplate.Load("label.txt");
@@ -61,7 +61,7 @@ SaveAs의 기본 동작은 기존 대상을 교체하지 않으며, 같은 원�
 
 ## 라벨 방식과 인쇄 전 확인
 
-DLL은 서식의 라벨 방식과 SDK 인쇄 예외를 낼 AW 줄을 판정만 한다. Print/PrintFile은 막지 않으므로 프로그램이 자기 용지 방식과 비교해 인쇄할지 정한다.
+DLL은 서식의 라벨 방식과 SDK 인쇄 예외를 낼 AW 줄을 판정만 한다. Tester는 이 진단을 사용하지만 기존 업무 프로그램 적용은 상사 승인 대기이며 아직 진행하지 않았다. Print/PrintFile은 막지 않으므로 프로그램이 자기 용지 방식과 비교해 인쇄할지 정한다.
 
 ```csharp
 var template = BtplTemplate.Load("label.txt");

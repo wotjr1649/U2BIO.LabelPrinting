@@ -1,8 +1,8 @@
 # 동기 USB SDK 공개 API
 
-[이슈 #16 스펙](specs/SYNC_USB_MVP.md)에 맞춘 동기 USB API다. 제조사 `BT003CtrlWrapper.cs`를 직접 사용하며, 공개 함수와 SDK 호출 순서는 [Bt003Printer.cs](../src/U2BIO.BT003PROLabelPrinting/Bt003Printer.cs), 반환값은 [PrinterModels.cs](../src/U2BIO.BT003PROLabelPrinting/PrinterModels.cs)에 있다.
+이 문서는 DLL 호출 개발자용 안내다. 실행 환경은 [배포 안내](SDK_DEPLOYMENT.ko.md), 용지·위치 복구는 [공통 운영 안내](PRINT_PRESENTATION.ko.md#공통-복구)를 먼저 확인한다. 유지보수 계약은 [동기 USB 스펙](specs/SYNC_USB_MVP.md)이다. 제조사 `BT003CtrlWrapper.cs`를 직접 사용하며, 공개 함수와 SDK 호출 순서는 [Bt003Printer.cs](../src/U2BIO.BT003PROLabelPrinting/Bt003Printer.cs), 반환값은 [PrinterModels.cs](../src/U2BIO.BT003PROLabelPrinting/PrinterModels.cs)에 있다.
 
-서식 명령, 좌표, AW 글꼴 처리와 변수 치환은 SDK가 담당한다. DLL은 입력을 검사하고 연결·등록·인쇄·배출·정리의 순서를 관리한다. 기존 비동기·취소·일괄 API는 제공하지 않으며, 선택 Templates 기능으로 렌더링한 문자열은 `Print`에 넘길 수 있다.
+서식 명령, 좌표, AW 글꼴 처리와 변수 치환은 SDK가 담당한다. DLL은 입력을 검사하고 연결·등록·인쇄·배출·정리의 순서를 관리한다. 기존 비동기·취소·일괄 API는 제공하지 않는다. 선택 Templates 기능을 쓰면 변수 표식이 남은 `ToBtpl()` 원문을 `Print`에 전달한다. 화면 표시용 치환 문자열은 인쇄에 재사용하지 않는다.
 
 바이트 그대로 보존한 제조사 Wrapper의 실제 SDK 선언·원문 변수 매핑 예제는 유효하다. 추가 제품 사용 예제와 일부 주의 주석은 이전 배열 인수·결과 속성 계약을 설명한다. 현재 DLL 호출은 이 문서의 variableData 문자열과 IsSuccess·Message 예제를 따른다.
 
@@ -26,11 +26,12 @@
 
 1. 사용 중인 USB 포트 식별 문자열과 용지에 맞는 추가 배출 거리를 준비한다. 블랙마크 용지의 ^Q 형식, 배출 거리, 인쇄 영역과 새 용지 보정은 [운영 기준](PRINT_PRESENTATION.ko.md#운영-기준)을 따른다.
 2. `ConnectUsb`로 연결하고 결과를 확인한다.
-3. 필요한 경우 `SetPrintingOptions`로 속도와 농도를 설정한다.
-4. 서식에 맞게 `Print` 또는 `PrintFile`을 호출하고 결과를 확인한다.
-5. 사용을 마치면 `Disconnect` 또는 `using` 종료의 `Dispose`로 연결을 해제한다.
+3. 처음 실행하거나 용지 위치가 불명확하면 [공통 복구](PRINT_PRESENTATION.ko.md#공통-복구)에 따라 실제 정렬과 위치 확인을 한다. 신뢰할 위치 기록이 있으면 매 요청마다 FEED하지 않는다.
+4. 필요한 경우 `SetPrintingOptions`로 속도와 농도를 설정한다.
+5. 서식에 맞게 `Print` 또는 `PrintFile`을 호출하고 결과를 확인한다.
+6. 사용을 마치면 `Disconnect` 또는 `using` 종료의 `Dispose`로 연결을 해제한다.
 
-다음은 변수 두 개를 사용하는 파일 서식의 예다. `selectedUsbPort`, `presentationDistanceMm`, `formPath`는 호출 프로그램이 준비한다. 이 예제를 실행하면 실제 SDK 연결과 인쇄를 시도한다.
+다음은 변수 두 개를 사용하는 파일 서식의 예다. `selectedUsbPort`, `presentationDistanceMm`, `formPath`는 호출 프로그램이 준비한다. 이 예제는 용지 위치 확인이 끝난 상태를 전제로 하며 실행하면 실제 SDK 연결과 인쇄를 시도한다. 최초 위치 불명 복구를 자동으로 생략하거나 실패 뒤 재인쇄하지 않는다.
 
 ```csharp
 using (var printer = new Bt003Printer())
@@ -175,7 +176,7 @@ SDK 코드 0과 `SendData` 코드 0은 물리 출력·이동 완료 증거가 �
 
 `Positions`는 명령 이력이며 센서로 확인한 위치가 아니다. 인쇄·이동 전에 불명으로 기록하고 정상 응답에서만 갱신한다. 같은 프로세스의 재연결이나 새 객체도 기록을 유지한다. 같은 기록을 `C:\Bitek\BT003\position.txt`(첫 줄 포트, 둘째 줄 mm 또는 `unknown`)에 저장하므로, 프로그램을 다시 실행해도 첫 `ConnectUsb`가 기록을 읽어 다음 인쇄 전에 직전 배출 거리만큼 복귀한다. 파일이 없거나 손상됐거나 다른 포트의 기록이면 위치 불명으로 시작한다. SDK 진입 전에 이 파일을 쓰지 못하면 SDK를 호출하지 않고 IsSuccess=false를 반환한다. DLL은 수동 FEED·용지 교체를 감지하지 않으므로 운영자가 정렬 후 `ConfirmPrintPosition`을 호출하거나, 대기 화면에서 `FeedAndConfirmPosition`으로 FEED와 확인을 함께 한다. 정지 위치는 DLL의 M/B만 담당하며 프린터 LCD 정지 위치 설정에 의존하지 않는다.
 
-Message가 용지 위치 불명을 안내하면 실제 위치를 확인하고 수동으로 정렬한 뒤 `ConfirmPrintPosition`을 호출하거나, 대기 화면에서 아래 `FeedAndConfirmPosition`을 호출한다. 이 함수는 기록을 0으로 바꿀 뿐 센서를 조회하거나 용지를 이동하지 않는다.
+Message가 용지 위치 불명을 안내하면 실제 위치를 확인하고 수동으로 정렬한 뒤 `ConfirmPrintPosition`을 호출하거나, 대기 화면에서 아래 `FeedAndConfirmPosition`을 호출한다. `ConfirmPrintPosition`은 기록을 0으로 바꿀 뿐 센서를 조회하거나 용지를 이동하지 않는다. `FeedAndConfirmPosition`은 실제 FEED를 수행한다.
 
 `FeedAndConfirmPosition`은 FEED 키 + `ConfirmPrintPosition` 절차를 DLL이 대신한다. 연결 확인과 2초 간격 대기 뒤 위치를 불명으로 저장하고 `SendData("~S,FEED")`를 보낸 다음, 응답 0이면 기록을 0으로 저장한다. 배출 상태여도 복귀하지 않으며, 응답 실패·예외·저장 실패이면 위치를 불명으로 남긴다. 프린터는 마지막으로 받은 ^Q로 마크를 맞추므로 ^Q를 바꾼 직후에는 새 서식으로 한 장 인쇄한 뒤 호출하고, LCD 메뉴가 열린 상태에서는 호출하지 않는다. 응답 0도 정렬 완료 증거가 아니다. 2026-10-16 운영 기준 블랙마크 용지의 x64·x86 실기에서 배출 상태와 위치 불명 상태의 FEED 후 출력이 수동 절차와 같은 것을 사용자 관측으로 확인했다. 확인 범위와 한계는 [운영 기준](PRINT_PRESENTATION.ko.md#feed-헬퍼-실기-확인-2026-10-16-19)을 따른다.
 
@@ -197,4 +198,4 @@ SDK 호출 중 DLL 누락·형식/비트수 불일치·함수 누락은 IsSucces
 
 관리 harness는 제품 두 소스를 연결하여 SDK 대체 호출로 순서·실패·잠금 수명을 검사한다. 실제 제품 DLL의 계약 검사는 공개 API와 선언을 확인하며 SDK를 로드하지 않는다. [오프라인 예제](../examples/OfflineSmoke/Program.cs)도 실제 프린터 연결과 인쇄를 실행하지 않는다. 문서의 사용 예제는 SDK를 실행하는 코드이므로 자동 검사 대상으로 실행하지 않는다.
 
-제조사 StringBuilder 출력 계약을 사용하며 SDK 자체 출력 버퍼 결함 방어는 MVP 범위에서 제외한다. 관리 검사 통과는 실제 인쇄 성공을 의미하지 않는다. 2026-10-13 별도 사용자 승인 실기 기록에는 공개 DLL의 x86 파일 인쇄 1회, x64 파일·문자열 교차 인쇄 5회의 ASCII·한글 변수와 위치·배출 정상 관측이 있다. 다른 용지·펌웨어·서식 전체의 성공을 보장하는 결과는 아니다. 이번 가독성·한글 설명 정리는 SDK 로딩과 장치 실행 없이 검증한다.
+제조사 StringBuilder 출력 계약을 사용하며 SDK 자체 출력 버퍼 결함 방어는 MVP 범위에서 제외한다. 관리 검사 통과는 실제 인쇄 성공을 의미하지 않는다. 2026-10-13 별도 사용자 승인 실기 기록에는 공개 DLL의 x86 파일 인쇄 1회, x64 파일·문자열 교차 인쇄 5회의 ASCII·한글 변수와 위치·배출 정상 관측이 있다. 다른 용지·펌웨어·서식 전체의 성공을 보장하는 결과는 아니다. 후속 FEED·미리보기 관측과 한계는 [운영 기록](PRINT_PRESENTATION.ko.md#운영-기준)을 따른다. 이 API 안내나 관리 검사만으로 다른 환경의 장치 성공을 판정하지 않는다.

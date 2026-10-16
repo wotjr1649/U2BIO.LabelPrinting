@@ -1,8 +1,10 @@
-# 이슈16 구현 계획
+# 이슈16 구현 계획 기록
+
+이 문서는 #16 당시의 계획 기록이며 현재 작업 지시나 사용자 필독이 아니다. 현재 진행 상태는 해당 Issue, 사용법은 [README](../README.md), 검사는 [개발 안내](DEVELOPMENT.md)를 따른다. 아래 항목은 당시 계획이며 완료/실행 증거를 대신하지 않는다.
 
 기본 인쇄는 [동기 USB MVP](specs/SYNC_USB_MVP.md), 선택 편집은 [TXT 편집 계약](specs/TXT_TEMPLATE_EDITOR.md)을 따른다. 구현 순서와 실제 파일/검사 경계는 비공개 작업 계획에 기록하고 완료 증거는 이슈 체크포인트에 남긴다.
 
-기존 작업1~6은 동기 USB API, 다섯 속성 bool 결과, 제조사 Wrapper 유지, Templates 기능 보존 통합, raw 가변데이터 문자열 API 전환이다. 현재 후속 작업의 사용자 결정이 이전 Templates 기능/API 보존 조건을 대체한다. 기본 인쇄/파일 잠금/배출/복귀와 Wrapper·PrinterModels·Bt003Printer는 유지한다.
+기존 작업1~6은 동기 USB API, 다섯 속성 bool 결과, 제조사 Wrapper 유지, Templates 기능 보존 통합, raw 가변데이터 문자열 API 전환이다. 당시 후속 작업의 사용자 결정이 이전 Templates 기능/API 보존 조건을 대체한다. 기본 인쇄/파일 잠금/배출/복귀와 Wrapper·PrinterModels·Bt003Printer는 유지한다.
 
 ## TXT 편집 후속 작업
 
