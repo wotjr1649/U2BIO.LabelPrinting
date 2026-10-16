@@ -233,8 +233,8 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
             {
                 string state;
                 if (template == null) state = "열린 서식 없음";
-                else if (media == null) state = "계산 입력 오류(" + error + "): 서식은 바뀌지 않았습니다";
-                else state = LinkState("^Q", labelLinked, labelProblem, template, media.LabelSetting) + " · "
+                else if (media == null) state = "라벨 방식 " + TemplateDocument.LabelModeName(template.LabelMode) + " · 계산 입력 오류(" + error + "): 서식은 바뀌지 않았습니다";
+                else state = "라벨 방식 " + TemplateDocument.LabelModeName(template.LabelMode) + " · " + LinkState("^Q", labelLinked, labelProblem, template, media.LabelSetting) + " · "
                     + LinkState("^W", widthLinked, widthProblem, template, media.WidthSetting);
                 rowMediaState.Properties.Value = state;
                 rowMediaState.Properties.ToolTip = state + Environment.NewLine + "^Q·^W가 같아도 라벨 크기·dpi·보정까지 같다는 뜻은 아닙니다.";
@@ -289,7 +289,7 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
         {
             // 이번 서식에 쓰지 않는 그림을 먼저 놓아, 큰 서식에서 작은 서식으로 바꿀 때 첫 갱신부터 예산을 쓸 수 있게 한다.
             var needed = new HashSet<string>(template == null ? Enumerable.Empty<string>()
-                : template.TextElements.Select(text => RasterKey(text, TemplateDocument.PreviewText(text.Payload, variable))));
+                : template.TextElements.Select(text => RasterKey(text, text.GetPreviewText(variable))));
             foreach (KeyValuePair<string, TextRaster> pair in rasters)
             {
                 // 실패한 그림은 예산이 풀렸을 수 있으므로 다시 만든다.
@@ -303,7 +303,7 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
             {
                 foreach (BtplTextElement text in template.TextElements)
                 {
-                    string shown = TemplateDocument.PreviewText(text.Payload, variable);
+                    string shown = text.GetPreviewText(variable);
                     string key = RasterKey(text, shown);
                     if (next.ContainsKey(key)) continue;
                     TextRaster made;
@@ -326,7 +326,7 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
             text.Size.ToString(CultureInfo.InvariantCulture) + "|" + text.Weight.ToString(CultureInfo.InvariantCulture) + "|" + shown;
 
         private TextRaster RasterOf(BtplTextElement text, string variable) =>
-            rasters.TryGetValue(RasterKey(text, TemplateDocument.PreviewText(text.Payload, variable)), out TextRaster raster) ? raster : null;
+            rasters.TryGetValue(RasterKey(text, text.GetPreviewText(variable)), out TextRaster raster) ? raster : null;
 
         private void DisposeRasters()
         {
@@ -637,8 +637,8 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
             catch (Exception error)
             {
                 Record(new ResultRow(action, false, null, null, null, error.GetType().Name + ": " + error.Message));
-                // 인쇄 전 검사에서 거부된 서식은 공통 오류 줄에도 이유와 줄 번호를 보인다.
-                if (error is BtplFormatException format) ShowException(format);
+                // 인쇄 직전 파일 읽기 실패·확인 뒤 변경은 공통 오류 줄에도 보인다.
+                if (error is BtplFormatException || error is IOException) ShowException(error);
             }
             finally
             {
@@ -697,16 +697,7 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
         private async void btnPrintEdit_Click(object sender, EventArgs e)
         {
             if (busy || doc.Template == null || !CommitEditors()) return;
-            // 두 인수 ^Q는 프린터 라벨 유형을 간격 라벨로 바꾸고 AW X 0은 SDK 예외를 내므로 DLL 검사로 먼저 거부한다.
-            try
-            {
-                TemplateDocument.EnsurePrintable(doc.Template);
-            }
-            catch (BtplFormatException error)
-            {
-                ShowException(error);
-                return;
-            }
+            if (!ConfirmPrint(doc.Template)) return;
             string btpl = doc.Template.ToBtpl();
             string data = VariableData();
             await RunDevice("편집 중 서식 인쇄", () => printer.Print(btpl, data));
@@ -719,8 +710,34 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
             if (doc.IsDirty && XtraMessageBox.Show(this, "저장하지 않은 수정은 이 인쇄에 반영되지 않습니다. 계속할까요?", Title,
                 MessageBoxButtons.YesNo, MessageBoxIcon.Warning, MessageBoxDefaultButton.Button2) != DialogResult.Yes) return;
             string data = VariableData();
-            // 편집본이 아니라 실제로 인쇄할 디스크 내용을 검사하고, 검사부터 인쇄까지 파일을 잠가 그 사이 교체를 막는다.
-            await RunDevice("저장된 파일 인쇄", () => TemplateDocument.WithPrintableFile(path, () => printer.PrintFile(path, data)));
+            // 편집본이 아니라 실제로 인쇄할 디스크 내용을 검사·확인하고, 인쇄 직전 잠금 안에서 다시 읽어 확인한 원문과 같을 때만 보낸다.
+            BtplTemplate disk;
+            try
+            {
+                disk = BtplTemplate.Load(path);
+            }
+            catch (Exception error) when (IsDocumentError(error))
+            {
+                ShowException(error);
+                return;
+            }
+            if (!ConfirmPrint(disk)) return;
+            string confirmed = disk.ToBtpl();
+            await RunDevice("저장된 파일 인쇄", () => TemplateDocument.WithConfirmedFile(path, confirmed, () => printer.PrintFile(path, data)));
+        }
+
+        // AW X가 1 이상 정수가 아니면 SDK 예외가 나므로 확인으로도 넘기지 않는다. 라벨 방식이 설정 용지와 다르거나 정할 수 없으면 확인을 받는다.
+        private bool ConfirmPrint(BtplTemplate template)
+        {
+            string block = TemplateDocument.PrintBlock(template);
+            if (block != null)
+            {
+                ShowError(block);
+                return false;
+            }
+            string warning = TemplateDocument.LabelModeWarning(template, settings.LabelMediaMode);
+            return warning == null || XtraMessageBox.Show(this, warning, Title, MessageBoxButtons.YesNo, MessageBoxIcon.Warning,
+                MessageBoxDefaultButton.Button2) == DialogResult.Yes;
         }
 
         // 구조 오류는 입력 칸이 아니라 서식 전체 문제이므로 공통 오류 줄에 표시한다.

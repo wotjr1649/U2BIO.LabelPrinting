@@ -27,6 +27,13 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
             rowDistance.Properties.Value = settings.PresentationDistanceMm;
             rowFolder.Properties.Value = settings.TemplateFolder;
             PrinterCalibration calibration = settings.Calibration;
+            // 저장 값이 열거형이라 항목은 코드에서 채운다.
+            repositoryMediaMode.Items.AddRange(new[]
+            {
+                new ImageComboBoxItem("블랙마크(^Q 세 인수)", BtplLabelMode.BlackMark),
+                new ImageComboBoxItem("간격(^Q 두 인수)", BtplLabelMode.Gap),
+            });
+            rowMediaMode.Properties.Value = settings.LabelMediaMode;
             rowDpi.Properties.Value = calibration.Dpi.ToString(CultureInfo.InvariantCulture);
             rowSensor.Properties.Value = Mm(calibration.SensorOffsetMm);
             rowVertical.Properties.Value = Mm(calibration.VerticalOffsetMm);
@@ -111,7 +118,7 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
                 var calibration = new PrinterCalibration(ReadDpi(rowDpi.Properties.Value), ReadMm(rowSensor.Properties.Value),
                     ReadMm(rowVertical.Properties.Value), ReadMm(rowHorizontal.Properties.Value));
                 settings.Update(Convert.ToString(rowPort.Properties.Value), ReadDistance(rowDistance.Properties.Value),
-                    Convert.ToString(rowFolder.Properties.Value), calibration);
+                    Convert.ToString(rowFolder.Properties.Value), calibration, (BtplLabelMode)rowMediaMode.Properties.Value);
                 // 버튼에 DialogResult를 두지 않고 저장이 성공했을 때만 닫는다.
                 DialogResult = DialogResult.OK;
             }

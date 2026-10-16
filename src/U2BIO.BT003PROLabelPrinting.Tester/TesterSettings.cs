@@ -58,6 +58,8 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
         internal int PresentationDistanceMm { get; private set; } = DefaultDistanceMm;
         internal string TemplateFolder { get; private set; } = "";
         internal PrinterCalibration Calibration { get; private set; } = PrinterCalibration.Default;
+        // 프린터에 넣어 둔 용지 방식이다. 인쇄 전에 서식의 LabelMode와 비교한다. 프린터에서 조회하지 않는다.
+        internal BtplLabelMode LabelMediaMode { get; private set; } = BtplLabelMode.BlackMark;
         internal IReadOnlyList<string> RecentFiles => recentFiles;
         internal string LoadWarning { get; private set; }
 
@@ -89,15 +91,20 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
         internal static string CheckFolder(string folder) =>
             string.IsNullOrEmpty(folder) || Directory.Exists(folder) ? null : "서식 폴더가 없습니다.";
 
-        // calibration이 null이면 현재 보정값을 유지한다.
-        internal void Update(string port, int distanceMm, string folder, PrinterCalibration calibration = null)
+        internal static string CheckMediaMode(BtplLabelMode mode) =>
+            mode == BtplLabelMode.BlackMark || mode == BtplLabelMode.Gap ? null : "용지 방식은 블랙마크 또는 간격이어야 합니다.";
+
+        // calibration·mediaMode가 null이면 현재 값을 유지한다.
+        internal void Update(string port, int distanceMm, string folder, PrinterCalibration calibration = null, BtplLabelMode? mediaMode = null)
         {
             folder = folder ?? "";
             calibration = calibration ?? Calibration;
-            string error = CheckPort(port) ?? CheckDistance(distanceMm) ?? CheckFolder(folder) ?? calibration.Check();
+            BtplLabelMode media = mediaMode ?? LabelMediaMode;
+            string error = CheckPort(port) ?? CheckDistance(distanceMm) ?? CheckFolder(folder) ?? calibration.Check() ?? CheckMediaMode(media);
             if (error != null) throw new ArgumentException(error);
             // 저장이 끝난 뒤에만 메모리 값을 바꿔 실패 시 화면과 파일이 어긋나지 않게 한다.
-            Write(port, distanceMm, folder, recentFiles, calibration);
+            Write(port, distanceMm, folder, recentFiles, calibration, media);
+            LabelMediaMode = media;
             Port = port;
             PresentationDistanceMm = distanceMm;
             TemplateFolder = folder;
@@ -113,10 +120,10 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
                 .Concat(recentFiles.Where(file => !string.Equals(file, fullPath, StringComparison.OrdinalIgnoreCase)))
                 .Take(MaxRecentFiles).ToList();
             // 경고 상태에서는 손상된 원본을 보존하려고 확인을 누를 때까지 쓰지 않는다.
-            if (LoadWarning == null) Write(Port, PresentationDistanceMm, TemplateFolder, recentFiles, Calibration);
+            if (LoadWarning == null) Write(Port, PresentationDistanceMm, TemplateFolder, recentFiles, Calibration, LabelMediaMode);
         }
 
-        private void CreateDefault() => Write(Port, PresentationDistanceMm, TemplateFolder, recentFiles, Calibration);
+        private void CreateDefault() => Write(Port, PresentationDistanceMm, TemplateFolder, recentFiles, Calibration, LabelMediaMode);
 
         private void Read()
         {
@@ -135,6 +142,9 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
                 Optional(root, "SensorOffsetMm", ParseMm, fallback.SensorOffsetMm),
                 Optional(root, "VerticalOffsetMm", ParseMm, fallback.VerticalOffsetMm),
                 Optional(root, "HorizontalOffsetMm", ParseMm, fallback.HorizontalOffsetMm));
+            // 이전 파일에 없는 용지 방식은 블랙마크로 읽는다. 값이 있는데 둘 중 하나가 아니면 손상으로 본다.
+            BtplLabelMode media = Optional(root, "LabelMediaMode", text => text == "Gap" ? BtplLabelMode.Gap
+                : text == "BlackMark" ? BtplLabelMode.BlackMark : throw new InvalidDataException("용지 방식이 잘못됐습니다."), BtplLabelMode.BlackMark);
             string error = CheckPort(port) ?? CheckDistance(distance)
                 ?? (files.Count > MaxRecentFiles || files.Any(string.IsNullOrWhiteSpace) ? "최근 파일 목록이 잘못됐습니다." : null)
                 ?? calibration.Check();
@@ -142,6 +152,7 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
             Port = port;
             PresentationDistanceMm = distance;
             Calibration = calibration;
+            LabelMediaMode = media;
             // 나중에 지워진 서식 폴더는 파일 손상이 아니므로 그 값만 비우고 포트·배출 거리는 유지한다.
             TemplateFolder = CheckFolder(folder) == null ? folder : "";
             recentFiles = files;
@@ -161,7 +172,7 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
         private static string Value(XElement root, string name) =>
             root.Element(name)?.Value ?? throw new InvalidDataException(name + " 항목이 없습니다.");
 
-        private void Write(string port, int distanceMm, string folder, IEnumerable<string> files, PrinterCalibration calibration)
+        private void Write(string port, int distanceMm, string folder, IEnumerable<string> files, PrinterCalibration calibration, BtplLabelMode media)
         {
             var document = new XDocument(new XElement("TesterSettings", new XAttribute("version", "1"),
                 new XElement("Port", port),
@@ -171,7 +182,8 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
                 new XElement("Dpi", calibration.Dpi.ToString(CultureInfo.InvariantCulture)),
                 new XElement("SensorOffsetMm", Mm(calibration.SensorOffsetMm)),
                 new XElement("VerticalOffsetMm", Mm(calibration.VerticalOffsetMm)),
-                new XElement("HorizontalOffsetMm", Mm(calibration.HorizontalOffsetMm))));
+                new XElement("HorizontalOffsetMm", Mm(calibration.HorizontalOffsetMm)),
+                new XElement("LabelMediaMode", media.ToString())));
             string target = Path.GetFullPath(FilePath);
             // 실행 중 설정 폴더가 지워져도 다음 저장에서 다시 만든다.
             Directory.CreateDirectory(Path.GetDirectoryName(target));

@@ -2,6 +2,7 @@ using System;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Text.RegularExpressions;
 
 namespace U2BIO.BT003PROLabelPrinting
 {
@@ -64,8 +65,23 @@ namespace U2BIO.BT003PROLabelPrinting
     }
 
     /// <summary>AW 한 줄이다. 이름 있는 값으로 편집하며, 바꾸지 않은 필드의 원래 표기는 유지한다.</summary>
+    /// <summary>서식의 ^Q로 정해지는 라벨 방식입니다. BtplTemplate.LabelMode가 판정합니다.</summary>
+    public enum BtplLabelMode
+    {
+        /// <summary>^Q가 없어 프린터의 현재 라벨 유형을 따릅니다.</summary>
+        Unspecified,
+        /// <summary>^Q 세 인수(길이, 마크 폭, 위치±)의 블랙마크 방식입니다.</summary>
+        BlackMark,
+        /// <summary>^Q 두 인수(길이, 간격)의 간격 라벨 방식입니다. 인쇄하면 프린터 라벨 유형이 간격으로 바뀝니다.</summary>
+        Gap,
+        /// <summary>^Q가 여러 줄이거나 해석할 수 없어 방식을 정할 수 없습니다.</summary>
+        Ambiguous,
+    }
+
     public sealed class BtplTextElement
     {
+        private static readonly Regex PreviewVariable = new Regex("\\^V([0-9]{2})", RegexOptions.CultureInvariant);
+
         // AW,X,Y,Size,Weight,Alignment,Rotation,Payload 순서다. 마지막 문구의 쉼표는 분리하지 않는다.
         private readonly string[] fields;
         public string Command => "AW";
@@ -76,6 +92,19 @@ namespace U2BIO.BT003PROLabelPrinting
         public int Alignment => Number(5);
         public int Rotation => Number(6);
         public string Payload => fields[7];
+
+        /// <summary>화면 확인용으로 Payload의 ^Vnn(두 자리)을 가변데이터 값으로 한 번만 바꾼 문구입니다.</summary>
+        /// <param name="variableData">SDK와 같이 !!로 구분한 가변데이터 원문입니다. null이면 표식을 그대로 둡니다.</param>
+        /// <remarks>빈 항목은 빈 값, 없는 번호는 표식 그대로이고 값 안의 ^Vnn은 다시 바꾸지 않습니다. 원문·저장·인쇄 입력은 바꾸지 않으며, 인쇄할 때의 치환은 SDK가 합니다.</remarks>
+        public string GetPreviewText(string variableData = null)
+        {
+            string[] values = variableData == null ? new string[0] : variableData.Split(new[] { "!!" }, StringSplitOptions.None);
+            return PreviewVariable.Replace(Payload, match =>
+            {
+                int index = int.Parse(match.Groups[1].Value, CultureInfo.InvariantCulture);
+                return index < values.Length ? values[index] : match.Value;
+            });
+        }
         public int? TemplateLine { get; }
 
         /// <summary>예제의 정렬/방향 0/0으로 새 AW를 만든다. 크기와 굵기는 호출자가 명시한다.</summary>

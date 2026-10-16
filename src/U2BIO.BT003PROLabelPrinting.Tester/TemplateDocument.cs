@@ -100,27 +100,46 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
 
         internal void SaveAs(string path, bool overwrite) => Adopt(Current.SaveAs(path, overwrite));
 
-        internal static string PreviewText(string payload, string variableData)
+        // 확인으로도 넘길 수 없는 인쇄 차단 사유다. X가 1 이상 정수가 아닌 AW 줄은 SDK 인쇄 예외를 낸다.
+        internal static string PrintBlock(BtplTemplate template) => template.UnprintableTextLineNumbers.Count == 0 ? null
+            : "InvalidArguments (줄 " + string.Join(", ", template.UnprintableTextLineNumbers) + "): AW X가 1 이상 정수가 아니면 인쇄할 수 없습니다.";
+
+        internal static string LabelModeName(BtplLabelMode mode)
         {
-            string[] values = variableData == null ? new string[0] : variableData.Split(new[] { "!!" }, StringSplitOptions.None);
-            return Regex.Replace(payload, "\\^V([0-9]{2})", match =>
+            switch (mode)
             {
-                int index = int.Parse(match.Groups[1].Value);
-                return index < values.Length ? values[index] : match.Value;
-            }, RegexOptions.CultureInvariant);
+                case BtplLabelMode.BlackMark: return "블랙마크";
+                case BtplLabelMode.Gap: return "간격";
+                case BtplLabelMode.Unspecified: return "지정 없음";
+                default: return "판정 불가";
+            }
         }
 
-        // 인쇄 전 검사다. DLL의 WithRawText가 저장 때와 같은 검사(두 인수·해석 불가 ^Q, AW X 0 이하)로 거부하면
-        // BtplFormatException이 난다. 반환 객체는 버리고 문서는 바꾸지 않는다.
-        internal static void EnsurePrintable(BtplTemplate template) => template.WithRawText(template.ToBtpl());
+        // 서식의 라벨 방식이 설정한 용지 방식과 같으면 null, 다르거나 정할 수 없으면 인쇄 전 확인 문구다.
+        internal static string LabelModeWarning(BtplTemplate template, BtplLabelMode media)
+        {
+            if (template.LabelMode == media) return null;
+            string lines = template.LabelSettingLineNumbers.Count == 0 ? "" : " (^Q 줄 " + string.Join(", ", template.LabelSettingLineNumbers) + ")";
+            string reason;
+            switch (template.LabelMode)
+            {
+                case BtplLabelMode.Unspecified: reason = "서식에 ^Q가 없어 프린터의 현재 라벨 유형으로 인쇄합니다."; break;
+                case BtplLabelMode.Ambiguous: reason = "^Q가 여러 줄이거나 해석할 수 없어 라벨 방식을 정할 수 없습니다."; break;
+                case BtplLabelMode.Gap: reason = "두 인수 ^Q는 프린터 라벨 유형을 간격 라벨로 바꿉니다."; break;
+                default: reason = "서식이 설정한 용지와 다른 방식입니다."; break;
+            }
+            return "서식 라벨 방식: " + LabelModeName(template.LabelMode) + lines + Environment.NewLine
+                + "설정 용지 방식: " + LabelModeName(media) + Environment.NewLine + reason + Environment.NewLine + "계속 인쇄할까요?";
+        }
 
-        // 저장된 파일 인쇄: 검사부터 인쇄 호출이 끝날 때까지 파일을 읽기 공유로 열어 두어 그 사이 쓰기·교체를 막는다.
-        // Load와 PrintFile도 읽기 공유로 열므로 함께 읽을 수 있다.
-        internal static T WithPrintableFile<T>(string path, Func<T> print)
+        // 저장된 파일 인쇄: 잠금 안에서 다시 읽은 원문이 UI 스레드에서 검사·확인한 원문(ToBtpl)과 같을 때만 인쇄한다.
+        // 잠금은 다시 읽기부터 인쇄 호출이 끝날 때까지 쓰기·교체를 막고, Load와 PrintFile도 읽기 공유라 함께 읽는다.
+        // 원문이 같으면 검사 결과도 같으므로 다시 검사하지 않는다.
+        internal static T WithConfirmedFile<T>(string path, string confirmed, Func<T> print)
         {
             using (new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read))
             {
-                EnsurePrintable(BtplTemplate.Load(path));
+                if (BtplTemplate.Load(path).ToBtpl() != confirmed) throw new IOException("확인 뒤 파일이 바뀌었습니다. 다시 인쇄하세요.");
                 return print();
             }
         }
