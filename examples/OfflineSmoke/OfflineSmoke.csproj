@@ -17,7 +17,9 @@
   <ItemGroup>
     <Reference Include="System" />
     <Reference Include="System.Core" />
+    <Reference Include="System.Data" />
     <Compile Include="Program.cs" />
+    <Compile Include="CheckupExamples.cs" />
     <ProjectReference Include="..\..\src\U2BIO.BT003PROLabelPrinting\U2BIO.BT003PROLabelPrinting.csproj">
       <Project>{8815635E-D90E-460C-A732-7161E758FCA5}</Project>
       <Name>U2BIO.BT003PROLabelPrinting</Name>

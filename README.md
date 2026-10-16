@@ -20,6 +20,6 @@ git diff --check
 
 검사기는 Release x86/x64에서 실제 제품 DLL의 공개 계약·제조사 선언, 선택 Templates, 제품 두 소스를 링크한 관리 SDK 대체 harness, 오프라인 호출 예제, 실제 배포 속성의 파일 비트수·고정 해시를 확인합니다. DEVFLOW_ROOT는 설치된 플러그인 경로를 프로세스 환경으로 지정합니다. 제조사 SDK·장치·인쇄·배출은 이 검사에서 실행하지 않습니다.
 
-[TXT 편집 API](docs/BTPL_TEMPLATE_API.ko.md), [오프라인 예제](examples/OfflineSmoke/Program.cs)와 과거 docs/history 기록을 구분합니다. 실제 P/Invoke와 출력 정확성은 별도 실기 확인이 필요합니다.
+[TXT 편집 API](docs/BTPL_TEMPLATE_API.ko.md), [오프라인 예제](examples/OfflineSmoke/Program.cs), [Checkup·SmartCheckup 호출 예시](examples/OfflineSmoke/README.ko.md)와 과거 docs/history 기록을 구분합니다. 실제 P/Invoke와 출력 정확성은 별도 실기 확인이 필요합니다.
 
 Print/PrintFile의 선택 인수는 `string variableData = null`이다. 제조사 `!!` 가변데이터 문자열을 기본 검사 후 변경 없이 전달하며 변수 번호 해석은 SDK가 맡는다. 배열/params overload는 제거했고 기존 호출 앱은 새 DLL로 재빌드해야 한다. 가변데이터 전환 당시 Templates는 유지했고, 이후 사용자 결정으로 TXT 편집 전용 재설계를 진행한다. 적용 상태는 이슈와 검증 근거를 확인한다.
