@@ -82,6 +82,9 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
         internal FrmMain()
         {
             InitializeComponent();
+#if BT003_POST_B_OBSERVATION_DIAGNOSTIC
+            printer.PostBObservation = ObserveReturnedPosition;
+#endif
             settings = TesterSettings.Load(TesterSettings.DefaultFilePath);
             saveAsItem = new DXMenuItem("다른 이름 저장", btnSaveAs_Click);
             statusItem = new DXMenuItem("연결 상태 조회", btnStatus_Click);
@@ -140,6 +143,9 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
             BtplTemplate template = doc.Template;
             bool open = template != null;
             Text = open ? Title + " - " + Path.GetFileName(template.FilePath ?? doc.DisplayPath) + (doc.IsDirty ? " *" : "") : Title;
+#if BT003_POST_B_OBSERVATION_DIAGNOSTIC
+            if (ObservationEnabled()) Text += " [I39 B15 직후 관측]";
+#endif
             txtPath.Text = doc.DisplayPath;
             txtPath.ToolTip = doc.DisplayPath;
             lblDirty.Text = doc.IsDirty ? "수정됨" : "";
@@ -656,6 +662,13 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
         private async Task RunDevice(string action, Func<PrinterResult> call, int? printCount = null)
         {
             if (busy) return;
+#if BT003_POST_B_OBSERVATION_DIAGNOSTIC
+            if (ObservationEnabled() && printCount.HasValue && printCount.Value != 1)
+            {
+                ShowError("B15 관측 진단의 요청 장수는 1장으로 설정하세요.");
+                return;
+            }
+#endif
             busy = true;
             printing = printCount.HasValue;
             stopRequested = false;
@@ -704,6 +717,33 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
             lblPrintProgress.Text = "중단 요청됨 · 현재 SDK 호출이 돌아오면 종료합니다.";
             UpdateEnabled();
         }
+
+#if BT003_POST_B_OBSERVATION_DIAGNOSTIC
+        private static bool ObservationEnabled()
+        {
+            bool enabled;
+            return AppContext.TryGetSwitch("U2BIO.BT003PROLabelPrinting.DiagnosticPostBObservation", out enabled) && enabled;
+        }
+
+        private bool ObserveReturnedPosition(int distance)
+        {
+            if (InvokeRequired) return (bool)Invoke(new Func<int, bool>(ObserveReturnedPosition), distance);
+            if (IsDisposed || closeRequested || stopRequested) return false;
+            Record(new ResultRow("B15 직후 관측 시작", true, null, false, null,
+                "인쇄 호출 전 관측창 대기. UTC " + DateTime.UtcNow.ToString("O", CultureInfo.InvariantCulture)));
+            DialogResult choice = XtraMessageBox.Show(this,
+                "B" + distance + " 복귀 명령의 SDK 응답이 돌아왔습니다. 인쇄는 아직 보내지 않았습니다.\r\n"
+                + "용지가 완전히 멈춘 것을 확인한 뒤, 같은 고정 기준으로 정지 위치를 기록하고 사진을 남겨 주세요.\r\n"
+                + "관측 중에는 FEED·전원·용지·헤드·설정을 조작하지 마세요.\r\n\r\n"
+                + "[예] 이 상태에서 기존 서식 1장 인쇄를 계속합니다.\r\n"
+                + "[아니오] 인쇄·추가 배출 없이 중단하고 위치를 미확인으로 둡니다.",
+                "I39 B15 직후 관측", MessageBoxButtons.YesNo, MessageBoxIcon.Information, MessageBoxDefaultButton.Button2);
+            bool proceed = choice == DialogResult.Yes && !closeRequested && !stopRequested;
+            Record(new ResultRow("B15 직후 관측 선택", true, null, false, null,
+                (proceed ? "인쇄 계속 선택. UTC " : "인쇄 중단 선택. UTC ") + DateTime.UtcNow.ToString("O", CultureInfo.InvariantCulture)));
+            return proceed;
+        }
+#endif
 
         internal static int ReadPrintCount(object value)
         {

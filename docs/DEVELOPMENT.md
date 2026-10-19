@@ -41,6 +41,8 @@ node tools/verify-build.js --scope txt
 
 ## 인쇄 단계 시각 진단
 
+Issue #39의 단계 분리 관측은 별도 `BT003_POST_B_OBSERVATION_DIAGNOSTIC` 빌드와 명시적인 `U2BIO.BT003PROLabelPrinting.DiagnosticPostBObservation=true`에서만 켠다. 정상 빌드에는 관측 callback·친구 어셈블리·UI 코드가 없다. 복귀/배출 15 mm와 요청 1장으로 제한하며 post-B 1000 ms switch는 꺼야 한다. 같은 요청의 Gate·PrintFile 잠금을 유지한 채 B 정상 반환 직후 owned 관측창에서 멈추고, 운영자의 계속 선택 뒤에만 기존 서식 등록·인쇄·배출을 보낸다. 취소·관측 예외는 인쇄/배출 없이 위치를 미확인으로 남겨 재시도를 막는다. B는 이미 보낸 상태이므로 자동 원상 복귀는 하지 않는다. 설정 선행 전송·새 이동·고정 대기를 섞지 않으며 관측 시간 자체의 영향과 SDK 반환/실제 이동 완료를 구분한다. 기본은 off이고, 실제 비교는 확인된 정상 정지 상태에서 사용자 관측으로만 진행한다.
+
 전원 재투입 후 첫 출력의 차이를 조사할 때만 `U2BIO.BT003PROLabelPrinting.PrintStageTiming` AppContext switch를 켤 수 있다. 기본은 미정의/false이며, SDK 호출 순서·거리·대기·위치 기록과 공개 API 서명은 바꾸지 않는다. 실행 exe의 `.exe.config`에 아래 runtime 항목을 병합하고 새 프로세스로 시작한다. 기존 설정을 덮어쓰지 않으며, 제품 기본 설정에는 켜지 않는다. 종료 후 false로 바꾸거나 이 override만 제거한다. 호스트 설정은 [.NET Framework AppContextSwitchOverrides](https://learn.microsoft.com/en-us/dotnet/framework/configure-apps/file-schema/runtime/appcontextswitchoverrides-element)를 따른다.
 
 ```xml

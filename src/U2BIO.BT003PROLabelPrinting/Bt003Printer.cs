@@ -45,6 +45,11 @@ namespace U2BIO.BT003PROLabelPrinting
         // hasOptions는 정상 설정을 보관했는지, faulted는 연결 복구가 필요한지, disposed는 해제를 마쳤는지를 나타낸다.
         private bool hasOptions, faulted, disposed;
 
+#if BT003_POST_B_OBSERVATION_DIAGNOSTIC
+        // 격리 진단의 UI 관측 경계다. 정상 제품 어셈블리에는 callback 자체가 없다.
+        internal Func<int, bool> PostBObservation { get; set; }
+#endif
+
         /// <summary>USB 포트를 지정하고 SDK 연결이 열렸는지 확인합니다.</summary>
         /// <param name="port">제조사 SDK에서 사용하는 USB 포트 식별 문자열입니다. 빈 값과 제어문자는 허용하지 않습니다.</param>
         /// <param name="presentationDistanceMm">정상 인쇄 응답 뒤 추가로 배출할 거리입니다. 0..1000 mm이며 기본값 0은 추가 배출 없음입니다.</param>
@@ -508,6 +513,16 @@ namespace U2BIO.BT003PROLabelPrinting
             bool moved = false;
             try
             {
+#if BT003_POST_B_OBSERVATION_DIAGNOSTIC
+                function = "I39 B15 관측 설정 확인";
+                bool observeReturn, otherPause;
+                AppContext.TryGetSwitch("U2BIO.BT003PROLabelPrinting.DiagnosticPostBObservation", out observeReturn);
+                AppContext.TryGetSwitch("U2BIO.BT003PROLabelPrinting.DiagnosticPostBPause1000", out otherPause);
+                var observation = PostBObservation;
+                if (observeReturn && (observation == null || returnDistance != 15 || presentationDistance != 15 || otherPause))
+                    return Fail(result, "B15 관측 진단은 관측창·복귀15/배출15·추가 진단 대기 끔 조건에서만 실행합니다. SDK는 호출하지 않았습니다.");
+                function = "CheckPrtConnection";
+#endif
 #if BT003_POST_B_PAUSE_DIAGNOSTIC
                 // Issue #39 전용 빌드에서만 요청 시작의 opt-in을 고정한다. 정상 빌드에는 포함되지 않는다.
                 function = "I39 진단 설정 확인";
@@ -529,6 +544,25 @@ namespace U2BIO.BT003PROLabelPrinting
                 {
                     return result;
                 }
+#if BT003_POST_B_OBSERVATION_DIAGNOSTIC
+                if (observeReturn)
+                {
+                    // Gate와 파일 snapshot을 가진 채 UI가 관측한다. true 이전에는 서식 등록/P/M을 보내지 않는다.
+                    bool proceed = false;
+                    string reason = "운영자가 중단했습니다.";
+                    try { proceed = observation(returnDistance); }
+                    catch (Exception error) when (Recoverable(error)) { reason = "관측창 처리 중 " + ErrorMessage(error); }
+                    if (!proceed)
+                    {
+                        // B는 이미 보냈다. 자동 재인쇄나 추가 이동으로 되돌리지 않고 실제 복구 전 재시도를 막는다.
+                        Positions[port] = null;
+                        bool saved = SavePosition(null);
+                        return Fail(result, result.Message + " B15 관측을 종료했습니다. " + reason
+                            + " 인쇄·추가 배출은 호출하지 않았습니다. 용지 위치는 미확인입니다."
+                            + (saved ? "" : " " + PositionFileError));
+                    }
+                }
+#endif
 #if BT003_POST_B_PAUSE_DIAGNOSTIC
                 if (returned && pauseAfterReturn)
                 {
