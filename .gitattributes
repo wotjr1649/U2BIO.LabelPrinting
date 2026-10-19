@@ -11,3 +11,5 @@
 *.dll binary
 *.exe binary
 *.pdb binary
+
+samples/templates/checkup-variable.txt -text

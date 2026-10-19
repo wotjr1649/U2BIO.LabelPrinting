@@ -19,5 +19,5 @@ Run `node tools/verify-repository.js` and `git diff --check` for documentation c
 - One program uses a physical printer at a time. Preserve the single connection owner and serialized calls within the process. SDK success is not physical output completion.
 - Execute SDK loading, printing and movement only for a user-authorized test whose output the user observes. Push, merge and deployment require the user's instruction naming their target and effect. Preserve user files and other worktrees.
 - Use the installed `devflow-state` for Issue reads and writes. Publish reviewed summaries and synthetic evidence; exclude private paths, label values, UIDs and secrets.
-- Keep `tests/` and `examples/OfflineSmoke/` in development verification. Product distribution excludes them; do not implement that policy by deleting sources or bypassing checks.
+- Keep `tests/`, including `tests/OfflineSmoke/`, in development verification. Product distribution excludes them; do not implement that policy by deleting sources or bypassing checks.
 - Runtime files use the executing process's bitness: the managed DLL plus `BlackfishNfcLib.dll` and `HFModule.dll`. Do not embed/extract manufacturer binaries or register them as COM. Tester-specific runtime files are listed in the deployment guide.
