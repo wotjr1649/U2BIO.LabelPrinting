@@ -17,6 +17,8 @@ git diff --check
 
 ## DLL 기반 빌드와 실행 검사
 
+Issue #39의 B 이후 시간 민감도 시험은 `BT003_POST_B_PAUSE_DIAGNOSTIC` symbol로 만든 격리 빌드에서만 제공한다. 그 빌드에서도 AppContext switch `U2BIO.BT003PROLabelPrinting.DiagnosticPostBPause1000`을 명시적으로 true로 해야 B Move 정상 반환 뒤 첫 ResetForm 전에 1000 ms를 한 번 기다린다. 미정의/false와 정상 제품 빌드에는 이 대기가 없다. 기존 `PrintStageTiming` 진단을 함께 켜고 소스 revision·symbol·설정·실행 DLL hash와 실제 SDK 구간 시각으로 조건을 확인한다. 이 시험은 모터 완료 보증이나 제품용 sleep 해법이 아니며, SDK/실기 검증을 대신하지 않는다. 산출물은 기존 배포·실행 폴더와 분리한다.
+
 ```text
 node tools/verify-build.js
 node tools/verify-build.js --configuration Debug

@@ -508,6 +508,13 @@ namespace U2BIO.BT003PROLabelPrinting
             bool moved = false;
             try
             {
+#if BT003_POST_B_PAUSE_DIAGNOSTIC
+                // Issue #39 전용 빌드에서만 요청 시작의 opt-in을 고정한다. 정상 빌드에는 포함되지 않는다.
+                function = "I39 진단 설정 확인";
+                bool pauseAfterReturn;
+                AppContext.TryGetSwitch("U2BIO.BT003PROLabelPrinting.DiagnosticPostBPause1000", out pauseAfterReturn);
+                function = "CheckPrtConnection";
+#endif
                 // 1. 연결을 확인하고 이전 정상 배출이 있으면 기록된 거리만큼 먼저 복귀한다.
                 result.NativeCode = Vendor.CheckPrtConnection();
                 if (result.NativeCode != 1)
@@ -522,6 +529,18 @@ namespace U2BIO.BT003PROLabelPrinting
                 {
                     return result;
                 }
+#if BT003_POST_B_PAUSE_DIAGNOSTIC
+                if (returned && pauseAfterReturn)
+                {
+                    // B 반환 이후 경계의 시간 민감도만 시험한다. 모터 완료 대기나 제품 보정값이 아니다.
+                    try { System.Threading.Thread.Sleep(1000); }
+                    catch (Exception error) when (Recoverable(error))
+                    {
+                        Fail(result, result.Message + " I39 진단 대기 중 " + ErrorMessage(error));
+                        return result;
+                    }
+                }
+#endif
 
                 // 2. 이전 서식을 정리한다. 다음 SDK 호출 전에 NativeCode를 비워 예외에 이전 응답이 남지 않게 한다.
                 function = "ResetForm";
