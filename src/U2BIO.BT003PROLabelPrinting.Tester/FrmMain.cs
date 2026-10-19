@@ -628,6 +628,9 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
                 e.Cancel = true;
                 closeRequested = true;
                 stopRequested = true;
+#if BT003_POST_B_OBSERVATION_DIAGNOSTIC
+                CancelObservation();
+#endif
                 return;
             }
             if (!ConfirmDiscard())
@@ -715,6 +718,9 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
             if (!busy || !printing) return;
             stopRequested = true;
             lblPrintProgress.Text = "중단 요청됨 · 현재 SDK 호출이 돌아오면 종료합니다.";
+#if BT003_POST_B_OBSERVATION_DIAGNOSTIC
+            CancelObservation();
+#endif
             UpdateEnabled();
         }
 
@@ -742,6 +748,13 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
             Record(new ResultRow("B15 직후 관측 선택", true, null, false, null,
                 (proceed ? "인쇄 계속 선택. UTC " : "인쇄 중단 선택. UTC ") + DateTime.UtcNow.ToString("O", CultureInfo.InvariantCulture)));
             return proceed;
+        }
+
+        private void CancelObservation()
+        {
+            // busy 종료를 기다리는 owner의 닫기/중단 요청이 관측 modal까지 대기시키지 않게 한다.
+            foreach (Form owned in OwnedForms)
+                if (owned.Modal && owned.Text == "I39 B15 직후 관측") owned.DialogResult = DialogResult.No;
         }
 #endif
 
