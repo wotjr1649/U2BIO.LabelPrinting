@@ -659,6 +659,120 @@ internal static class Program
         } finally { Bt003Printer.PositionFile = file; AppContext.SetSwitch(TimingSwitch, false); }
     }
 
+    private const string PostBPauseSwitch = "U2BIO.BT003PROLabelPrinting.DiagnosticPostBPause1000";
+
+    private static bool ConsumeInterrupt()
+    {
+        try { Thread.Sleep(0); return false; }
+        catch (ThreadInterruptedException) { return true; }
+    }
+
+    private static void PostBPauseDiagnostic()
+    {
+        // 실제 모터 완료를 흉내 내지 않는다. B 반환 이후 첫 ResetForm 전의 시간과 중단만 검사한다.
+        const string port = "SYNTH-POST-B";
+        string file = Bt003Printer.PositionFile;
+        try {
+            foreach (bool enabled in new[] { false, true }) {
+                AppContext.SetSwitch(PostBPauseSwitch, enabled);
+                Fake.Clear(); Restart(); File.WriteAllLines(file, new[] { port, "15" });
+                using (var printer = Connected(port, 15, false)) {
+                    Fake.Calls.Clear();
+                    var watch = new System.Diagnostics.Stopwatch();
+                    long beforeResetMs = -1;
+                    Fake.AfterSendData = () => {
+                        if (Fake.Calls[Fake.Calls.Count - 2] == "^B15\r\n") watch.Restart();
+                    };
+                    Fake.BeforeReset = () => { if (beforeResetMs < 0) beforeResetMs = watch.ElapsedMilliseconds; };
+                    // P 뒤의 새 Sleep은 없어야 한다. pending interrupt는 다음 명시적 Sleep에서만 소비한다.
+                    Fake.BeforePrint = () => Thread.CurrentThread.Interrupt();
+                    var result = printer.Print(Literal);
+                    bool unconsumed = ConsumeInterrupt();
+                    Check(result.IsSuccess && result.PrintInvoked && result.PrintCode == 0 && unconsumed,
+                        "Diagnostic altered print result or added a post-print wait.");
+#if BT003_POST_B_PAUSE_DIAGNOSTIC
+                    if (enabled) Check(beforeResetMs >= 950, "Post-B diagnostic did not wait before ResetForm.");
+#endif
+                    Check(Fake.Calls.SequenceEqual(new[] { "CheckPrtConnection", "^B15\r\n", "SendData", "ResetForm",
+                        "SetPrintingOption", "SetPrintFormString", "StartLabelPrint", "^M15\r\n", "SendData", "ResetForm" }),
+                        "Post-B diagnostic changed SDK commands/order.");
+                    Check(File.ReadAllLines(file).SequenceEqual(new[] { port, "15" }), "Post-B diagnostic changed position history.");
+                    if (!enabled) Check(beforeResetMs >= 0, "Reset boundary not observed.");
+                }
+            }
+            AppContext.SetSwitch(PostBPauseSwitch, true);
+            // fake의 B 반환 시점에 스레드 중단을 예약한다. 제품에 테스트 hook을 추가하지 않는다.
+            Fake.Clear(); Restart(); File.WriteAllLines(file, new[] { port, "15" });
+            using (var printer = Connected(port, 15, false)) {
+                Fake.Calls.Clear(); Fake.AfterSendData = () => Thread.CurrentThread.Interrupt();
+                var result = printer.Print(Literal);
+                bool unconsumed = ConsumeInterrupt();
+#if BT003_POST_B_PAUSE_DIAGNOSTIC
+                Check(!result.IsSuccess && !result.PrintInvoked && result.PrintCode == null && result.NativeCode == 0
+                    && result.Message.Contains("진단 대기") && !unconsumed,
+                    "Diagnostic interruption did not preserve B response and stop before print.");
+                Check(Fake.Calls.SequenceEqual(new[] { "CheckPrtConnection", "^B15\r\n", "SendData" })
+                    && File.ReadAllLines(file).SequenceEqual(new[] { port, "0" }), "Diagnostic interruption altered B history/cleanup.");
+#else
+                Check(result.IsSuccess && result.PrintInvoked && unconsumed,
+                    "Normal build unexpectedly contains the post-B pause.");
+#endif
+            }
+            // B가 없거나 B가 거부된 경로는 switch가 true여도 새 대기를 수행하지 않는다.
+            foreach (string pending in new[] { "0", "unknown", "15" }) {
+                Fake.Clear(); Restart(); File.WriteAllLines(file, new[] { port, pending });
+                using (var printer = Connected(port, 15, false)) {
+                    Fake.Calls.Clear();
+                    if (pending == "15") { Fake.FailAt = "SendData"; Fake.FailCode = 13; }
+                    Fake.AfterSendData = () => Thread.CurrentThread.Interrupt();
+                    var result = printer.Print(Literal);
+                    bool unconsumed = ConsumeInterrupt();
+                    Check(pending == "0" ? result.IsSuccess && unconsumed : !result.PrintInvoked && !result.IsSuccess,
+                        "Post-B pause bypassed pending0/unknown/B failure.");
+                    if (pending == "15") Check(unconsumed, "Failed B entered diagnostic pause.");
+                    if (pending == "unknown") Check(Fake.Calls.Count == 0, "Unknown position reached SDK.");
+                }
+            }
+#if BT003_POST_B_PAUSE_DIAGNOSTIC
+            // opt-in은 첫 SDK 호출 전에 고정된다. B callback에서 off로 바꿔도 이번 요청은 on이다.
+            Fake.Clear(); Restart(); File.WriteAllLines(file, new[] { port, "15" });
+            using (var printer = Connected(port, 15, false)) {
+                var watch = new System.Diagnostics.Stopwatch();
+                Fake.AfterSendData = () => { watch.Restart(); AppContext.SetSwitch(PostBPauseSwitch, false); };
+                Fake.BeforeReset = () => { if (Fake.ResetCount == 0) Check(watch.ElapsedMilliseconds >= 950, "Diagnostic opt-in not captured."); };
+                Check(printer.Print(Literal).IsSuccess, "Captured diagnostic print failed.");
+            }
+            // PrintFile 잠금과 Gate는 진단 대기 전체를 포함한다. Dispose도 작업 종료 전에는 완료되지 않는다.
+            AppContext.SetSwitch(PostBPauseSwitch, true);
+            Fake.Clear(); Restart(); File.WriteAllLines(file, new[] { port, "15" });
+            string form = Path.Combine(Path.GetDirectoryName(file), "post-b-form.txt");
+            File.WriteAllText(form, Literal, Encoding.GetEncoding(949));
+            var owned = Connected(port, 15, false);
+            using (var bReturned = new ManualResetEvent(false))
+            using (var disposed = new ManualResetEvent(false)) {
+                Exception workerError = null; PrinterResult printed = null;
+                Fake.AfterSendData = () => { if (Fake.Calls[Fake.Calls.Count - 2] == "^B15\r\n") bReturned.Set(); };
+                var worker = new Thread(() => { try { printed = owned.PrintFile(form); } catch (Exception e) { workerError = e; } });
+                var disposer = new Thread(() => { try { owned.Dispose(); } catch (Exception e) { workerError = e; } finally { disposed.Set(); } });
+                worker.Start();
+                try {
+                    Check(bReturned.WaitOne(10000), "Diagnostic worker did not return from B.");
+                    bool locked = false;
+                    try { using (File.Open(form, FileMode.Open, FileAccess.Write, FileShare.ReadWrite)) { } }
+                    catch (IOException) { locked = true; }
+                    disposer.Start();
+                    Check(locked && !disposed.WaitOne(50), "File lock/Gate released during diagnostic pause.");
+                } finally {
+                    worker.Join();
+                    if (disposer.ThreadState == ThreadState.Unstarted) owned.Dispose(); else disposer.Join();
+                    File.Delete(form);
+                }
+                Check(workerError == null && printed != null && printed.IsSuccess && disposed.WaitOne(0), "Diagnostic lifetime request failed.");
+            }
+#endif
+        } finally { ConsumeInterrupt(); AppContext.SetSwitch(PostBPauseSwitch, false); Bt003Printer.PositionFile = file; }
+    }
+
     private static int Main()
     {
         // 실제 운영 기록을 건드리지 않도록 실행 폴더의 임시 위치 파일을 사용한다.
@@ -668,6 +782,7 @@ internal static class Program
         Bt003Printer.MinimumIntervalMs = 0;
         try {
             PrintStageTiming();
+            PostBPauseDiagnostic();
             for (int timing = 0; timing != 2; ++timing) {
                 AppContext.SetSwitch(TimingSwitch, timing != 0);
                 FormsAndFailures(); RawVariableData(); UncertainResponseAndCleanup(); Movement(); FileLifetime(); Ownership(); ReviewRegressions(); RawVariableByteBoundary(); MessageAndFailureEvidence(); PositionFile(); FeedPosition(); MinimumInterval();
