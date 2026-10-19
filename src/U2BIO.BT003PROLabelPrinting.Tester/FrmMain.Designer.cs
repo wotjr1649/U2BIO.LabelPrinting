@@ -36,7 +36,7 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
             this.btnSettings = new DevExpress.XtraEditors.SimpleButton();
             this.btnConnect = new DevExpress.XtraEditors.DropDownButton();
             this.btnDisconnect = new DevExpress.XtraEditors.SimpleButton();
-            this.btnFeed = new DevExpress.XtraEditors.DropDownButton();
+            this.btnFeed = new DevExpress.XtraEditors.SimpleButton();
             this.txtPath = new DevExpress.XtraEditors.TextEdit();
             this.lblDirty = new DevExpress.XtraEditors.LabelControl();
             this.lblTime = new DevExpress.XtraEditors.LabelControl();
@@ -1293,7 +1293,7 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
         private DevExpress.XtraLayout.LayoutControlItem layoutItemVariableHint;
         private DevExpress.XtraEditors.DropDownButton btnConnect;
         private DevExpress.XtraEditors.SimpleButton btnDisconnect;
-        private DevExpress.XtraEditors.DropDownButton btnFeed;
+        private DevExpress.XtraEditors.SimpleButton btnFeed;
         private DevExpress.XtraEditors.SimpleButton btnPrintEdit;
         private DevExpress.XtraEditors.SimpleButton btnPrintFile;
         private DevExpress.XtraGrid.GridControl gridResults;

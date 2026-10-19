@@ -21,7 +21,7 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
     {
         private const string Title = "BT-003 Pro 서식 Tester";
         private const string FileFilter = "TXT 서식 (*.txt)|*.txt|모든 파일 (*.*)|*.*";
-        private const string AlignNotice = "^Q가 바뀌었습니다. 새 서식으로 한 장 인쇄한 뒤 물리 FEED 키와 위치 확인으로 정렬하세요.";
+        private const string AlignNotice = "^Q가 바뀌었습니다. 새 서식으로 한 장 인쇄한 뒤 프린터 대기 화면에서 [FEED+확인]으로 정렬하세요.";
         private static readonly string[] ExternalEditCodes = { "AmbiguousFrame", "AmbiguousSetting", "LockedTextArguments" };
         private const NumberStyles MmStyle = NumberStyles.AllowLeadingWhite | NumberStyles.AllowTrailingWhite
             | NumberStyles.AllowLeadingSign | NumberStyles.AllowDecimalPoint;
@@ -38,7 +38,6 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
         private const string ActionConnect = "연결";
         private const string ActionStatus = "상태";
         private const string ActionDisconnect = "해제";
-        private const string ActionConfirm = "위치 확인";
         private const string ActionFeed = "FEED+확인";
 
         private readonly TesterSettings settings;
@@ -47,11 +46,9 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
         private readonly DXPopupMenu undoMenu = new DXPopupMenu();
         private readonly DXPopupMenu saveMenu = new DXPopupMenu();
         private readonly DXPopupMenu connectMenu = new DXPopupMenu();
-        private readonly DXPopupMenu feedMenu = new DXPopupMenu();
         private DXMenuItem closeItem;
         private DXMenuItem saveAsItem;
         private DXMenuItem statusItem;
-        private DXMenuItem confirmItem;
         private DXMenuItem redoItem;
         private DXMenuItem revertSavedItem;
         private DXMenuItem revertOpenedItem;
@@ -80,7 +77,7 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
         private string connectionState = "미연결";
         private string connectionTarget = "";
         private string pendingTarget = "";
-        private string positionState = "미확인";
+        private string alignmentRequest = "마지막 정렬 요청: 없음";
 
         internal FrmMain()
         {
@@ -88,13 +85,10 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
             settings = TesterSettings.Load(TesterSettings.DefaultFilePath);
             saveAsItem = new DXMenuItem("다른 이름 저장", btnSaveAs_Click);
             statusItem = new DXMenuItem("연결 상태 조회", btnStatus_Click);
-            confirmItem = new DXMenuItem("수동 정렬 완료 확인", btnConfirmPosition_Click);
             saveMenu.Items.Add(saveAsItem);
             connectMenu.Items.Add(statusItem);
-            feedMenu.Items.Add(confirmItem);
             btnSave.DropDownControl = saveMenu;
             btnConnect.DropDownControl = connectMenu;
-            btnFeed.DropDownControl = feedMenu;
             btnOpen.DropDownControl = recentMenu;
             redoItem = new DXMenuItem("다시 실행 (Ctrl+Y)", (sender, e) => RunHistory(doc.Redo));
             revertSavedItem = new DXMenuItem("마지막 저장 상태로", (sender, e) => RunHistory(doc.RevertToSaved));
@@ -159,7 +153,7 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
             RefreshMedia();
             RefreshRecentMenu();
             UpdateEnabled();
-            lblStatus.Text = "연결: " + connectionState + connectionTarget + " · 위치: " + positionState;
+            lblStatus.Text = "연결: " + connectionState + connectionTarget + " · " + alignmentRequest + " (실제 위치 감지 아님)";
         }
 
         private EditorRow[] MediaRows => new[] { rowLinerWidth, rowSegment, rowMarkWidth, rowMarkToLabel, rowLabelWidth, rowLabelHeight };
@@ -385,7 +379,6 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
             btnConnect.Enabled = idle;
             btnDisconnect.Enabled = idle;
             statusItem.Enabled = idle;
-            confirmItem.Enabled = idle;
             btnFeed.Enabled = idle;
             btnPrintEdit.Enabled = open;
             btnPrintFile.Enabled = open && template.FilePath != null;
@@ -739,14 +732,20 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
                     // 실패가 닫힘을 뜻하지는 않는다(이미 연결됨, 조회 예외 등). Message를 해석하지 않고 불명으로 둔다.
                     connectionState = failure == null ? "열림" : "불명·" + failure;
                     // 실제 연결에 쓴 값만 표시하도록 연결 성공 때만 포트·배출 거리를 바꾼다.
-                    if (failure == null && row.Action == ActionConnect) connectionTarget = pendingTarget;
+                    if (row.Action == ActionConnect)
+                    {
+                        if (failure == null) connectionTarget = pendingTarget;
+                        alignmentRequest = "마지막 정렬 요청: 없음";
+                    }
                     break;
                 case ActionDisconnect:
+                    alignmentRequest = "마지막 정렬 요청: 없음";
                     connectionState = failure == null ? "닫힘" : "불명·" + failure;
                     break;
-                case ActionConfirm:
                 case ActionFeed:
-                    positionState = row.Action + " " + (failure ?? "성공 (" + row.Time + ")");
+                    // SDK 응답 0 뒤 기록 저장이 실패할 수도 있으므로 처리 결과와 응답을 따로 표시한다.
+                    alignmentRequest = "마지막 정렬 요청: " + row.Action + " 처리 " + (row.Success ? "성공" : "실패")
+                        + " / SDK 응답 " + row.NativeCode + " / " + row.Time;
                     break;
             }
         }
@@ -764,8 +763,6 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
         private async void btnStatus_Click(object sender, EventArgs e) => await RunDevice(ActionStatus, printer.GetConnectionStatus);
 
         private async void btnDisconnect_Click(object sender, EventArgs e) => await RunDevice(ActionDisconnect, printer.Disconnect);
-
-        private async void btnConfirmPosition_Click(object sender, EventArgs e) => await RunDevice(ActionConfirm, printer.ConfirmPrintPosition);
 
         private async void btnFeed_Click(object sender, EventArgs e) => await RunDevice(ActionFeed, printer.FeedAndConfirmPosition);
 
