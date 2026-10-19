@@ -773,6 +773,107 @@ internal static class Program
         } finally { ConsumeInterrupt(); AppContext.SetSwitch(PostBPauseSwitch, false); Bt003Printer.PositionFile = file; }
     }
 
+    private const string ObservationSwitch = "U2BIO.BT003PROLabelPrinting.DiagnosticPostBObservation";
+    private static void PostBObservationDiagnostic()
+    {
+        var hook = typeof(Bt003Printer).GetProperty("PostBObservation", BindingFlags.Instance | BindingFlags.NonPublic);
+#if BT003_POST_B_OBSERVATION_DIAGNOSTIC
+        Check(hook != null, "Post-B observation callback is missing from diagnostic build.");
+        string file = Bt003Printer.PositionFile;
+        const string port = "SYNTH-B-OBSERVE";
+        try {
+            foreach (string outcome in new[] { "continue", "cancel", "throw", "save-fail", "off", "missing", "pending0", "unknown", "b-fail", "conflict", "distance" }) {
+                bool enabled = outcome != "off";
+                AppContext.SetSwitch(ObservationSwitch, enabled);
+                AppContext.SetSwitch(PostBPauseSwitch, outcome == "conflict");
+                Fake.Clear(); Restart();
+                string pending = outcome == "pending0" ? "0" : outcome == "unknown" ? "unknown" : "15";
+                File.WriteAllLines(file, new[] { port, pending });
+                using (var printer = Connected(port, outcome == "distance" ? 7 : 15, false)) {
+                    int observations = 0;
+                    Func<int, bool> observer = distance => {
+                        observations++;
+                        Check(distance == 15 && Fake.Calls.SequenceEqual(new[] { "CheckPrtConnection", "^B15\r\n", "SendData" }),
+                            "Observation was not exactly after B and before Reset/P.");
+                        Check(File.ReadAllLines(file)[1] == "0", "B response history missing at observation.");
+                        if (outcome == "save-fail") Bt003Printer.PositionFile = Path.Combine(file, "blocked.txt");
+                        if (outcome == "throw") throw new InvalidOperationException("SyntheticObservationFailure");
+                        Fake.Calls.Add("OBSERVATION");
+                        return outcome == "continue";
+                    };
+                    if (outcome != "missing") hook.SetValue(printer, observer);
+                    Fake.Calls.Clear();
+                    if (outcome == "b-fail") { Fake.FailAt = "SendData"; Fake.FailCode = 17; }
+                    if (outcome == "continue") Fake.AfterSendData = () => {
+                        AppContext.SetSwitch(ObservationSwitch, false);
+                        hook.SetValue(printer, new Func<int, bool>(d => { throw new Exception("Changed observer was used."); }));
+                    };
+                    var result = printer.Print(Literal);
+                    if (outcome == "continue" || outcome == "off") {
+                        Check(result.IsSuccess && result.PrintInvoked && result.PrintCode == 0 && observations == (enabled ? 1 : 0),
+                            "Observation continue/off result differs.");
+                        string[] expected = { "CheckPrtConnection", "^B15\r\n", "SendData", "OBSERVATION", "ResetForm", "SetPrintingOption", "SetPrintFormString", "StartLabelPrint", "^M15\r\n", "SendData", "ResetForm" };
+                        Check(Fake.Calls.SequenceEqual(enabled ? expected : expected.Where(x => x != "OBSERVATION")), "Observation changed SDK order.");
+                        Check(Fake.LastForm == Literal.Replace("\n", "\r\n") && File.ReadAllLines(file)[1] == "15", "Observation changed form/history.");
+                    } else if (outcome == "cancel" || outcome == "throw" || outcome == "save-fail") {
+                        Check(!result.IsSuccess && !result.PrintInvoked && result.PrintCode == null && result.NativeCode == 0
+                            && observations == 1 && result.Message.Contains("B15 관측"), "Observation abort evidence differs.");
+                        Check(!Fake.Calls.Contains("ResetForm") && !Fake.Calls.Contains("StartLabelPrint") && !Fake.Calls.Any(x => x.StartsWith("^M")), "Abort sent P/M/cleanup.");
+                        var positions = (System.Collections.IDictionary)typeof(Bt003Printer).GetField("Positions", BindingFlags.Static | BindingFlags.NonPublic).GetValue(null);
+                        Check(positions[port] == null, "Observation abort did not block position trust.");
+                        if (outcome != "save-fail") Check(File.ReadAllLines(file)[1] == "unknown", "Observation abort not persisted.");
+                        else Check(result.Message.Contains("기록"), "Abort write failure missing.");
+                        Bt003Printer.PositionFile = file; AppContext.SetSwitch(ObservationSwitch, false); Fake.Calls.Clear();
+                        Check(!printer.Print(Literal).PrintInvoked && Fake.Calls.Count == 0, "Abort allowed automatic retry.");
+                    } else {
+                        Check(!result.IsSuccess && !result.PrintInvoked && observations == 0, "Observation precondition/B failure bypassed.");
+                        Check(outcome == "b-fail" ? Fake.Calls.SequenceEqual(new[] { "CheckPrtConnection", "^B15\r\n", "SendData" }) : Fake.Calls.Count == 0,
+                            "Invalid observation request reached SDK.");
+                    }
+                    Bt003Printer.PositionFile = file;
+                }
+            }
+            // 파일 snapshot과 소유권은 운영자 관측 전 구간을 포함한다. 실제 SDK/장치 호출은 없다.
+            AppContext.SetSwitch(ObservationSwitch, true); AppContext.SetSwitch(PostBPauseSwitch, false);
+            Fake.Clear(); Restart(); File.WriteAllLines(file, new[] { port, "15" });
+            string form = Path.Combine(Path.GetDirectoryName(file), "observation-synthetic.txt");
+            File.WriteAllText(form, Literal, Encoding.GetEncoding(949));
+            var owned = Connected(port, 15, false);
+            using (var entered = new ManualResetEvent(false))
+            using (var release = new ManualResetEvent(false))
+            using (var disposeStarted = new ManualResetEvent(false))
+            using (var disposed = new ManualResetEvent(false)) {
+                PrinterResult result = null; Exception error = null;
+                hook.SetValue(owned, new Func<int, bool>(d => { entered.Set(); Check(release.WaitOne(10000), "Observation timeout."); return true; }));
+                var worker = new Thread(() => { try { result = owned.PrintFile(form); } catch (Exception e) { error = e; } });
+                var disposer = new Thread(() => { disposeStarted.Set(); try { owned.Dispose(); } catch (Exception e) { error = e; } finally { disposed.Set(); } });
+                worker.Start();
+                try {
+                    Check(entered.WaitOne(10000), "Observation not reached.");
+                    bool locked = false;
+                    try { using (File.Open(form, FileMode.Open, FileAccess.Write, FileShare.ReadWrite)) { } } catch (IOException) { locked = true; }
+                    disposer.Start(); Check(disposeStarted.WaitOne(1000), "Dispose not started.");
+                    Check(locked && !disposed.WaitOne(60) && !Fake.Calls.Contains("StartLabelPrint"), "Observation released file/Gate or printed before consent.");
+                } finally {
+                    release.Set(); worker.Join();
+                    if (disposer.ThreadState == ThreadState.Unstarted) owned.Dispose(); else disposer.Join();
+                    File.Delete(form);
+                }
+                Check(error == null && result != null && result.IsSuccess && disposed.WaitOne(0), "Observation concurrency failed.");
+            }
+        } finally { Bt003Printer.PositionFile = file; AppContext.SetSwitch(ObservationSwitch, false); AppContext.SetSwitch(PostBPauseSwitch, false); }
+#else
+        Check(hook == null, "Observation hook leaked into normal build.");
+        AppContext.SetSwitch(ObservationSwitch, true);
+        try {
+            Fake.Clear(); Restart();
+            using (var printer = Connected("SYNTH-NORMAL-OBSERVE", 15)) {
+                Check(printer.Print(Literal).IsSuccess, "Normal build was affected by observation switch.");
+            }
+        } finally { AppContext.SetSwitch(ObservationSwitch, false); }
+#endif
+    }
+
     private static int Main()
     {
         // 실제 운영 기록을 건드리지 않도록 실행 폴더의 임시 위치 파일을 사용한다.
@@ -782,6 +883,7 @@ internal static class Program
         Bt003Printer.MinimumIntervalMs = 0;
         try {
             PrintStageTiming();
+            PostBObservationDiagnostic();
             PostBPauseDiagnostic();
             for (int timing = 0; timing != 2; ++timing) {
                 AppContext.SetSwitch(TimingSwitch, timing != 0);
