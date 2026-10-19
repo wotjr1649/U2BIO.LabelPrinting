@@ -553,6 +553,112 @@ internal static class Program
         }
     }
 
+    private const string TimingSwitch = "U2BIO.BT003PROLabelPrinting.PrintStageTiming";
+    private const string TimingPrefix = " [SDK-UTC ";
+
+    private static string WithoutTiming(PrinterResult result, string expected)
+    {
+        int start = result.Message.IndexOf(TimingPrefix, StringComparison.Ordinal);
+        Check(start >= 0 && result.Message.LastIndexOf(TimingPrefix, StringComparison.Ordinal) == start,
+            "Timing suffix missing or repeated.");
+        string suffix = result.Message.Substring(start);
+        var match = System.Text.RegularExpressions.Regex.Match(suffix,
+            @"^ \[SDK-UTC B\d{4}=(?<t>\d{8}T\d{6}\.\d{7}Z|-{24})/(?<t>\d{8}T\d{6}\.\d{7}Z|-{24});P=(?<t>\d{8}T\d{6}\.\d{7}Z|-{24})/(?<t>\d{8}T\d{6}\.\d{7}Z|-{24});M\d{4}=(?<t>\d{8}T\d{6}\.\d{7}Z|-{24})/(?<t>\d{8}T\d{6}\.\d{7}Z|-{24})\]$");
+        Check(match.Success && suffix.Length <= 200, "Timing suffix is unbounded or contains unexpected payload.");
+        string actual = string.Concat(match.Groups["t"].Captures.Cast<System.Text.RegularExpressions.Capture>()
+            .Select(c => c.Value[0] == '-' ? "0" : "1"));
+        Check(actual == expected, "Timing boundary mismatch: " + actual + " != " + expected);
+        foreach (System.Text.RegularExpressions.Capture capture in match.Groups["t"].Captures) {
+            if (capture.Value[0] != '-') Check(DateTime.TryParseExact(capture.Value, "yyyyMMdd'T'HHmmss.fffffff'Z'",
+                System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.AssumeUniversal,
+                out _), "Invalid UTC timestamp.");
+        }
+        return result.Message.Substring(0, start);
+    }
+
+    private static void PrintStageTiming()
+    {
+        // 진단은 호출 경계만 검사한다. cold firmware나 물리 이동을 fake로 재현한 결과가 아니다.
+        bool defined;
+        Check(!AppContext.TryGetSwitch(TimingSwitch, out defined) || !defined, "Timing should default off.");
+        string file = Bt003Printer.PositionFile;
+        string blockedFile = Path.Combine(file, "unwritable.txt");
+        var cases = new[] {
+            new { Name = "normal", Pending = 15, Distance = 7, Marks = "111111" },
+            new { Name = "zero-new", Pending = 15, Distance = 0, Marks = "111100" },
+            new { Name = "zero-old", Pending = 0, Distance = 15, Marks = "001111" },
+            new { Name = "b-code", Pending = 15, Distance = 15, Marks = "110000" },
+            new { Name = "b-throw", Pending = 15, Distance = 15, Marks = "100000" },
+            new { Name = "p-throw", Pending = 15, Distance = 15, Marks = "111000" },
+            new { Name = "p-code", Pending = 15, Distance = 15, Marks = "111100" },
+            new { Name = "p-unknown", Pending = 15, Distance = 15, Marks = "111100" },
+            new { Name = "cleanup", Pending = 15, Distance = 15, Marks = "111111" },
+            new { Name = "m-code", Pending = 15, Distance = 15, Marks = "111111" },
+            new { Name = "m-throw", Pending = 15, Distance = 15, Marks = "111110" },
+            new { Name = "b-save", Pending = 15, Distance = 15, Marks = "000000" },
+            new { Name = "p-save", Pending = 15, Distance = 15, Marks = "110000" },
+            new { Name = "m-save", Pending = 15, Distance = 15, Marks = "111100" }
+        };
+        try {
+            foreach (var item in cases) {
+                Tuple<PrinterResult, string[], string> baseline = null;
+                for (int enabled = 0; enabled != 2; ++enabled) {
+                    AppContext.SetSwitch(TimingSwitch, enabled != 0);
+                    Fake.Clear(); Restart();
+                    string port = "SYNTH-TIMING-" + item.Name;
+                    File.WriteAllLines(file, new[] { port, item.Pending.ToString() });
+                    using (var printer = Connected(port, item.Distance, false)) {
+                        Fake.Calls.Clear();
+                        switch (item.Name) {
+                            case "b-code": Fake.FailAt = "SendData"; Fake.FailCode = 13; break;
+                            case "b-throw": Fake.ThrowAt = "SendData"; break;
+                            case "p-throw": Fake.ThrowAt = "StartLabelPrint"; break;
+                            case "p-code": Fake.Response = ",101"; break;
+                            case "p-unknown": Fake.Response = "PRIVATE-RESPONSE"; break;
+                            case "cleanup": Fake.CleanupThrows = true; break;
+                            case "m-code": Fake.BeforePrint = () => { Fake.FailAt = "SendData"; Fake.FailCode = 7; }; break;
+                            case "m-throw": Fake.BeforePrint = () => Fake.ThrowAt = "SendData"; break;
+                            case "b-save": Bt003Printer.PositionFile = blockedFile; break;
+                            case "p-save": Fake.AfterSendData = () => Bt003Printer.PositionFile = blockedFile; break;
+                            case "m-save": Fake.BeforePrint = () => Bt003Printer.PositionFile = blockedFile; break;
+                        }
+                        Fake.ExceptionText = "PRIVATE-EXCEPTION";
+                        var result = printer.Print(Literal, "PRIVATE-VARIABLE");
+                        Bt003Printer.PositionFile = file;
+                        if (enabled == 0) {
+                            Check(!result.Message.Contains(TimingPrefix), "Disabled timing changed the message.");
+                            baseline = Tuple.Create(result, Fake.Calls.ToArray(), File.ReadAllText(file));
+                        } else {
+                            Check(WithoutTiming(result, item.Marks) == baseline.Item1.Message
+                                && result.IsSuccess == baseline.Item1.IsSuccess && result.NativeCode == baseline.Item1.NativeCode
+                                && result.PrintCode == baseline.Item1.PrintCode && result.PrintInvoked == baseline.Item1.PrintInvoked,
+                                "Timing changed the original result: " + item.Name);
+                            Check(Fake.Calls.SequenceEqual(baseline.Item2) && File.ReadAllText(file) == baseline.Item3,
+                                "Timing changed SDK order or position history: " + item.Name);
+                            Check(!result.Message.Contains("PRIVATE-") && result.Message.Length <= baseline.Item1.Message.Length + 200,
+                                "Timing leaked payload or exceeded its bound.");
+                        }
+                    }
+                }
+            }
+            Fake.Clear(); Restart(); AppContext.SetSwitch(TimingSwitch, true);
+            using (var printer = Connected("SYNTH-TIMING-SWITCH", 15)) {
+                Fake.BeforePrint = () => AppContext.SetSwitch(TimingSwitch, false);
+                Check(WithoutTiming(printer.Print(Literal), "001111").Length > 0, "Request did not capture enabled switch.");
+                Fake.BeforePrint = () => AppContext.SetSwitch(TimingSwitch, true);
+                Check(!printer.Print(Literal).Message.Contains(TimingPrefix), "Switch changed an in-flight disabled request.");
+                Fake.BeforePrint = null;
+                Check(WithoutTiming(printer.Print(Literal), "111111").Length > 0, "Next request did not see switch.");
+                Fake.ThrowAt = "StartLabelPrint";
+                Check(!printer.Print(Literal).IsSuccess, "Synthetic print exception expected.");
+                Fake.ThrowAt = null; Fake.Calls.Clear();
+                var unknown = printer.Print(Literal);
+                Check(!unknown.IsSuccess && Fake.Calls.Count == 0 && !unknown.Message.Contains(TimingPrefix),
+                    "Unknown position was bypassed or retained the preceding request's timestamps.");
+            }
+        } finally { Bt003Printer.PositionFile = file; AppContext.SetSwitch(TimingSwitch, false); }
+    }
+
     private static int Main()
     {
         // 실제 운영 기록을 건드리지 않도록 실행 폴더의 임시 위치 파일을 사용한다.
@@ -561,7 +667,11 @@ internal static class Program
         // 다른 검사는 실제 대기 없이 순서만 확인한다. 간격 검사는 MinimumInterval에서 따로 한다.
         Bt003Printer.MinimumIntervalMs = 0;
         try {
-            FormsAndFailures(); RawVariableData(); UncertainResponseAndCleanup(); Movement(); FileLifetime(); Ownership(); ReviewRegressions(); RawVariableByteBoundary(); MessageAndFailureEvidence(); PositionFile(); FeedPosition(); MinimumInterval();
+            PrintStageTiming();
+            for (int timing = 0; timing != 2; ++timing) {
+                AppContext.SetSwitch(TimingSwitch, timing != 0);
+                FormsAndFailures(); RawVariableData(); UncertainResponseAndCleanup(); Movement(); FileLifetime(); Ownership(); ReviewRegressions(); RawVariableByteBoundary(); MessageAndFailureEvidence(); PositionFile(); FeedPosition(); MinimumInterval();
+            }
             Console.WriteLine("PASS: linked product bool results, SDK sequencing, input snapshots, uncertain response/cleanup, movement, persisted position, feed confirmation, file lifetime and ownership; managed SDK substitute only");
             return 0;
         } catch (Exception error) { Console.Error.WriteLine("FAIL: managed SDK harness (" + error.GetType().Name + "): " + error.Message); return 1; }
