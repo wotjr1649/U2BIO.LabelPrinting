@@ -37,6 +37,22 @@ node tools/verify-build.js --scope txt
 
 검사기는 vswhere로 MSBuild를 찾고 평가된 프로젝트 설정·컴파일러·targeting pack·revision·dirty 상태와 산출물 해시를 기록한다. 각 하위 프로세스는 120초·출력 2 MiB 제한이며 초과는 실패다. compiler 공유와 MSBuild node reuse를 끄고 종료를 확인한다. 실행별 명령·로그·관리 DLL/검증 exe 사본은 `.work/foundation/`에 남긴다. dirty 결과를 같은 커밋 자체의 검증으로 보고하지 않는다.
 
+## 인쇄 단계 시각 진단
+
+전원 재투입 후 첫 출력의 차이를 조사할 때만 `U2BIO.BT003PROLabelPrinting.PrintStageTiming` AppContext switch를 켤 수 있다. 기본은 미정의/false이며, SDK 호출 순서·거리·대기·위치 기록과 공개 API 서명은 바꾸지 않는다. 실행 exe의 `.exe.config`에 아래 runtime 항목을 병합하고 새 프로세스로 시작한다. 기존 설정을 덮어쓰지 않으며, 제품 기본 설정에는 켜지 않는다. 종료 후 false로 바꾸거나 이 override만 제거한다. 호스트 설정은 [.NET Framework AppContextSwitchOverrides](https://learn.microsoft.com/en-us/dotnet/framework/configure-apps/file-schema/runtime/appcontextswitchoverrides-element)를 따른다.
+
+```xml
+<configuration>
+  <runtime>
+    <AppContextSwitchOverrides value="U2BIO.BT003PROLabelPrinting.PrintStageTiming=true" />
+  </runtime>
+</configuration>
+```
+
+요청 시작에 switch를 한 번 고정하고, B/M의 SendData 및 StartLabelPrint 바로 전후 UTC 시각만 지역 변수에 둔다. 서식·변수·경로·포트·응답 원문을 담거나 별도 파일·listener에 기록하지 않는다. cleanup 뒤 기존 Message 전체에 최대 200자의 `[SDK-UTC B0015=진입/반환;P=진입/반환;M0015=진입/반환]` 접미사를 한 번 붙인다. B/M 뒤 네 자리 숫자는 요청 거리이며, 시각은 `yyyyMMddTHHmmss.fffffffZ`, 미기록은 하이픈 24개다. 사전 저장 실패로 SDK를 호출하지 않은 단계는 양쪽이 미기록이고, SDK가 예외를 던진 단계는 진입만 남는다. 시각 취득·표시의 복구 가능한 실패에는 접미사를 생략하고 원래 결과를 보존한다. Tester는 기존 Message를 표시하며 접미사를 파싱해 제어하지 않는다.
+
+이 시각은 SDK 호출 경계이고 실제 이송·설정 적용 완료가 아니다. UTC 소수 일곱 자리가 실제 시계 분해능을 뜻하지 않는다. 영상에는 같은 PC 시각 기준을 함께 담고 전원 유지/재투입, 앱 유지/재시작을 구분한다. 시계 보정·영상 대응 오차가 크거나 함수 반환 뒤 이동이 계속되면 구간 판정 불가다. 요청이나 cleanup이 끝나지 않거나 프로세스가 종료되면 접미사를 회수할 수 없다. 시각 진단의 관리 검증은 cold 정렬 성공을 증명하지 않으며, 원인이 확인되기 전 B/print/M의 순서·거리를 바꾸는 근거로 쓰지 않는다.
+
 ## SDK 배포용 빌드
 
 Visual Studio Developer Command Prompt에서 실행한다.

@@ -498,6 +498,10 @@ namespace U2BIO.BT003PROLabelPrinting
 
             var result = Success();
             string function = "CheckPrtConnection";
+            // 개발 진단은 요청 시작에만 선택한다. SDK 구간에서는 시각 값만 저장하고 외부 writer를 호출하지 않는다.
+            bool timing = PrintTimingEnabled();
+            int returnDistance = Positions[port].Value;
+            DateTime? returnBegin = null, returnEnd = null, printBegin = null, printEnd = null, presentBegin = null, presentEnd = null;
             // 최초 ResetForm에서 예외가 나도 마지막 정리를 시도하도록 호출 전에 formTouched를 true로 설정한다.
             bool formTouched = false;
             // SDK 이동을 시작한 요청만 다음 인쇄의 대기 기준 시각을 갱신한다.
@@ -514,7 +518,7 @@ namespace U2BIO.BT003PROLabelPrinting
                 WaitForPreviousMotion();
                 bool returned = Positions[port].Value > 0;
                 moved = returned;
-                if (returned && !Move(result, "^B", Positions[port].Value))
+                if (returned && !Move(result, "^B", returnDistance, ref timing, ref returnBegin, ref returnEnd))
                 {
                     return result;
                 }
@@ -569,7 +573,9 @@ namespace U2BIO.BT003PROLabelPrinting
                 result.PrintInvoked = true;
                 // shortcut: 제조사 StringBuilder 출력 계약을 사용한다. SDK 버퍼 결함 방어가 필요하면 별도 재설계한다.
                 moved = true;
+                printBegin = PrintTimingNow(ref timing);
                 Vendor.StartLabelPrint(1, response);
+                printEnd = PrintTimingNow(ref timing);
                 result.PrintCode = ParsePrintCode(response);
                 result.NativeCode = result.PrintCode;
 
@@ -582,7 +588,7 @@ namespace U2BIO.BT003PROLabelPrinting
                     result.Message = "인쇄 SDK 응답은 정상입니다. StartLabelPrint 응답 코드: 0.";
                     if (presentationDistance > 0)
                     {
-                        Move(result, "^M", presentationDistance);
+                        Move(result, "^M", presentationDistance, ref timing, ref presentBegin, ref presentEnd);
                     }
                 }
                 else if (result.PrintCode.HasValue && KnownFailure(result.PrintCode.Value))
@@ -625,10 +631,27 @@ namespace U2BIO.BT003PROLabelPrinting
                         result.IsSuccess = false;
                     }
                 }
+                // 원래 오류와 cleanup 설명을 완성한 뒤 붙인다. 이 시각은 SDK 경계이며 물리 완료 증거가 아니다.
+                if (timing)
+                {
+                    try
+                    {
+                        string suffix = string.Format(CultureInfo.InvariantCulture,
+                            " [SDK-UTC B{0:D4}={1}/{2};P={3}/{4};M{5:D4}={6}/{7}]",
+                            returnDistance, PrintTimingText(returnBegin), PrintTimingText(returnEnd),
+                            PrintTimingText(printBegin), PrintTimingText(printEnd), presentationDistance,
+                            PrintTimingText(presentBegin), PrintTimingText(presentEnd));
+                        result.Message += suffix;
+                    }
+                    catch (Exception error) when (Recoverable(error))
+                    {
+                        // 진단 실패로 원래 결과나 위치 이력을 바꾸지 않는다.
+                    }
+                }
             }
         }
 
-        private bool Move(PrinterResult result, string command, int distance)
+        private bool Move(PrinterResult result, string command, int distance, ref bool timing, ref DateTime? begin, ref DateTime? end)
         {
             // ^B는 이전 배출 거리 복귀, ^M은 이번 인쇄 뒤 추가 배출이다. 0 응답은 실제 위치 확인이 아니다.
             string movement = command == "^B" ? "인쇄 전 복귀" : "인쇄 후 배출";
@@ -642,7 +665,10 @@ namespace U2BIO.BT003PROLabelPrinting
             }
             try
             {
-                result.NativeCode = Vendor.SendData(command + distance.ToString(CultureInfo.InvariantCulture) + "\r\n");
+                string data = command + distance.ToString(CultureInfo.InvariantCulture) + "\r\n";
+                begin = PrintTimingNow(ref timing);
+                result.NativeCode = Vendor.SendData(data);
+                end = PrintTimingNow(ref timing);
                 if (result.NativeCode != 0)
                 {
                     Fail(result, printMessage + movement + "에 실패했습니다. SendData 응답: " + result.NativeCode + ".");
@@ -662,6 +688,39 @@ namespace U2BIO.BT003PROLabelPrinting
                 Fail(result, printMessage + movement + "의 SendData 호출 중 " + ErrorMessage(error));
                 return false;
             }
+        }
+
+        private static bool PrintTimingEnabled()
+        {
+            try
+            {
+                bool enabled;
+                return AppContext.TryGetSwitch("U2BIO.BT003PROLabelPrinting.PrintStageTiming", out enabled) && enabled;
+            }
+            catch (Exception error) when (Recoverable(error))
+            {
+                return false;
+            }
+        }
+
+        private static DateTime? PrintTimingNow(ref bool enabled)
+        {
+            if (!enabled) return null;
+            try
+            {
+                return DateTime.UtcNow;
+            }
+            catch (Exception error) when (Recoverable(error))
+            {
+                // 시각 취득 실패를 미호출로 표시하지 않도록 해당 요청의 진단 전체를 생략한다.
+                enabled = false;
+                return null;
+            }
+        }
+
+        private static string PrintTimingText(DateTime? time)
+        {
+            return time.HasValue ? time.Value.ToString("yyyyMMdd'T'HHmmss.fffffff'Z'", CultureInfo.InvariantCulture) : "------------------------";
         }
 
         private static int? ParsePrintCode(StringBuilder response)
