@@ -96,11 +96,13 @@ Tester self-check는 성공 0·실패 1·잘못된 인수 2로 종료한다. 임
 
 ## 호출 예제와 샘플
 
-[OfflineSmoke](../examples/OfflineSmoke/Program.cs)는 독립 호출 예제이며 [CheckupExamples](../examples/OfflineSmoke/CheckupExamples.cs)는 호출 프로그램이 준비한 DataRow를 받는 두 합성 예시다. DLL에 DB 조회·업무 열 이름·NULL 정책을 넣지 않는다. Checkup은 ExamNo/DisplayName/BirthText를 V00/V01/V02로 구성해 Print하고, SmartCheckup은 VisitCode/DisplayName/Department를 구성해 PrintFile한다. NULL은 빈 문자열, 항목 공백과 빈 칸은 보존하고 필수 열 누락·값 내부 !!는 거부한다. 날짜·숫자 형식은 호출 전에 정한다.
+[OfflineSmoke](../tests/OfflineSmoke/Program.cs)는 공개 API를 독립 호출자 관점에서 검사하는 오프라인 검증 프로그램이며 [CheckupExamples](../tests/OfflineSmoke/CheckupExamples.cs)는 호출 프로그램이 준비한 DataRow를 받는 두 합성 예시다. DLL에 DB 조회·업무 열 이름·NULL 정책을 넣지 않는다. Checkup은 ExamNo/DisplayName/BirthText를 V00/V01/V02로 구성해 Print하고, SmartCheckup은 VisitCode/DisplayName/Department를 구성해 PrintFile한다. NULL은 빈 문자열, 항목 공백과 빈 칸은 보존하고 필수 열 누락·값 내부 !!는 거부한다. 날짜·숫자 형식은 호출 전에 정한다.
 
 PrintOne은 실제 연결/인쇄를 시도하므로 오프라인 Main이 호출하지 않는다. FEED는 운영자의 명시적 요청에서만 수행하고 항상 true로 고정해 빈 라벨을 이송하지 않는다. PrintFile 예제는 배포 후 고정된 파일을 전제로 하며 외부 편집을 허용한다면 검사한 원문 Print 또는 Tester의 확인·잠금 순서를 따른다. 실제 업무 프로그램 적용은 상사 승인 대기로 진행하지 않았다.
 
 [samples/templates/checkup-two-lines.txt](../samples/templates/checkup-two-lines.txt)는 CP949 고정 두 줄의 가상 예제다. AW X80/Y94와 X80/Y134, 크기10·굵기1·정렬/방향0/0이며 회색 그림은 용지에 있으므로 서식 요소가 아니다. 운영 용지에서만 확인한 Q35,5,9+와 배출15를 공통 기본값으로 적용하지 않는다. 사용자 수정본·복사본의 검증을 뜻하지 않는다.
+
+`samples/templates/checkup-variable.txt`는 기존 가변데이터 서식을 원문 그대로 제공하는 추가 샘플이다. 이번 추가 작업에서는 내용 변경·서식 진단·실기 검증을 수행하지 않았다. OfflineSmoke의 세 항목 호출 예시와 대응하는 서식으로 검증한 것은 아니다.
 
 ## 문서 구성과 과거 자료
 
@@ -113,4 +115,4 @@ git show v0.1.1-design:docs/BASELINE.md
 
 기준 문서 네 해시는 현재 문서가 아니라 v0.1.1-design의 BASELINE과 해당 태그의 네 문서 원문(LF 정규화)을 대조한다. 신규 clone에는 기준 태그도 가져온다. 현재 안내를 고쳤다는 이유로 기준 태그·해시를 갱신하지 않는다. 과거의 미구현/미검증·구 API와 당시 실행 결과를 현재 제품 전체의 성공으로 해석하지 않는다.
 
-변경은 연결된 Issue와 전용 브랜치에서 진행한다. Issue I/O와 장부는 설치된 devflow-state를 사용하고 공개 기록에는 검토한 요약·합성 증거만 남긴다. push-on-request와 SDK/실기 승인 경계는 유지한다. tests/와 OfflineSmoke 코드는 개발 소스·전체 검증에 남기며 제품 배포에서만 제외한다. 빌드 산출물·계획·검토 보고서·제조사 참고 자료는 Git에서 제외하고 사용자 서식·개인 설정·위치 기록·다른 작업 폴더와 SDK 원본은 보존한다.
+변경은 연결된 Issue와 전용 브랜치에서 진행한다. Issue I/O와 장부는 설치된 devflow-state를 사용하고 공개 기록에는 검토한 요약·합성 증거만 남긴다. push-on-request와 SDK/실기 승인 경계는 유지한다. tests/(OfflineSmoke 포함) 코드는 개발 소스·전체 검증에 남기며 제품 배포에서만 제외한다. 빌드 산출물·계획·검토 보고서·제조사 참고 자료는 Git에서 제외하고 사용자 서식·개인 설정·위치 기록·다른 작업 폴더와 SDK 원본은 보존한다.

@@ -27,4 +27,4 @@ BT-003 Pro의 텍스트 라벨 인쇄용 .NET Framework 4.6.1 DLL과 WinForms �
 
 소스를 수정하거나 검증하려면 [개발 안내](docs/DEVELOPMENT.md)를 시작점으로 사용합니다. 현행 인쇄·TXT 계약은 해당 API 안내에, SDK 출처와 고정 해시는 배포 안내에 통합했습니다. 과거 설계·계획·결정·시험 상세 문서는 현재 파일 목록에서 제외하고 [정리 전 커밋](https://github.com/wotjr1649/U2BIO.LabelPrinting/tree/c185afee7cf7091de7838c62d5b475fe2d148c12)에 보존합니다. 과거 기록을 현재 구현의 완료 증거로 해석하지 않습니다.
 
-`tests/`와 `examples/OfflineSmoke/`는 개발 검증에 사용하므로 소스 저장소에 유지합니다. 제품 배포에는 포함하지 않는 정책이며, 배포 대상과 [개발 검사](docs/DEVELOPMENT.md#dll-기반-빌드와-실행-검사)를 구분합니다. 개발 자료를 필독에서 제외해도 GitHub 추적·공개 상태는 바뀌지 않습니다.
+`tests/`(OfflineSmoke 포함)는 개발 검증에 사용하므로 소스 저장소에 유지합니다. 제품 배포에는 포함하지 않는 정책이며, 배포 대상과 [개발 검사](docs/DEVELOPMENT.md#dll-기반-빌드와-실행-검사)를 구분합니다. 개발 자료를 필독에서 제외해도 GitHub 추적·공개 상태는 바뀌지 않습니다.

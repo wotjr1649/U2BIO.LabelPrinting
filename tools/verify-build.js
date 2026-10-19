@@ -147,7 +147,7 @@ async function main() {
         await run(msbuild, [path.join(harness, 'U2BIO.BT003PROLabelPrinting.SdkHarness.csproj'), '/t:Rebuild', '/m:1', '/nr:false', '/nologo', '/v:minimal',
             `/p:Configuration=${configuration}`, `/p:Platform=${platform}`], `harness-build-${platform}`);
         await run(path.join(harness, 'bin', platform, configuration, 'U2BIO.BT003PROLabelPrinting.SdkHarness.exe'), [], `harness-${platform}`);
-        const example = path.join(root, 'examples', 'OfflineSmoke');
+        const example = path.join(root, 'tests', 'OfflineSmoke');
         await run(msbuild, [path.join(example, 'OfflineSmoke.csproj'), '/t:Rebuild', '/m:1', '/nr:false', '/nologo', '/v:minimal',
             `/p:Configuration=${configuration}`, `/p:Platform=${platform}`], `example-build-${platform}`);
         await run(path.join(example, 'bin', platform, configuration, 'U2BIO.LabelPrinting.OfflineSmoke.exe'), [`--expect-${platform}`], `example-${platform}`);
