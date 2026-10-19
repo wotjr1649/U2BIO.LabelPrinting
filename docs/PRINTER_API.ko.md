@@ -20,6 +20,8 @@
 | Disconnect() | SDK 해제·Closed 확인; 실패 결과를 반환하고 명시적 재시도 허용 |
 | Dispose() | 진행 중인 작업·정리를 기다린 뒤 연결 해제; 해제 실패는 예외로 전달 |
 
+Tester는 `FeedAndConfirmPosition`에 해당하는 [FEED+확인]만 제공한다. `ConfirmPrintPosition`은 실제 정렬을 확인할 수 있는 외부 DLL 호출자를 위해 유지한다.
+
 `Dispose` 외의 메서드는 `PrinterResult`를 반환한다. 입력 오류는 SDK 호출 전에 예외로 전달한다. API는 SDK가 반환할 때까지 기다리는 동기 방식이므로 UI의 백그라운드 실행은 호출 프로그램이 맡는다. 같은 물리 프린터는 한 프로그램에서만 사용한다.
 
 ## 기본 사용 순서
@@ -176,7 +178,7 @@ SDK 코드 0과 `SendData` 코드 0은 물리 출력·이동 완료 증거가 �
 
 `Positions`는 명령 이력이며 센서로 확인한 위치가 아니다. 인쇄·이동 전에 불명으로 기록하고 정상 응답에서만 갱신한다. 같은 프로세스의 재연결이나 새 객체도 기록을 유지한다. 같은 기록을 `C:\Bitek\BT003\position.txt`(첫 줄 포트, 둘째 줄 mm 또는 `unknown`)에 저장하므로, 프로그램을 다시 실행해도 첫 `ConnectUsb`가 기록을 읽어 다음 인쇄 전에 직전 배출 거리만큼 복귀한다. 파일이 없거나 손상됐거나 다른 포트의 기록이면 위치 불명으로 시작한다. SDK 진입 전에 이 파일을 쓰지 못하면 SDK를 호출하지 않고 IsSuccess=false를 반환한다. DLL은 수동 FEED·용지 교체를 감지하지 않으므로 운영자가 정렬 후 `ConfirmPrintPosition`을 호출하거나, 대기 화면에서 `FeedAndConfirmPosition`으로 FEED와 확인을 함께 한다. 정지 위치는 DLL의 M/B만 담당하며 프린터 LCD 정지 위치 설정에 의존하지 않는다.
 
-Message가 용지 위치 불명을 안내하면 실제 위치를 확인하고 수동으로 정렬한 뒤 `ConfirmPrintPosition`을 호출하거나, 대기 화면에서 아래 `FeedAndConfirmPosition`을 호출한다. `ConfirmPrintPosition`은 기록을 0으로 바꿀 뿐 센서를 조회하거나 용지를 이동하지 않는다. `FeedAndConfirmPosition`은 실제 FEED를 수행한다.
+Message가 용지 위치 불명을 안내하면 실제 위치를 확인하고 수동으로 정렬한 뒤 `ConfirmPrintPosition`을 호출하거나, 대기 화면에서 아래 `FeedAndConfirmPosition`을 호출한다. `ConfirmPrintPosition`은 기록을 0으로 바꿀 뿐 센서를 조회하거나 용지를 이동하지 않는다. 실제 정렬 없이 호출하면 이전 양수 배출 이력이 지워져 다음 인쇄의 복귀가 생략될 수 있다. 이미 지운 기록은 재연결·재시작으로 복원되지 않는다. 이 오조작을 막기 위해 Tester에는 직접 확인 메뉴가 없으며 [FEED+확인]을 사용한다. `FeedAndConfirmPosition`은 실제 FEED를 수행한다.
 
 `FeedAndConfirmPosition`은 FEED 키 + `ConfirmPrintPosition` 절차를 DLL이 대신한다. 연결 확인과 2초 간격 대기 뒤 위치를 불명으로 저장하고 `SendData("~S,FEED")`를 보낸 다음, 응답 0과 기록 저장 성공에서만 위치를 0으로 확인한다. 배출 상태여도 복귀하지 않으며, 응답 실패·예외·저장 실패이면위치를 불명으로 남긴다. 프린터는 마지막으로 받은 ^Q로 마크를 맞추므로 ^Q를 바꾼 직후에는 새 서식으로 한 장 인쇄한 뒤 호출하고, LCD 메뉴가 열린 상태에서는 호출하지 않는다. 응답 0도 정렬 완료 증거가 아니다. 운영 기준 블랙마크 용지의 x64·x86 실기에서 배출 상태와 위치 불명 상태의 FEED 후 출력이 수동 절차와 같다는 사용자 관측이 있다. 확인 범위와 한계는 [운영 기준](PRINT_PRESENTATION.ko.md#운영-기준)을 따른다.
 
