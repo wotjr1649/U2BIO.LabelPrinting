@@ -39,7 +39,6 @@
     <Compile Include="Bt003Printer.cs" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="Sdk\README.ko.md" />
     <None Include="Sdk\x86\BlackfishNfcLib.dll;Sdk\x86\HFModule.dll">
       <TargetPath>%(Filename)%(Extension)</TargetPath>
       <CopyToOutputDirectory Condition="'$(Bt003NativePlatform)' == 'x86'">PreserveNewest</CopyToOutputDirectory>

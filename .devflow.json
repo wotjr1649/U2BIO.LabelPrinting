@@ -6,7 +6,7 @@
   "allowLocalPaths": [
     "src/U2BIO.BT003PROLabelPrinting/Sdk/Interop/BT003CtrlWrapper.cs",
     "src/U2BIO.BT003PROLabelPrinting/Bt003Printer.cs",
-    "README.md", "docs/DESIGN.md", "docs/PRINTER_API.ko.md", "docs/PRINT_PRESENTATION.ko.md", "docs/specs/SYNC_USB_MVP.md"
+    "README.md", "docs/PRINTER_API.ko.md", "docs/PRINT_PRESENTATION.ko.md"
   ],
   "private": [
     "docs/prompts/", "docs/plans/", "artifacts/", ".work/", "_ref/",
