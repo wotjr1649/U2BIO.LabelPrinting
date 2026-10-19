@@ -4,6 +4,8 @@ using System.Diagnostics;
 using System.IO;
 using System.Drawing;
 using System.Linq;
+using System.Reflection;
+using System.Reflection.Emit;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Windows.Forms;
@@ -32,6 +34,7 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
                 CheckSettingsWithoutFolder(directory);
                 CheckSettings(directory);
                 CheckPrintCountAndOpenDirectory(directory);
+                CheckPositionApiReferences();
                 CheckDocument(directory);
                 CheckMedia();
                 CheckRenderer();
@@ -39,7 +42,7 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
                 CheckUsbPorts();
                 CheckNoNativeOrUi();
                 Console.WriteLine("PASS: tester self-check " + (expect64 ? "x64" : "x86")
-                    + " settings/document/media/ink-area/renderer/print-check/print-file-lock/usb-list; nativeSDK=not-loaded; no UI/device");
+                    + " settings/document/media/ink-area/renderer/print-check/print-file-lock/usb-list/position-api-references; nativeSDK=not-loaded; no UI/device");
                 return 0;
             }
             catch (Exception error)
@@ -54,6 +57,55 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
                 catch (IOException) { }
                 catch (UnauthorizedAccessException) { }
             }
+        }
+
+        private static void CheckPositionApiReferences()
+        {
+            step = "tester-position-api-references";
+            var opcodes = typeof(OpCodes).GetFields(BindingFlags.Public | BindingFlags.Static)
+                .Where(field => field.FieldType == typeof(OpCode)).Select(field => (OpCode)field.GetValue(null))
+                .ToDictionary(opcode => opcode.Value);
+            var confirm = typeof(Bt003Printer).GetMethod(nameof(Bt003Printer.ConfirmPrintPosition), Type.EmptyTypes);
+            var feed = typeof(Bt003Printer).GetMethod(nameof(Bt003Printer.FeedAndConfirmPosition), Type.EmptyTypes);
+            int confirms = 0, feeds = 0;
+            const BindingFlags flags = BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance
+                | BindingFlags.Static | BindingFlags.DeclaredOnly;
+            // async 상태 머신·메서드 그룹의 ldftn도 포함한다. 자기 검사의 API 식별 참조는 제외한다.
+            foreach (Type type in typeof(FrmMain).Assembly.GetTypes().Where(type => type != typeof(SelfCheck)))
+            foreach (MethodBase method in type.GetMethods(flags).Cast<MethodBase>().Concat(type.GetConstructors(flags)))
+            {
+                byte[] il = method.GetMethodBody()?.GetILAsByteArray();
+                if (il == null) continue;
+                for (int offset = 0; offset < il.Length;)
+                {
+                    short value = il[offset++];
+                    if (value == 0xfe) value = (short)(0xfe00 | il[offset++]);
+                    OperandType operand = opcodes[value].OperandType;
+                    if (operand == OperandType.InlineMethod)
+                    {
+                        MethodBase target = method.Module.ResolveMethod(BitConverter.ToInt32(il, offset),
+                            type.GetGenericArguments(), method.IsGenericMethod ? method.GetGenericArguments() : null);
+                        if (target.Equals(confirm)) confirms++;
+                        if (target.Equals(feed)) feeds++;
+                    }
+                    switch (operand)
+                    {
+                        case OperandType.InlineNone: break;
+                        case OperandType.ShortInlineBrTarget:
+                        case OperandType.ShortInlineI:
+                        case OperandType.ShortInlineVar: offset++; break;
+                        case OperandType.InlineVar: offset += 2; break;
+                        case OperandType.InlineI8:
+                        case OperandType.InlineR: offset += 8; break;
+                        case OperandType.InlineSwitch: offset += 4 + 4 * BitConverter.ToInt32(il, offset); break;
+                        default: offset += 4; break;
+                    }
+                }
+            }
+            step = "tester-no-bare-position-confirmation";
+            Check(confirms == 0);
+            step = "tester-explicit-feed-reference-remains";
+            Check(feeds > 0);
         }
 
         private static void CheckSettingsWithoutFolder(string directory)
