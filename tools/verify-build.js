@@ -15,7 +15,7 @@ const configuration = cli.length === 0 ? 'Release'
 const evidence = { configuration, scope: txtOnly ? 'txt-and-printer' : 'full', deferredFormats: [], commands: [], artifacts: [] };
 let logRoot;
 let childEnv, taskkill;
-// docs/SDK_API_COVERAGE.md의 고정 제조사 사본 해시다.
+// docs/SDK_DEPLOYMENT.ko.md의 고정 제조사 사본 해시다.
 const sdkHashes = {
     x86: { 'BlackfishNfcLib.dll': 'fed09bae47835dcf78f58579e3cfb9382561799b369e54fd9fa0902e5b89dbf5', 'HFModule.dll': 'bb2721801bc853ead75e647608c6b36a5a3a75f344095e4e29ffc35e822319d4' },
     x64: { 'BlackfishNfcLib.dll': '64c7874980cb0a774a766e299359bc9cba5dd66fd052d758f1d4d1678d8cf72c', 'HFModule.dll': '542ebfbccca1f953b4dcafb2a1faed198707d8fbcdb0653c0fc121d3c273edf5' }

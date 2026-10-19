@@ -49,6 +49,17 @@ DevExpress는 Tester에만 필요하며 제품 DLL의 의존성이 아니다. DL
 
 ## 파일 출처와 검증 범위
 
-고정 제조사 원본은 제품의 `Sdk/x86`과 `Sdk/x64`에 있다. 버전·해시·의존성은 [SDK API 대조표](SDK_API_COVERAGE.md)를 참고한다. 제품 실행은 .NET 기본 DllImport와 ApplicationDirectory/System32 검색 제한을 사용하고 실행 시 해시 검사를 하지 않는다.
+고정 제조사 원본은 제품의 `Sdk/x86`과 `Sdk/x64`에 있다. 제공 SDK의 `라이브러리/x86/lib`, `라이브러리/x64/lib`에서 가져온 Blackfish/HFModule 쌍이며 두 Blackfish의 버전 표기는 2.1.0.0이다. 같은 버전 번호라도 다른 해시의 파일과 혼합하지 않는다. HFSample.exe·샘플 설정/로그·C++ 링크용 .lib는 .NET 실행 배포 대상이 아니다.
+
+| 비트수 | 파일 | SHA-256 |
+| --- | --- | --- |
+| x86 | `BlackfishNfcLib.dll` | `fed09bae47835dcf78f58579e3cfb9382561799b369e54fd9fa0902e5b89dbf5` |
+| x86 | `HFModule.dll` | `bb2721801bc853ead75e647608c6b36a5a3a75f344095e4e29ffc35e822319d4` |
+| x64 | `BlackfishNfcLib.dll` | `64c7874980cb0a774a766e299359bc9cba5dd66fd052d758f1d4d1678d8cf72c` |
+| x64 | `HFModule.dll` | `542ebfbccca1f953b4dcafb2a1faed198707d8fbcdb0653c0fc121d3c273edf5` |
+
+`Sdk/Interop/BT003CtrlWrapper.cs`는 제조사 HFSample_UL의 원본 39개 P/Invoke 선언을 보존한다. StdCall과 원래 DLL 이름·문자열 마샬링·입출력 방향을 유지하며 LPCTSTR/LPTSTR 표기만으로 Unicode로 바꾸지 않는다. USHORT는 ushort, BYTE는 byte, Windows의 int/long은 32-bit이므로 .NET Int64로 바꾸지 않는다. StartLabelPrint는 원본 StringBuilder(100) 선언을 사용하며 SizeConst=100은 native 출력 안전성 보장이 아니다.
+
+제품 실행은 .NET 기본 DllImport와 ApplicationDirectory/System32 검색 제한을 사용하고 실행 시 해시·기존 모듈 충돌 검사를 하지 않는다. SDK 최초 호출은 연결 시점이며 오프라인 편집·미리보기는 SDK를 로드하지 않는다. Wrapper에 RFID·보안 선언이 있어도 공개 제품 기능이나 인쇄 흐름에서 사용한다는 뜻은 아니다. 원형 미확정 export나 제공 DLL에 없는 함수를 추측하여 추가하지 않는다. 현재 인쇄·반환 처리 계약은 [DLL API](PRINTER_API.ko.md)에 있다.
 
 `node tools/verify-build.js`는 플랫폼별 배포 파일과 고정 제조사 해시를 대조하며 SDK를 로드하지 않는다. 관리 검증과 SDK/물리 성공은 다르며, 확인된 용지·위치·배출 범위는 [운영 기준](PRINT_PRESENTATION.ko.md#운영-기준)에 있다.

@@ -1,6 +1,6 @@
 # TXT 서식 편집 API 사용 안내
 
-이 문서는 프로그램에서 TXT를 편집·저장하거나 표시용 변수 치환을 사용하는 개발자만 읽는 선택 안내다. 기본 인쇄는 [프린터 API](PRINTER_API.ko.md), Tester 조작은 [사용 안내](PRINT_PRESENTATION.ko.md#tester-사용)를 따른다. 세부 지원 범위와 저장 계약은 [TXT 편집 계약](specs/TXT_TEMPLATE_EDITOR.md)에 있다. 이전 JSON/XML·바인딩 API는 제공하지 않는다.
+이 문서는 프로그램에서 TXT를 편집·저장하거나 표시용 변수 치환을 사용하는 개발자만 읽는 선택 안내이며 현행 TXT 편집 계약을 포함한다. 기본 인쇄는 [프린터 API](PRINTER_API.ko.md), Tester 조작은 [사용 안내](PRINT_PRESENTATION.ko.md#tester-사용)를 따른다. 이전 JSON/XML·바인딩·BtplProcessor API는 제공하지 않는다.
 
 ## 편집과 인쇄
 
@@ -84,3 +84,29 @@ DLL은 그림이나 치환한 인쇄 서식을 반환하지 않는다. 프로그
 용지 설정이 없으면 화면용 크기를 별도로 지정하고 TXT에 자동 추가하지 않는다. UnsupportedLineNumbers가 있으면 그 행이 미리보기에 반영되지 않았음을 알린다. 실제 프린터 글꼴·문자 폭·물리 출력 일치는 이 화면의 보장 범위가 아니다.
 
 [오프라인 호출 예제](../examples/OfflineSmoke/Program.cs)는 UI/DB/SDK가 없는 호출부 이행과 관리 계약을 확인한다. 실제 UI 그리기나 장치 성공 증거는 아니다.
+
+## 원문과 편집의 보존 계약
+
+편집 전 `Parse(text).ToBtpl()`은 입력 문자열과 정확히 같다. CRLF/LF/CR 혼용, 빈행과 마지막 줄끝 유무, 명령 순서·미지원 명령·공백·쉼표·`!!`·미수정 숫자 표기를 보존한다. 수치가 같은 편집은 원래 표기를 유지하고, 바꾼 필드만 새 표기로 쓴다. 새 줄은 첫 줄끝 형식을 쓰며 줄끝이 없으면 CRLF를 쓴다. SDK 입력의 CRLF 정규화는 인쇄 API가 맡는다.
+
+AW는 앞 7개 쉼표까지만 항목을 나누고 나머지는 trim하지 않은 Payload다. 기존 signed 정수·선행 0·굵기·정렬·방향을 읽었다는 이유로 자동 보정하지 않는다. 편집하는 X는 1 이상, Y는 0 이상 Int32다. 새 Size는 양수이며 `Int32.MaxValue / 340` 이하, 새 Weight는 1/2/3이다. Payload는 리터럴 CR/LF·제어문자로 새 행을 끼워 넣을 수 없다. 기존 정렬·방향을 바꾸려면 원문 편집을 사용하며 새 요소의 정렬·방향만 0/0이다.
+
+Load/Parse/ToBtpl과 원문 기반 편집은 다중·불완전 frame의 원문을 보존한다. 기존 AW 수정·삭제는 선택한 원문 행에만 반영한다. AddText·복사·누락 설정 삽입은 `^L` 하나와 대응 끝 `E` 하나를 식별할 때만 허용한다. AW는 끝 E 직전, 설정은 ^L 직전에 넣으며 `^E15`를 끝 E로 보지 않는다. 모호하면 `AmbiguousFrame` 등 명시적 오류로 거부하며 임의 frame을 만들지 않는다. 중복 Q/W/S/H의 수정·삭제도 `AmbiguousSetting`으로 거부한다. 필수 설정은 없고 P/C/R/E나 Q/W/S/H를 자동 주입하지 않는다.
+
+WithLabelLength/Width는 기존 Q 첫 인수와 W 너비만 바꾸며 나머지 인수를 유지한다. 없으면 WithSetting으로 전체를 지정한다. 새 ^S는 2..7, ^H는 0..19이고, 용지 길이·너비는 양의 mm다. 인쇄 API SetPrintingOptions의 범위와 이 편집 범위를 혼동하지 않는다.
+
+모든 With/Remove는 immutable 새 객체의 원문·목록을 제공하며 현재 FilePath·CodePage·마지막 저장 해시를 유지한다. WithRawText도 파일 기준을 유지한다. TextElements/Settings는 해당 객체의 스냅샷이므로 추가·삭제·원문 편집 후 인덱스를 다시 선택한다. BtplSetting은 Command/Parameters/TemplateLine, BtplTextElement는 Command·위치·Payload·Size/Weight·정렬/방향·TemplateLine을 제공한다. BtplFormatException은 Code·TemplateLine·한글 설명을 제공하고 저장 충돌은 BtplSaveConflictException의 `SourceChanged`다.
+
+## 파일 저장의 보장과 한계
+
+Load/Save/SaveAs의 파일과 최종 인코딩 바이트는 4 MiB 이내다. 명시한 CodePage의 strict 변환을 사용하며, 일치하는 BOM은 읽을 때 제거하고 저장은 BOM 없이 한다. 불일치 BOM·잘못된 바이트·표현 불가 문자는 거부하므로 문자열 원문 보존을 BOM 포함 파일 바이트 전체 동일성으로 해석하지 않는다. 파일 확장자로 JSON/XML을 선택하지 않는다.
+
+Save는 마지막 읽기/저장 해시로 원본의 외부 변경·삭제를 검사하며 삭제된 원본을 재생성하지 않는다. SaveAs는 Path.GetFullPath와 Windows 대소문자 무시 비교로 같은 현재 경로를 `SameSavePath`로 거부한다. 기본 overwrite=false는 완성된 임시 파일을 File.Move로 확정하므로 대상이 저장 중 새로 생겨도 덮어쓰지 않는다. 사용자가 확인한 overwrite=true만 기존 대상 교체를 허용한다.
+
+인코딩·최종 바이트·재추출·반환 객체와 저장 기준을 먼저 준비한다. 같은 폴더의 임시 파일에 완전히 쓰고 flush/close한 뒤 Move/Replace한다. 성공 후 필수 재읽기·재파싱은 하지 않는다. 실패하면 기존 파일·편집 객체를 유지하고 생성한 임시 파일만 정리하며 최초 실패를 가리거나 자동 덮어쓰기 재시도를 하지 않는다. 반환 객체는 성공 시에만 채택한다.
+
+Load 잠금은 읽는 동안, 저장 잠금은 실제 쓰는 동안이다. 편집 중 잠금·부모 디렉터리 잠금·최종 경로 확인·완전 CAS·전원 장애 복구·모든 링크 동일성은 보장하지 않는다. 인쇄 및 finally까지 유지하는 PrintFile 잠금과 별개다.
+
+GetPreviewText는 `!!`의 빈 항목·공백을 유지해 ^Vnn을 한 번 치환한다. `A!!!!C!!`는 A/빈 값/C/빈 값이며 값 안의 변수 표식을 다시 치환하지 않는다. 없는 번호와 null은 원래 표식으로 남는다. SDK의 빈 항목·부족 데이터 출력 의미를 보장하지 않는다.
+
+LabelSettingLineNumbers는 앞 공백을 뺀 줄이 ^Q로 시작하는 원문 행 번호다. LabelMode·UnprintableTextLineNumbers는 객체 생성 때 계산한다. WithRawText·Save/SaveAs는 해석 불가 AW도 X 오류를 `InvalidArguments`로 먼저 거부하고, 세 인수가 아닌 Q는 `GapLabelSetting`으로 거부한다. 읽기·진단과 편집·저장 허용 여부는 다르며, Print/PrintFile이 이 진단을 자동 실행하는 것은 아니다. DLL에는 WinForms·DevExpress·DB 의존성을 넣지 않고 업무 데이터 구성·인쇄 순서·배경 실행은 호출 프로그램이 맡는다.

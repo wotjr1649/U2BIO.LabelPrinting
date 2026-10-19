@@ -2,15 +2,15 @@
 
 ## Commands
 
-Run `node tools/verify-repository.js` and `git diff --check` for documentation changes. Preserve the contract links required by the checker. For product, test, tool or solution changes, run `node tools/verify-build.js`; follow the repository's declared verification gate before handoff. Set `DEVFLOW_ROOT` to the installed plugin root in the process environment. Managed harness and assembly checks do not prove SDK or physical printing success.
+Run `node tools/verify-repository.js` and `git diff --check` for documentation changes. For product, test, tool or solution changes, run `node tools/verify-build.js`; follow the repository's declared verification gate before handoff. Set `DEVFLOW_ROOT` to the installed plugin root in the process environment. Managed harness and assembly checks do not prove SDK or physical printing success.
 
 ## Read when relevant
 
-- When changing printing contracts, read [SYNC_USB_MVP](docs/specs/SYNC_USB_MVP.md) and [the public API](docs/PRINTER_API.ko.md). Use [DESIGN](docs/DESIGN.md) for connection ownership and cleanup flow.
-- When changing TXT editing or saving, read [the TXT contract](docs/specs/TXT_TEMPLATE_EDITOR.md) and [the editing API](docs/BTPL_TEMPLATE_API.ko.md).
-- When changing the Tester, read [its specification](docs/specs/DEVEXPRESS_TESTER.md). User instructions belong in [Tester and media operations](docs/PRINT_PRESENTATION.ko.md), not in this file.
+- When changing printing contracts, connection ownership or cleanup, read [the printing API and contract](docs/PRINTER_API.ko.md).
+- When changing TXT editing or saving, read [the editing API and contract](docs/BTPL_TEMPLATE_API.ko.md).
+- When changing the Tester, read [its maintenance rules](docs/DEVELOPMENT.md#tester-유지보수). User instructions belong in [Tester and media operations](docs/PRINT_PRESENTATION.ko.md), not in this file.
 - When changing media, coordinates, presentation or preparing hardware checks, read [the operating baseline](docs/PRINT_PRESENTATION.ko.md#운영-기준). Changing a `^Q` value can change both the printer's media setting and stop position; its first argument excludes the mark.
-- When building or preparing runtime files, read [DEVELOPMENT](docs/DEVELOPMENT.md) and [deployment](docs/SDK_DEPLOYMENT.ko.md). Historical plans and evidence are reference material, not current work instructions. Track current work in its Issue.
+- When building or preparing runtime files, read [DEVELOPMENT](docs/DEVELOPMENT.md) and [deployment](docs/SDK_DEPLOYMENT.ko.md). Current contracts live in these six guides; retrieve historical plans and evidence from Git history as described in DEVELOPMENT. Track current work in its Issue.
 
 ## Boundaries
 
