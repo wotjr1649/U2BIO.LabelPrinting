@@ -874,6 +874,101 @@ internal static class Program
 #endif
     }
 
+    private const string PostPObservationSwitch = "U2BIO.BT003PROLabelPrinting.DiagnosticPostPObservation";
+    private static void PostPObservationDiagnostic()
+    {
+        var hook = typeof(Bt003Printer).GetProperty("PostPObservation", BindingFlags.Instance | BindingFlags.NonPublic);
+#if BT003_POST_B_OBSERVATION_DIAGNOSTIC
+        Check(hook != null, "Post-P observation callback is missing from diagnostic build.");
+        string file = Bt003Printer.PositionFile;
+        const string port = "SYNTH-P-OBSERVE";
+        try {
+            foreach (string outcome in new[] { "continue", "off", "cancel", "throw", "save-fail", "missing", "pending0", "unknown", "b-fail", "p-fail", "p-unknown", "p-throw", "register-fail", "conflict", "pause", "distance", "m-fail", "cleanup-fail" }) {
+                bool enabled = outcome != "off";
+                AppContext.SetSwitch(PostPObservationSwitch, enabled);
+                AppContext.SetSwitch(ObservationSwitch, outcome == "conflict");
+                AppContext.SetSwitch(PostBPauseSwitch, outcome == "pause");
+                Fake.Clear(); Restart();
+                File.WriteAllLines(file, new[] { port, outcome == "pending0" ? "0" : outcome == "unknown" ? "unknown" : "15" });
+                using (var printer = Connected(port, outcome == "distance" ? 7 : 15, false)) {
+                    int observations = 0;
+                    Func<int, bool> observer = distance => {
+                        observations++;
+                        Check(distance == 15 && Fake.Calls.SequenceEqual(new[] { "CheckPrtConnection", "^B15\r\n", "SendData", "ResetForm", "SetPrintingOption", "SetPrintFormString", "StartLabelPrint" }), "Observation was not exactly after P and before M/cleanup.");
+                        Check(File.ReadAllLines(file)[1] == "unknown", "P gate trusted an unfinished position.");
+                        Fake.Calls.Add("P-OBSERVATION");
+                        if (outcome == "save-fail") Bt003Printer.PositionFile = Path.Combine(file, "blocked.txt");
+                        if (outcome == "throw") throw new InvalidOperationException("SyntheticPostPObservationFailure");
+                        return outcome == "continue" || outcome == "m-fail" || outcome == "cleanup-fail";
+                    };
+                    if (outcome != "missing") hook.SetValue(printer, observer);
+                    Fake.Calls.Clear();
+                    if (outcome == "b-fail") { Fake.FailAt = "SendData"; Fake.FailCode = 17; }
+                    if (outcome == "register-fail") { Fake.FailAt = "SetPrintFormString"; Fake.FailCode = 17; }
+                    if (outcome == "p-fail") Fake.Response = ",1";
+                    if (outcome == "p-unknown") Fake.Response = "unparseable";
+                    if (outcome == "p-throw") Fake.ThrowAt = "StartLabelPrint";
+                    Fake.CleanupThrows = outcome == "cleanup-fail";
+                    if (outcome == "continue") Fake.BeforePrint = () => {
+                        AppContext.SetSwitch(PostPObservationSwitch, false);
+                        hook.SetValue(printer, new Func<int, bool>(d => { throw new Exception("Changed observer was used."); }));
+                    };
+                    if (outcome == "m-fail") Fake.BeforePrint = () => { Fake.FailAt = "SendData"; Fake.FailCode = 17; };
+                    var result = printer.Print(Literal);
+                    if (outcome == "continue" || outcome == "off" || outcome == "m-fail" || outcome == "cleanup-fail") {
+                        Check(result.IsSuccess == (outcome == "continue" || outcome == "off") && result.PrintInvoked && result.PrintCode == 0 && observations == (enabled ? 1 : 0), "Post-P continue/off/failure result differs.");
+                        string[] expected = { "CheckPrtConnection", "^B15\r\n", "SendData", "ResetForm", "SetPrintingOption", "SetPrintFormString", "StartLabelPrint", "P-OBSERVATION", "^M15\r\n", "SendData", "ResetForm" };
+                        Check(Fake.Calls.SequenceEqual(enabled ? expected : expected.Where(x => x != "P-OBSERVATION")), "Post-P gate changed SDK order.");
+                        Check(File.ReadAllLines(file)[1] == (outcome == "m-fail" ? "unknown" : "15"), "Post-P movement history differs.");
+                    } else if (outcome == "cancel" || outcome == "throw" || outcome == "save-fail") {
+                        Check(!result.IsSuccess && result.PrintInvoked && result.PrintCode == 0 && result.NativeCode == 0 && observations == 1 && result.Message.Contains("M15"), "Post-P abort lost completed SDK evidence.");
+                        Check(Fake.Calls.Last() == "ResetForm" && !Fake.Calls.Any(x => x.StartsWith("^M")), "Post-P abort omitted cleanup or sent M.");
+                        var positions = (System.Collections.IDictionary)typeof(Bt003Printer).GetField("Positions", BindingFlags.Static | BindingFlags.NonPublic).GetValue(null);
+                        Check(positions[port] == null, "Post-P abort retained trusted position.");
+                        if (outcome != "save-fail") Check(File.ReadAllLines(file)[1] == "unknown", "Post-P abort not persisted.");
+                        else Check(result.Message.Contains("기록"), "Post-P abort write error missing.");
+                        Bt003Printer.PositionFile = file; AppContext.SetSwitch(PostPObservationSwitch, false); Fake.Calls.Clear();
+                        Check(!printer.Print(Literal).PrintInvoked && Fake.Calls.Count == 0, "Post-P abort allowed retry.");
+                    } else {
+                        Check(!result.IsSuccess && observations == 0 && !Fake.Calls.Any(x => x.StartsWith("^M")), "Post-P precondition/P failure reached observer or M.");
+                        if (outcome.StartsWith("p-")) Check(result.PrintInvoked && Fake.Calls.Last() == "ResetForm", "Post-P failure skipped cleanup/evidence.");
+                        else Check(!result.PrintInvoked, "Post-P invalid preparation printed.");
+                    }
+                    Bt003Printer.PositionFile = file;
+                }
+            }
+            AppContext.SetSwitch(PostPObservationSwitch, true); AppContext.SetSwitch(ObservationSwitch, false); AppContext.SetSwitch(PostBPauseSwitch, false);
+            Fake.Clear(); Restart(); File.WriteAllLines(file, new[] { port, "15" });
+            string form = Path.Combine(Path.GetDirectoryName(file), "post-p-synthetic.txt");
+            File.WriteAllText(form, Literal, Encoding.GetEncoding(949));
+            var owned = Connected(port, 15, false);
+            using (var entered = new ManualResetEvent(false))
+            using (var release = new ManualResetEvent(false))
+            using (var disposeStarted = new ManualResetEvent(false))
+            using (var disposed = new ManualResetEvent(false)) {
+                PrinterResult result = null; Exception error = null;
+                hook.SetValue(owned, new Func<int, bool>(d => { entered.Set(); Check(release.WaitOne(10000), "Post-P observation timeout."); return true; }));
+                var worker = new Thread(() => { try { result = owned.PrintFile(form); } catch (Exception e) { error = e; } });
+                var disposer = new Thread(() => { disposeStarted.Set(); try { owned.Dispose(); } catch (Exception e) { error = e; } finally { disposed.Set(); } });
+                worker.Start();
+                try {
+                    Check(entered.WaitOne(10000), "Post-P observation not reached.");
+                    bool locked = false;
+                    try { using (File.Open(form, FileMode.Open, FileAccess.Write, FileShare.ReadWrite)) { } } catch (IOException) { locked = true; }
+                    disposer.Start(); Check(disposeStarted.WaitOne(1000), "Post-P Dispose not started.");
+                    Check(locked && !disposed.WaitOne(60) && Fake.Calls.Contains("StartLabelPrint") && !Fake.Calls.Any(x => x.StartsWith("^M")), "Post-P gate lost file/Gate or sent M before continuation.");
+                } finally { release.Set(); worker.Join(); if (disposer.ThreadState == ThreadState.Unstarted) owned.Dispose(); else disposer.Join(); File.Delete(form); }
+                Check(error == null && result != null && result.IsSuccess && disposed.WaitOne(0), "Post-P concurrency failed.");
+            }
+        } finally { Bt003Printer.PositionFile = file; AppContext.SetSwitch(PostPObservationSwitch, false); AppContext.SetSwitch(ObservationSwitch, false); AppContext.SetSwitch(PostBPauseSwitch, false); }
+#else
+        Check(hook == null, "Post-P observation leaked into normal build.");
+        AppContext.SetSwitch(PostPObservationSwitch, true);
+        try { Fake.Clear(); Restart(); using (var printer = Connected("SYNTH-NORMAL-P-OBSERVE", 15)) Check(printer.Print(Literal).IsSuccess, "Normal build affected by post-P switch."); }
+        finally { AppContext.SetSwitch(PostPObservationSwitch, false); }
+#endif
+    }
+
     private static int Main()
     {
         // 실제 운영 기록을 건드리지 않도록 실행 폴더의 임시 위치 파일을 사용한다.
@@ -883,6 +978,7 @@ internal static class Program
         Bt003Printer.MinimumIntervalMs = 0;
         try {
             PrintStageTiming();
+            PostPObservationDiagnostic();
             PostBObservationDiagnostic();
             PostBPauseDiagnostic();
             for (int timing = 0; timing != 2; ++timing) {
