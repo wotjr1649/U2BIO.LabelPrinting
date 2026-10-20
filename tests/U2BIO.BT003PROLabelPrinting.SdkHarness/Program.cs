@@ -915,6 +915,7 @@ internal static class Program
                     };
                     if (outcome == "m-fail") Fake.BeforePrint = () => { Fake.FailAt = "SendData"; Fake.FailCode = 17; };
                     var result = printer.Print(Literal);
+                    Check(observations == 0 || Fake.Calls.Contains("P-OBSERVATION"), "Post-P boundary assertions were swallowed by product exception handling.");
                     if (outcome == "continue" || outcome == "off" || outcome == "m-fail" || outcome == "cleanup-fail") {
                         Check(result.IsSuccess == (outcome == "continue" || outcome == "off") && result.PrintInvoked && result.PrintCode == 0 && observations == (enabled ? 1 : 0), "Post-P continue/off/failure result differs.");
                         string[] expected = { "CheckPrtConnection", "^B15\r\n", "SendData", "ResetForm", "SetPrintingOption", "SetPrintFormString", "StartLabelPrint", "P-OBSERVATION", "^M15\r\n", "SendData", "ResetForm" };
