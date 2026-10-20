@@ -41,6 +41,8 @@ node tools/verify-build.js --scope txt
 
 ## 인쇄 단계 시각 진단
 
+같은 관측 전용 compile symbol은 `DiagnosticPostPObservation` AppContext switch를 명시적으로 true로 하면 P 정상 SDK 응답 뒤·위치 0 기록 전·M15 전에 멈추는 진단도 제공한다. B 관측·post-B 1000 ms 대기와 동시에 켤 수 없으며 복귀/배출 15 mm·요청 1장·owned 관측창 조건은 같다. 계속 선택은 기존 M15만 한 번 보내고 P를 다시 호출하지 않는다. 취소·Stop·닫기·관측 예외는 이미 호출한 `PrintInvoked=true`·`PrintCode=0`을 보존하되 실패·위치 미확인으로 반환하고 M/자동 재인쇄를 막는다. P 실패·불명에는 관측창/M을 호출하지 않는다. 같은 라벨의 글자·경계가 보이는 경우만 M 전 위치를 관측하며 보이지 않으면 미관측으로 기록한다. 관측 대기가 재현을 바꿀 수 있으므로 정상 결과만으로 제품 지연 보완을 확정하지 않는다. 이 기능 역시 기본 off이며 정상 제품 빌드에는 포함되지 않는다.
+
 Issue #39의 단계 분리 관측은 별도 `BT003_POST_B_OBSERVATION_DIAGNOSTIC` 빌드와 명시적인 `U2BIO.BT003PROLabelPrinting.DiagnosticPostBObservation=true`에서만 켠다. 정상 빌드에는 관측 callback·친구 어셈블리·UI 코드가 없다. 복귀/배출 15 mm와 요청 1장으로 제한하며 post-B 1000 ms switch는 꺼야 한다. 같은 요청의 Gate·PrintFile 잠금을 유지한 채 B 정상 반환 직후 owned 관측창에서 멈추고, 운영자의 계속 선택 뒤에만 기존 서식 등록·인쇄·배출을 보낸다. 취소·관측 예외는 인쇄/배출 없이 위치를 미확인으로 남겨 재시도를 막는다. B는 이미 보낸 상태이므로 자동 원상 복귀는 하지 않는다. 설정 선행 전송·새 이동·고정 대기를 섞지 않으며 관측 시간 자체의 영향과 SDK 반환/실제 이동 완료를 구분한다. 기본은 off이고, 실제 비교는 확인된 정상 정지 상태에서 사용자 관측으로만 진행한다.
 
 전원 재투입 후 첫 출력의 차이를 조사할 때만 `U2BIO.BT003PROLabelPrinting.PrintStageTiming` AppContext switch를 켤 수 있다. 기본은 미정의/false이며, SDK 호출 순서·거리·대기·위치 기록과 공개 API 서명은 바꾸지 않는다. 실행 exe의 `.exe.config`에 아래 runtime 항목을 병합하고 새 프로세스로 시작한다. 기존 설정을 덮어쓰지 않으며, 제품 기본 설정에는 켜지 않는다. 종료 후 false로 바꾸거나 이 override만 제거한다. 호스트 설정은 [.NET Framework AppContextSwitchOverrides](https://learn.microsoft.com/en-us/dotnet/framework/configure-apps/file-schema/runtime/appcontextswitchoverrides-element)를 따른다.

@@ -48,6 +48,7 @@ namespace U2BIO.BT003PROLabelPrinting
 #if BT003_POST_B_OBSERVATION_DIAGNOSTIC
         // 격리 진단의 UI 관측 경계다. 정상 제품 어셈블리에는 callback 자체가 없다.
         internal Func<int, bool> PostBObservation { get; set; }
+        internal Func<int, bool> PostPObservation { get; set; }
 #endif
 
         /// <summary>USB 포트를 지정하고 SDK 연결이 열렸는지 확인합니다.</summary>
@@ -515,12 +516,16 @@ namespace U2BIO.BT003PROLabelPrinting
             {
 #if BT003_POST_B_OBSERVATION_DIAGNOSTIC
                 function = "I39 B15 관측 설정 확인";
-                bool observeReturn, otherPause;
+                bool observeReturn, observePrint, otherPause;
                 AppContext.TryGetSwitch("U2BIO.BT003PROLabelPrinting.DiagnosticPostBObservation", out observeReturn);
+                AppContext.TryGetSwitch("U2BIO.BT003PROLabelPrinting.DiagnosticPostPObservation", out observePrint);
                 AppContext.TryGetSwitch("U2BIO.BT003PROLabelPrinting.DiagnosticPostBPause1000", out otherPause);
                 var observation = PostBObservation;
+                var printObservation = PostPObservation;
                 if (observeReturn && (observation == null || returnDistance != 15 || presentationDistance != 15 || otherPause))
                     return Fail(result, "B15 관측 진단은 관측창·복귀15/배출15·추가 진단 대기 끔 조건에서만 실행합니다. SDK는 호출하지 않았습니다.");
+                if (observePrint && (printObservation == null || returnDistance != 15 || presentationDistance != 15 || otherPause || observeReturn))
+                    return Fail(result, "M15 전 관측 진단은 관측창·복귀15/배출15·B 관측/추가 진단 대기 끔 조건에서만 실행합니다. SDK는 호출하지 않았습니다.");
                 function = "CheckPrtConnection";
 #endif
 #if BT003_POST_B_PAUSE_DIAGNOSTIC
@@ -635,6 +640,24 @@ namespace U2BIO.BT003PROLabelPrinting
                 // 5. 정상 인쇄 응답에서만 추가 배출한다. 배출 결과와 관계없이 PrintCode는 인쇄 응답을 보존한다.
                 if (result.PrintCode == 0)
                 {
+#if BT003_POST_B_OBSERVATION_DIAGNOSTIC
+                    if (observePrint)
+                    {
+                        // P 성공 응답은 모터 완료가 아니다. M 전 관측 중에도 Gate/파일과 unknown을 유지한다.
+                        bool proceed = false;
+                        string reason = "운영자가 중단했습니다.";
+                        try { proceed = printObservation(presentationDistance); }
+                        catch (Exception error) when (Recoverable(error)) { reason = "관측창 처리 중 " + ErrorMessage(error); }
+                        if (!proceed)
+                        {
+                            Positions[port] = null;
+                            bool saved = SavePosition(null);
+                            return Fail(result, "인쇄 SDK 응답은 정상입니다. StartLabelPrint 응답 코드: 0. M15 전 관측을 종료했습니다. "
+                                + reason + " 추가 배출은 호출하지 않았습니다. 용지 위치는 미확인입니다."
+                                + (saved ? "" : " " + PositionFileError));
+                        }
+                    }
+#endif
                     // SDK 정상 응답이므로 메모리는 갱신한다. 파일 저장이 실패해도 파일에는 unknown이 남아 재실행 시 확인을 받는다.
                     Positions[port] = 0;
                     SavePosition(0);

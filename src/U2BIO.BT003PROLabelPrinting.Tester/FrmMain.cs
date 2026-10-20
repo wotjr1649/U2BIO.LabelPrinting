@@ -84,6 +84,7 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
             InitializeComponent();
 #if BT003_POST_B_OBSERVATION_DIAGNOSTIC
             printer.PostBObservation = ObserveReturnedPosition;
+            printer.PostPObservation = distance => ObservePosition(distance, true);
 #endif
             settings = TesterSettings.Load(TesterSettings.DefaultFilePath);
             saveAsItem = new DXMenuItem("다른 이름 저장", btnSaveAs_Click);
@@ -144,7 +145,7 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
             bool open = template != null;
             Text = open ? Title + " - " + Path.GetFileName(template.FilePath ?? doc.DisplayPath) + (doc.IsDirty ? " *" : "") : Title;
 #if BT003_POST_B_OBSERVATION_DIAGNOSTIC
-            if (ObservationEnabled()) Text += " [I39 B15 직후 관측]";
+            if (ObservationEnabled()) Text += PostPObservationEnabled() ? " [I39 P 응답 뒤 M15 전 관측]" : " [I39 B15 직후 관측]";
 #endif
             txtPath.Text = doc.DisplayPath;
             txtPath.ToolTip = doc.DisplayPath;
@@ -668,7 +669,7 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
 #if BT003_POST_B_OBSERVATION_DIAGNOSTIC
             if (ObservationEnabled() && printCount.HasValue && printCount.Value != 1)
             {
-                ShowError("B15 관측 진단의 요청 장수는 1장으로 설정하세요.");
+                ShowError("관측 진단의 요청 장수는 1장으로 설정하세요.");
                 return;
             }
 #endif
@@ -728,25 +729,42 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
         private static bool ObservationEnabled()
         {
             bool enabled;
-            return AppContext.TryGetSwitch("U2BIO.BT003PROLabelPrinting.DiagnosticPostBObservation", out enabled) && enabled;
+            return (AppContext.TryGetSwitch("U2BIO.BT003PROLabelPrinting.DiagnosticPostBObservation", out enabled) && enabled) || PostPObservationEnabled();
         }
 
-        private bool ObserveReturnedPosition(int distance)
+        private static bool PostPObservationEnabled()
         {
-            if (InvokeRequired) return (bool)Invoke(new Func<int, bool>(ObserveReturnedPosition), distance);
+            bool enabled;
+            return AppContext.TryGetSwitch("U2BIO.BT003PROLabelPrinting.DiagnosticPostPObservation", out enabled) && enabled;
+        }
+
+        private bool ObserveReturnedPosition(int distance) => ObservePosition(distance, false);
+
+        private bool ObservePosition(int distance, bool printed)
+        {
+            if (InvokeRequired) return (bool)Invoke(new Func<bool>(() => ObservePosition(distance, printed)));
             if (IsDisposed || closeRequested || stopRequested) return false;
-            Record(new ResultRow("B15 직후 관측 시작", true, null, false, null,
-                "인쇄 호출 전 관측창 대기. UTC " + DateTime.UtcNow.ToString("O", CultureInfo.InvariantCulture)));
+            string stage = printed ? "P 응답 뒤 M15 전 관측" : "B15 직후 관측";
+            Record(new ResultRow(stage + " 시작", true, null, printed, printed ? (int?)0 : null,
+                (printed ? "인쇄 SDK 정상 응답 후·추가 배출 전 관측창 대기. " : "인쇄 호출 전 관측창 대기. ")
+                + "UTC " + DateTime.UtcNow.ToString("O", CultureInfo.InvariantCulture)));
             DialogResult choice = XtraMessageBox.Show(this,
-                "B" + distance + " 복귀 명령의 SDK 응답이 돌아왔습니다. 인쇄는 아직 보내지 않았습니다.\r\n"
-                + "용지가 완전히 멈춘 것을 확인한 뒤, 같은 고정 기준으로 정지 위치를 기록하고 사진을 남겨 주세요.\r\n"
+                (printed
+                    ? "인쇄 SDK 정상 응답이 돌아왔습니다. M" + distance + " 추가 배출은 아직 보내지 않았습니다.\r\n"
+                        + "SDK 응답은 모터 완료를 뜻하지 않습니다. 용지가 멈추면 같은 라벨의 상단 글자·경계를 기록하고 사진을 남겨 주세요.\r\n"
+                        + "글자가 보이지 않으면 미관측으로 알려 주세요. 용지를 당기거나 헤드를 열지 마세요.\r\n"
+                    : "B" + distance + " 복귀 명령의 SDK 응답이 돌아왔습니다. 인쇄는 아직 보내지 않았습니다.\r\n"
+                        + "용지가 완전히 멈춘 것을 확인한 뒤, 같은 고정 기준으로 정지 위치를 기록하고 사진을 남겨 주세요.\r\n")
                 + "관측 중에는 FEED·전원·용지·헤드·설정을 조작하지 마세요.\r\n\r\n"
-                + "[예] 이 상태에서 기존 서식 1장 인쇄를 계속합니다.\r\n"
-                + "[아니오] 인쇄·추가 배출 없이 중단하고 위치를 미확인으로 둡니다.",
-                "I39 B15 직후 관측", MessageBoxButtons.YesNo, MessageBoxIcon.Information, MessageBoxDefaultButton.Button2);
+                + (printed ? "[예] 기존 M" + distance + " 추가 배출을 한 번 계속합니다. 인쇄를 다시 보내지 않습니다.\r\n"
+                    + "[아니오] 추가 배출 없이 중단하고 위치를 미확인으로 둡니다."
+                    : "[예] 이 상태에서 기존 서식 1장 인쇄를 계속합니다.\r\n"
+                    + "[아니오] 인쇄·추가 배출 없이 중단하고 위치를 미확인으로 둡니다."),
+                "I39 " + stage, MessageBoxButtons.YesNo, MessageBoxIcon.Information, MessageBoxDefaultButton.Button2);
             bool proceed = choice == DialogResult.Yes && !closeRequested && !stopRequested;
-            Record(new ResultRow("B15 직후 관측 선택", true, null, false, null,
-                (proceed ? "인쇄 계속 선택. UTC " : "인쇄 중단 선택. UTC ") + DateTime.UtcNow.ToString("O", CultureInfo.InvariantCulture)));
+            Record(new ResultRow(stage + " 선택", true, null, printed, printed ? (int?)0 : null,
+                (proceed ? (printed ? "추가 배출 계속 선택. UTC " : "인쇄 계속 선택. UTC ") : "중단 선택. UTC ")
+                + DateTime.UtcNow.ToString("O", CultureInfo.InvariantCulture)));
             return proceed;
         }
 
@@ -754,7 +772,7 @@ namespace U2BIO.BT003PROLabelPrinting.Tester
         {
             // busy 종료를 기다리는 owner의 닫기/중단 요청이 관측 modal까지 대기시키지 않게 한다.
             foreach (Form owned in OwnedForms)
-                if (owned.Modal && owned.Text == "I39 B15 직후 관측") owned.DialogResult = DialogResult.No;
+                if (owned.Modal && (owned.Text == "I39 B15 직후 관측" || owned.Text == "I39 P 응답 뒤 M15 전 관측")) owned.DialogResult = DialogResult.No;
         }
 #endif
 
