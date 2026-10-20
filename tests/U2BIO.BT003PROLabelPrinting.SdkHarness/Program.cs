@@ -891,7 +891,9 @@ internal static class Program
                 Fake.Clear(); Restart();
                 File.WriteAllLines(file, new[] { port, outcome == "pending0" ? "0" : outcome == "unknown" ? "unknown" : "15" });
                 using (var printer = Connected(port, outcome == "distance" ? 7 : 15, false)) {
-                    int observations = 0;
+                    int observations = 0, returnObservations = 0;
+                    if (outcome == "conflict")
+                        typeof(Bt003Printer).GetProperty("PostBObservation", BindingFlags.Instance | BindingFlags.NonPublic).SetValue(printer, new Func<int, bool>(d => { returnObservations++; return true; }));
                     Func<int, bool> observer = distance => {
                         observations++;
                         Check(distance == 15 && Fake.Calls.SequenceEqual(new[] { "CheckPrtConnection", "^B15\r\n", "SendData", "ResetForm", "SetPrintingOption", "SetPrintFormString", "StartLabelPrint" }), "Observation was not exactly after P and before M/cleanup.");
@@ -916,6 +918,7 @@ internal static class Program
                     if (outcome == "m-fail") Fake.BeforePrint = () => { Fake.FailAt = "SendData"; Fake.FailCode = 17; };
                     var result = printer.Print(Literal);
                     Check(observations == 0 || Fake.Calls.Contains("P-OBSERVATION"), "Post-P boundary assertions were swallowed by product exception handling.");
+                    if (outcome == "conflict") Check(returnObservations == 0 && observations == 0 && Fake.Calls.Count == 0, "B/P conflict reached SDK or an observer.");
                     if (outcome == "continue" || outcome == "off" || outcome == "m-fail" || outcome == "cleanup-fail") {
                         Check(result.IsSuccess == (outcome == "continue" || outcome == "off") && result.PrintInvoked && result.PrintCode == 0 && observations == (enabled ? 1 : 0), "Post-P continue/off/failure result differs.");
                         string[] expected = { "CheckPrtConnection", "^B15\r\n", "SendData", "ResetForm", "SetPrintingOption", "SetPrintFormString", "StartLabelPrint", "P-OBSERVATION", "^M15\r\n", "SendData", "ResetForm" };
