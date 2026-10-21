@@ -11,11 +11,37 @@ if (process.platform === 'win32') process.env.NoDefaultCurrentDirectoryInExePath
 const root = path.resolve(__dirname, '..');
 const pluginRoot = process.env.DEVFLOW_ROOT || path.join(os.homedir(), '.codex', 'plugins', 'cache', 'wotjr1649', 'devflow', '0.3.0');
 const doctor = path.join(pluginRoot, 'bin', 'devflow-doctor');
-const documents = [
+const guides = [
     'README.md', 'docs/PRINTER_API.ko.md', 'docs/PRINT_PRESENTATION.ko.md',
     'docs/SDK_DEPLOYMENT.ko.md', 'docs/BTPL_TEMPLATE_API.ko.md', 'docs/DEVELOPMENT.md',
+    'docs/PRINTER_API_V2.ko.md'
+];
+const documents = [...guides,
     'AGENTS.md', '.github/ISSUE_TEMPLATE/intent.md', '.github/PULL_REQUEST_TEMPLATE.md'
 ];
+
+function guideProblem(text) {
+    const display = text.replace(/PRINTER_API_V2\.ko\.md/g, '');
+    if (/V2(?!\d|\.\d)/i.test(display)) return 'Use an unversioned display name; keep V2 only in the API filename.';
+    if (/\b[a-z][a-z0-9+.-]*:\/\/|\bwww\.|\bmailto:|\]\(\s*\/\/|^\s*\[[^\]]+\]:\s*\/\//im.test(text))
+        return 'Explain the content locally instead of referring to an external URL.';
+    if (/\bissues?\s*#?\s*\d+\b|이슈\s*#?\s*\d+/i.test(text))
+        return 'Explain current behavior instead of referring to an Issue number.';
+    return '';
+}
+
+function checkGuidePolicy() {
+    const allowed = '[DLL API](PRINTER_API_V2.ko.md) ' + 'C' + ':\\Bitek\\Log DevExpress v20.2 SDK v2.1.0.0 Issue tracking';
+    if (guideProblem(allowed)) throw new Error('Public guide policy rejected supported filenames or prerequisites.');
+    for (const text of ['API V2', 'DLL API V2.', 'V2. 문서', 'V2문서', '[API V2](PRINTER_API_V2.ko.md)', 'https://example.com',
+        '[source](//example.com)', '[source]: //example.com', 'www.example.com', 'mailto:a@example.com',
+        'Issue #39', 'issue 40', '이슈 #39'])
+        if (!guideProblem(text)) throw new Error(`Public guide policy self-check missed: ${text}`);
+    for (const file of guides) {
+        const problem = guideProblem(fs.readFileSync(path.join(root, file), 'utf8'));
+        if (problem) throw new Error(`${file}: ${problem}`);
+    }
+}
 
 function run(command, args) {
     const result = spawnSync(command, args, {
@@ -33,6 +59,7 @@ try {
     const unexpected = actual.filter(file => !documents.includes(file));
     if (missing.length || unexpected.length)
         throw new Error(`Current document set mismatch; missing: ${missing.join(', ') || 'none'}; unexpected: ${unexpected.join(', ') || 'none'}`);
+    checkGuidePolicy();
     if (!fs.existsSync(doctor)) throw new Error('Installed devflow doctor not found. Set DEVFLOW_ROOT to its plugin root.');
     // 설치된 doctor의 로컬 파일·절 링크 검사를 재사용한다.
     process.stdout.write(run(process.execPath, [doctor, root]));
@@ -47,14 +74,28 @@ try {
         if (actual !== expected) throw new Error(`Baseline hash mismatch: ${file}`);
     }
 
-    const spec = documents.slice(0, 6).map(file => fs.readFileSync(path.join(root, file), 'utf8')).join('\n');
+    const spec = guides.map(file => fs.readFileSync(path.join(root, file), 'utf8')).join('\n');
     for (const term of ['StringBuilder', 'Encoding.Default.CodePage', 'FileShare.Read', 'IsSuccess', 'Message', 'NativeCode', 'PrintInvoked', 'PrintCode', 'ConfirmPrintPosition', 'Bt003NativePlatform'])
         if (!spec.includes(term)) throw new Error(`Current MVP contract is missing ${term}.`);
+    // V1이 보존돼 있어도 V2 자체의 공개 선언·결과 속성 누락을 통과시키지 않는다.
+    const v2 = fs.readFileSync(path.join(root, 'docs', 'PRINTER_API_V2.ko.md'), 'utf8');
+    const printer = fs.readFileSync(path.join(root, 'src', 'U2BIO.BT003PROLabelPrinting', 'Bt003Printer.cs'), 'utf8');
+    const models = fs.readFileSync(path.join(root, 'src', 'U2BIO.BT003PROLabelPrinting', 'PrinterModels.cs'), 'utf8');
+    const signatures = [...printer.matchAll(/^\s*public (?:PrinterResult|void) \w+\([^)]*\)/gm)].map(m => m[0].trim());
+    const properties = [...models.matchAll(/public (bool|string|int\?) (\w+) \{ get; internal set; \}/g)];
+    if (signatures.length !== 9 || properties.length !== 5) throw new Error('Review V2 coverage for the changed public API.');
+    const compactV2 = v2.replace(/\s+/g, ' ');
+    for (const signature of signatures)
+        if (!compactV2.includes(signature)) throw new Error(`V2 is missing API declaration: ${signature}`);
+    for (const [, type, name] of properties)
+        if (!v2.includes(`| \`${name}\` | \`${type}\` |`)) throw new Error(`V2 is missing result property: ${name}`);
+    for (const term of ['FileShare.Read', 'InvalidVariables', 'DisconnectFailed', 'PrintInvoked', '정상 P 뒤 0 저장', '전원 재투입'])
+        if (!v2.includes(term)) throw new Error(`V2 is missing contract detail: ${term}`);
     const project = fs.readFileSync(path.join(root, 'src', 'U2BIO.BT003PROLabelPrinting', 'U2BIO.BT003PROLabelPrinting.csproj'), 'utf8');
     const core = [...project.matchAll(/<Compile Include="([^"]+)"/g)].map(m => m[1])
         .filter(file => !file.startsWith('Templates\\') && file !== 'Properties\\AssemblyInfo.cs' && file !== 'Sdk\\Interop\\BT003CtrlWrapper.cs');
     if (core.sort().join(',') !== 'Bt003Printer.cs,PrinterModels.cs') throw new Error('MVP must compile exactly two owned core sources.');
-    process.stdout.write('Repository checks passed (9 current documents, local links, historical baseline and devflow structure; no product build or printer test).\n');
+    process.stdout.write('Repository checks passed (10 current documents, V2 API coverage, local links, historical baseline and devflow structure; no product build or printer test).\n');
 } catch (error) {
     process.stderr.write(`${error.message}\n`);
     process.exitCode = 1;

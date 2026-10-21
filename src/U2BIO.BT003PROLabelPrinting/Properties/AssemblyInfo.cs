@@ -1,6 +1,10 @@
 using System.Reflection;
 using System.Runtime.InteropServices;
 
+#if BT003_POST_B_OBSERVATION_DIAGNOSTIC
+[assembly: System.Runtime.CompilerServices.InternalsVisibleTo("U2BIO.BT003PROLabelPrinting.Tester")]
+#endif
+
 [assembly: AssemblyTitle("U2BIO.BT003PROLabelPrinting")]
 [assembly: AssemblyDescription("BT-003 Pro label printing module")]
 [assembly: AssemblyCompany("U2BIO")]

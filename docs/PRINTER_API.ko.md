@@ -20,7 +20,7 @@
 | Disconnect() | SDK 해제·Closed 확인; 실패 결과를 반환하고 명시적 재시도 허용 |
 | Dispose() | 진행 중인 작업·정리를 기다린 뒤 연결 해제; 해제 실패는 예외로 전달 |
 
-Tester는 `FeedAndConfirmPosition`에 해당하는 [FEED+확인]만 제공한다. `ConfirmPrintPosition`은 실제 정렬을 확인할 수 있는 외부 DLL 호출자를 위해 유지한다.
+Tester는 `FeedAndConfirmPosition`에 해당하는 [FEED+확인]만 제공한다. `ConfirmPrintPosition`은 실제 정렬을 확인할 수 있는 외부 DLL 호출자를 위해 유지한다. FEED 정상 응답과 기록 갱신은 물리 정렬 완료를 보장하지 않으며, [전원 재투입 후 알려진 제한](PRINT_PRESENTATION.ko.md#전원-재투입-후-알려진-제한)이 있다.
 
 `Dispose` 외의 메서드는 `PrinterResult`를 반환한다. 입력 오류는 SDK 호출 전에 예외로 전달한다. API는 SDK가 반환할 때까지 기다리는 동기 방식이므로 UI의 백그라운드 실행은 호출 프로그램이 맡는다. 같은 물리 프린터는 한 프로그램에서만 사용한다.
 
@@ -185,6 +185,8 @@ Message가 용지 위치 불명을 안내하면 실제 위치를 확인하고 �
 Message가 SDK 연결 복구를 안내하면 `Disconnect`로 닫힘을 확인한 뒤 재연결한다. `GetConnectionStatus`가 Open을 반환하거나 `ConfirmPrintPosition`을 호출해도 faulted는 해제되지 않으며, faulted 연결에서 `FeedAndConfirmPosition`은 FEED를 보내지 않는다. 연결 상태와 용지 위치에 모두 문제가 있으면 각각 복구해야 한다.
 
 `Disconnect`는 `DeviceDisconnect`의 정상 응답과 `CheckPrtConnection`의 Closed를 확인한다. 확인되지 않은 해제는 소유권을 유지하므로 다른 객체로 우회하지 않는다. 소유자가 아닌 객체의 조회·옵션·인쇄는 실패하고, 해제와 `Dispose`는 SDK를 호출하지 않는다.
+
+프린터 전원 재투입은 자동 감지하지 않는다. `position.txt`와 메모리의 배출 기록은 SDK 명령 이력이며 전원 재투입 후 실제 위치나 장치 내부 원점을 저장·복원한 값이 아니다. 유효한 기록과 연결 Open만으로 전원 재투입 뒤 첫 장 위치를 보장할 수 없다. 첫 장 상단 이상과 FEED 안쪽 이동은 미해결 제한으로 남아 있으며, 추가 조사는 종료했다. `FeedAndConfirmPosition`은 기록된 거리만큼 `^B`로 복귀하거나 새 `^Q`를 전송하지 않고 `~S,FEED`만 보낸다. FEED의 정상 응답 뒤 기록 0은 실제 정렬을 센서로 확인한 결과가 아니므로 전원 재투입 복구 성공으로 해석하지 않는다. 상세 관측은 [운영 안내](PRINT_PRESENTATION.ko.md#전원-재투입-후-알려진-제한)를 따른다.
 
 ## 예외와 사용 종료
 

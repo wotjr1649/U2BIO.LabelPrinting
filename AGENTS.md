@@ -6,11 +6,11 @@ Run `node tools/verify-repository.js` and `git diff --check` for documentation c
 
 ## Read when relevant
 
-- When changing printing contracts, connection ownership or cleanup, read [the printing API and contract](docs/PRINTER_API.ko.md).
+- When changing printing contracts, connection ownership or cleanup, read [the printing API and contract](docs/PRINTER_API_V2.ko.md).
 - When changing TXT editing or saving, read [the editing API and contract](docs/BTPL_TEMPLATE_API.ko.md).
 - When changing the Tester, read [its maintenance rules](docs/DEVELOPMENT.md#tester-유지보수). User instructions belong in [Tester and media operations](docs/PRINT_PRESENTATION.ko.md), not in this file.
 - When changing media, coordinates, presentation or preparing hardware checks, read [the operating baseline](docs/PRINT_PRESENTATION.ko.md#운영-기준). Changing a `^Q` value can change both the printer's media setting and stop position; its first argument excludes the mark.
-- When building or preparing runtime files, read [DEVELOPMENT](docs/DEVELOPMENT.md) and [deployment](docs/SDK_DEPLOYMENT.ko.md). Current contracts live in these six guides; retrieve historical plans and evidence from Git history as described in DEVELOPMENT. Track current work in its Issue.
+- When building or preparing runtime files, read [DEVELOPMENT](docs/DEVELOPMENT.md) and [deployment](docs/SDK_DEPLOYMENT.ko.md). Use the current printing API guide for contracts and keep the earlier API guide preserved among the seven guides. Historical plans and evidence remain in Git history; current contracts and known limits are in the linked guides. Track current work in its Issue.
 
 ## Boundaries
 
