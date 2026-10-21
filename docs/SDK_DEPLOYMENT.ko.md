@@ -19,7 +19,7 @@ HFModule.dll
 
 제품 DLL 세 파일을 호출 프로그램 실행 폴더에 둔다. `HFModule.dll`도 필수 native 의존성이다. 관리 DLL을 파일 참조한 것만으로 native 파일이 자동 복사되지는 않는다. 제조사 파일을 .NET 참조로 추가하거나 COM 등록·바이너리 포함/추출·전역 검색 경로 변경을 하지 않는다.
 
-기존 앱의 재빌드는 [API 이행 안내](PRINTER_API.ko.md#제조사-방식의-가변데이터와-이행)를 따른다. Checkup·SmartCheckup 실제 적용은 상사 승인 대기이며 이 파일 목록이 업무 적용을 승인하거나 완료했다는 뜻은 아니다.
+기존 앱의 재빌드는 [API 이행 안내](PRINTER_API_V2.ko.md#기존-호출에서-이행)를 따른다. Checkup·SmartCheckup 실제 적용은 상사 승인 대기이며 이 파일 목록이 업무 적용을 승인하거나 완료했다는 뜻은 아니다.
 
 ## Tester 실행 폴더
 
