@@ -1,6 +1,6 @@
 # DLL·Tester 실행 환경과 배포
 
-대상 프로세스와 같은 비트수의 제조사 런타임을 준비한다. 소스 빌드·검사는 [개발 안내](DEVELOPMENT.md#sdk-배포용-빌드), 사용 순서는 [DLL API V2](PRINTER_API_V2.ko.md)와 [Tester 안내](PRINT_PRESENTATION.ko.md#tester-사용)를 따른다. 아래는 배포 구성 정책이며 자동 패키지 생성이나 배포 완료 기록이 아니다.
+대상 프로세스와 같은 비트수의 제조사 런타임을 준비한다. 소스 빌드·검사는 [개발 안내](DEVELOPMENT.md#sdk-배포용-빌드), 사용 순서는 [DLL API](PRINTER_API_V2.ko.md)와 [Tester 안내](PRINT_PRESENTATION.ko.md#tester-사용)를 따른다. 아래는 배포 구성 정책이며 자동 패키지 생성이나 배포 완료 기록이 아니다.
 
 ## 실행 환경
 
@@ -19,7 +19,7 @@ HFModule.dll
 
 제품 DLL 세 파일을 호출 프로그램 실행 폴더에 둔다. `HFModule.dll`도 필수 native 의존성이다. 관리 DLL을 파일 참조한 것만으로 native 파일이 자동 복사되지는 않는다. 제조사 파일을 .NET 참조로 추가하거나 COM 등록·바이너리 포함/추출·전역 검색 경로 변경을 하지 않는다.
 
-기존 앱의 재빌드는 [API 이행 안내](PRINTER_API_V2.ko.md#기존-호출에서-이행)를 따른다. Checkup·SmartCheckup 실제 적용은 상사 승인 대기이며 이 파일 목록이 업무 적용을 승인하거나 완료했다는 뜻은 아니다.
+기존 앱의 재빌드는 [API 이행 안내](PRINTER_API_V2.ko.md#기존-호출에서-이행)를 따른다. 파일 배치와 실제 업무 프로그램의 통합·운영 검증은 별개다.
 
 ## Tester 실행 폴더
 
@@ -38,7 +38,7 @@ DevExpress는 Tester에만 필요하며 제품 DLL의 의존성이 아니다. DL
 
 `tests/`의 소스·검증 exe, `tools/`, AGENTS와 설계·계획·과거 근거 문서는 제품 실행 배포 대상에서 제외한다. 사용자 안내와 필요한 TXT 샘플만 선정해 제공하며 개인 수정 샘플이나 설정을 자동으로 복사하지 않는다.
 
-검증 프로젝트와 예제는 **개발 소스 저장소에 유지**한다. 이 정책은 소스 삭제·Git 추적 해제·검사 생략이나 GitHub 비공개 전환이 아니다. GitHub 소스 다운로드 zip도 제품 배포물과 다르다. 패키징 자동화는 구현하지 않는다.
+검증 프로젝트와 예제는 **개발 소스 저장소에 유지**한다. 소스를 삭제하거나 Git 추적·검사를 생략하지 않는다. 소스 압축본도 제품 배포물과 다르다. 패키징 자동화는 구현하지 않는다.
 
 ## 배치 오류 확인
 
@@ -60,6 +60,6 @@ DevExpress는 Tester에만 필요하며 제품 DLL의 의존성이 아니다. DL
 
 `Sdk/Interop/BT003CtrlWrapper.cs`는 제조사 HFSample_UL의 원본 39개 P/Invoke 선언을 보존한다. StdCall과 원래 DLL 이름·문자열 마샬링·입출력 방향을 유지하며 LPCTSTR/LPTSTR 표기만으로 Unicode로 바꾸지 않는다. USHORT는 ushort, BYTE는 byte, Windows의 int/long은 32-bit이므로 .NET Int64로 바꾸지 않는다. StartLabelPrint는 원본 StringBuilder(100) 선언을 사용하며 SizeConst=100은 native 출력 안전성 보장이 아니다.
 
-제품 실행은 .NET 기본 DllImport와 ApplicationDirectory/System32 검색 제한을 사용하고 실행 시 해시·기존 모듈 충돌 검사를 하지 않는다. SDK 최초 호출은 연결 시점이며 오프라인 편집·미리보기는 SDK를 로드하지 않는다. Wrapper에 RFID·보안 선언이 있어도 공개 제품 기능이나 인쇄 흐름에서 사용한다는 뜻은 아니다. 원형 미확정 export나 제공 DLL에 없는 함수를 추측하여 추가하지 않는다. 현재 인쇄·반환 처리 계약은 [DLL API V2](PRINTER_API_V2.ko.md)에 있다.
+제품 실행은 .NET 기본 DllImport와 ApplicationDirectory/System32 검색 제한을 사용하고 실행 시 해시·기존 모듈 충돌 검사를 하지 않는다. SDK 최초 호출은 연결 시점이며 오프라인 편집·미리보기는 SDK를 로드하지 않는다. Wrapper에 RFID·보안 선언이 있어도 공개 제품 기능이나 인쇄 흐름에서 사용한다는 뜻은 아니다. 원형 미확정 export나 제공 DLL에 없는 함수를 추측하여 추가하지 않는다. 현재 인쇄·반환 처리 계약은 [DLL API](PRINTER_API_V2.ko.md)에 있다.
 
 `node tools/verify-build.js`는 플랫폼별 배포 파일과 고정 제조사 해시를 대조하며 SDK를 로드하지 않는다. 관리 검증과 SDK/물리 성공은 다르며, 확인된 용지·위치·배출 범위는 [운영 기준](PRINT_PRESENTATION.ko.md#운영-기준)에 있다.

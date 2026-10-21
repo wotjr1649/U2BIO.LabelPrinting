@@ -1,6 +1,6 @@
 # TXT 서식 편집 API 사용 안내
 
-이 문서는 프로그램에서 TXT를 편집·저장하거나 표시용 변수 치환을 사용하는 개발자만 읽는 선택 안내이며 현행 TXT 편집 계약을 포함한다. 기본 인쇄는 [프린터 API V2](PRINTER_API_V2.ko.md), Tester 조작은 [사용 안내](PRINT_PRESENTATION.ko.md#tester-사용)를 따른다. 이전 JSON/XML·바인딩·BtplProcessor API는 제공하지 않는다.
+이 문서는 프로그램에서 TXT를 편집·저장하거나 표시용 변수 치환을 사용하는 개발자만 읽는 선택 안내이며 현행 TXT 편집 계약을 포함한다. 기본 인쇄는 [프린터 API](PRINTER_API_V2.ko.md), Tester 조작은 [사용 안내](PRINT_PRESENTATION.ko.md#tester-사용)를 따른다. 이전 JSON/XML·바인딩·BtplProcessor API는 제공하지 않는다.
 
 ## 편집과 인쇄
 
@@ -61,7 +61,7 @@ SaveAs의 기본 동작은 기존 대상을 교체하지 않으며, 같은 원�
 
 ## 라벨 방식과 인쇄 전 확인
 
-DLL은 서식의 라벨 방식과 SDK 인쇄 예외를 낼 AW 줄을 판정만 한다. Tester는 이 진단을 사용하지만 기존 업무 프로그램 적용은 상사 승인 대기이며 아직 진행하지 않았다. Print/PrintFile은 막지 않으므로 프로그램이 자기 용지 방식과 비교해 인쇄할지 정한다.
+DLL은 서식의 라벨 방식과 SDK 인쇄 예외를 낼 AW 줄을 판정만 한다. Tester는 이 진단을 사용한다. 다른 호출 프로그램이 진단을 사용할지는 해당 프로그램에서 정한다. Print/PrintFile은 막지 않으므로 프로그램이 자기 용지 방식과 비교해 인쇄할지 정한다.
 
 ```csharp
 var template = BtplTemplate.Load("label.txt");

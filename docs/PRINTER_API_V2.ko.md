@@ -1,6 +1,6 @@
-# DLL API 개발자 참조서 V2
+# DLL API 개발자 참조서
 
-현재 `U2BIO.BT003PROLabelPrinting.dll`을 호출하는 개발자용 안내다. 기본 연동에 필요한 실행 조건, 9개 메서드, 결과·예외 처리, 위치 기록과 기존 호출 이행을 이 문서에서 설명한다. **V2는 문서 개정판이며 DLL 버전이나 공개 API 변경을 뜻하지 않는다.** 배포·용지 운영·선택 TXT 편집의 상세 링크는 심화 참고다.
+현재 `U2BIO.BT003PROLabelPrinting.dll`을 호출하는 개발자용 안내다. 기본 연동에 필요한 실행 조건, 9개 메서드, 결과·예외 처리, 위치 기록과 기존 호출 이행을 이 문서에서 설명한다. 배포·용지 운영·선택 TXT 편집의 상세 링크는 심화 참고다.
 
 - [실행 조건](#실행-조건): 필요한 파일·환경·책임 범위
 - [빠른 시작](#빠른-시작): 연결·한 장 인쇄·결과 확인·정리
@@ -462,7 +462,7 @@ Tester의 [FEED+확인], 용지 교체와 Q 변경 절차는 [공통 운영 안�
 | FEED 정상 응답 후 0 저장 실패 | false·위치 불명 반환 |
 | 정상 P 뒤 0 저장 또는 정상 B/M 뒤 거리 저장만 실패 | 반환값을 확인하지 않아 IsSuccess=true가 유지될 수 있음. 메모리는 정상 응답 거리로 갱신됐어도 디스크 기록은 갱신되지 않을 수 있음 |
 
-따라서 true는 위치 파일 영속화나 물리 정렬 성공의 보증이 아니다. 정상 응답 후 저장 실패를 언제나 결과에서 감지해 다음 요청을 차단한다고 약속하지 않는다. 실제 구현의 저장 경계는 `PrintCore`·`Move`·`FeedAndConfirmPosition`을 참고한다. 이는 V2에서 밝히는 현재 한계이며 제품 수정 완료를 뜻하지 않는다.
+따라서 true는 위치 파일 영속화나 물리 정렬 성공의 보증이 아니다. 정상 응답 후 저장 실패를 언제나 결과에서 감지해 다음 요청을 차단한다고 약속하지 않는다. 실제 구현의 저장 경계는 `PrintCore`·`Move`·`FeedAndConfirmPosition`을 참고한다. 이는 현재 구현의 한계이며 제품 수정 완료를 뜻하지 않는다.
 
 ### 전원 재투입과 외부 이송
 
@@ -488,21 +488,21 @@ Tester의 [FEED+확인], 용지 교체와 Q 변경 절차는 [공통 운영 안�
 
 ## 제조사 API와의 대응
 
-참고 자료는 Bitek의 *NFC BT003-M01-04 API Programming Manual Rev.1.3, 2022-05-20*이다. 아래 쪽수는 PDF 물리 페이지 기준이다. PDF는 제조사 SDK 전체를 다루므로 프로토타입·반환형·범위가 다르면 현재 DLL 소스의 공개 계약을 우선 확인한다.
+다음은 공개 DLL 함수가 내부에서 사용하는 제조사 SDK 호출과 처리 의미다. 각 함수의 입력·결과·예외·복구 조건은 이 문서의 함수별 상세에 설명되어 있다.
 
-| DLL 공개 함수 | 내부 제조사 호출·관계 | PDF 참고 |
+| DLL 공개 함수 | 내부 제조사 호출·관계 | 처리 의미 |
 |---|---|---|
-| ConnectUsb | SetPrinterPort(USB) → DeviceConnect → CheckPrtConnection | 3·6쪽 |
-| GetConnectionStatus | CheckPrtConnection | 6쪽 |
-| SetPrintingOptions | SetPrintingOption. 정상 설정은 인쇄마다 재적용 | 6쪽 |
-| Print / PrintFile | ResetForm·SetPrintFormString·선택 SetPrintFormVariableData·StartLabelPrint·선택 SendData | 서식 4·5쪽, StartLabelPrint 선언 24쪽 |
-| ConfirmPrintPosition | SDK 호출 없이 위치 기록만 변경 | DLL 고유 계약 |
-| FeedAndConfirmPosition | CheckPrtConnection·SendData의 FEED 문자열, 위치 기록 | SendData 14쪽 |
-| Disconnect / Dispose | DeviceDisconnect → CheckPrtConnection | 4·6쪽 |
+| ConnectUsb | SetPrinterPort(USB) → DeviceConnect → CheckPrtConnection | 포트를 지정해 연결하고 Open 응답을 확인 |
+| GetConnectionStatus | CheckPrtConnection | 현재 객체의 SDK 연결 열림 상태 조회 |
+| SetPrintingOptions | SetPrintingOption. 정상 설정은 인쇄마다 재적용 | 속도·농도 설정. 서식에 지정된 설정이 우선 |
+| Print / PrintFile | ResetForm·SetPrintFormString·선택 SetPrintFormVariableData·StartLabelPrint·선택 SendData | 서식을 등록해 한 장 요청. 정상 인쇄 응답 뒤 선택 추가 배출 |
+| ConfirmPrintPosition | SDK 호출 없이 위치 기록만 변경 | 실제 수동 정렬을 마친 뒤 기록을 0으로 저장 |
+| FeedAndConfirmPosition | CheckPrtConnection·SendData의 FEED 문자열, 위치 기록 | 연결 확인·FEED 요청 뒤 정상 SDK 응답과 저장 성공 시 기록 0 |
+| Disconnect / Dispose | DeviceDisconnect → CheckPrtConnection | 해제 후 Closed 응답 확인. Dispose는 성공 시 객체 수명도 종료 |
 
-내부 Wrapper의 39개 선언은 그대로 사용하지만 Wrapper 클래스는 internal이며 직접 호출용 공개 facade가 아니다. 별도 SDK 직접 호출을 섞으면 DLL의 소유권·직렬화·위치 기록을 우회할 수 있다. TCP/IP·RS-232·RFID·일반 SendData·수신 버퍼 읽기는 이 DLL의 공개 인쇄 API가 아니다. 매뉴얼에 있는 함수가 모두 현재 배포 SDK에 존재한다고 가정하지 않는다.
+내부 Wrapper의 39개 선언은 그대로 사용하지만 Wrapper 클래스는 internal이며 직접 호출용 공개 facade가 아니다. 별도 SDK 직접 호출을 섞으면 DLL의 소유권·직렬화·위치 기록을 우회할 수 있다. TCP/IP·RS-232·RFID·일반 SendData·수신 버퍼 읽기는 이 DLL의 공개 인쇄 API가 아니다. 공개 API 목록에 없는 SDK 기능을 사용할 수 있다고 가정하지 않는다.
 
-PDF 4쪽의 DeviceDisconnect 반환 설명과 16쪽 RFID 선언 등에는 서로 맞지 않는 부분이 있다. PDF의 예제·오류 표를 그대로 복사하거나 RFID 반환 문자열 형식을 PrinterResult에 적용하지 않는다. 이 문서의 현재 계약은 [Bt003Printer.cs](../src/U2BIO.BT003PROLabelPrinting/Bt003Printer.cs)와 [PrinterModels.cs](../src/U2BIO.BT003PROLabelPrinting/PrinterModels.cs)에 근거한다.
+제조사 함수의 반환 규약은 함수마다 다르며 모든 숫자 0을 같은 성공 의미로 취급하지 않는다. 공개 결과 처리는 앞의 PrinterResult 절을 따른다. 구현 위치는 [Bt003Printer.cs](../src/U2BIO.BT003PROLabelPrinting/Bt003Printer.cs)와 [PrinterModels.cs](../src/U2BIO.BT003PROLabelPrinting/PrinterModels.cs)다.
 
 내부 인쇄 순서는 `ResetForm` → 정상 옵션 재적용 → 서식·선택 변수 등록 → `StartLabelPrint(1, ...)` → 정상 응답 시 선택 M 배출 → `finally` 서식 정리다. 이전 배출 거리의 B 복귀는 이 준비 단계보다 먼저 수행한다. 이 내부 SDK 함수들을 호출 앱에서 별도로 중복 호출하지 않는다.
 
@@ -512,6 +512,6 @@ PDF 4쪽의 DeviceDisconnect 반환 설명과 16쪽 RFID 선언 등에는 서로
 
 현재 제공된 SDK와 확인된 명령 계약 범위에서는 내부 위치 기준의 조회·저장·복원, FEED 정렬 경로 선택 및 실제 정렬 완료를 검증하는 수단이 확보되지 않았다. 매뉴얼의 수신 함수 `ReadResponseMessage`도 현재 배포 SDK의 x86/x64 export에 없어 사용할 수 없다. 이 함수의 부재만으로 물리 동작의 원인을 설명하지는 않는다.
 
-기존 비교의 한 조건에서는 전원 유지·재투입의 전체 B/P/M USB 전송이 같았는데 물리 결과가 달랐다. 이는 장치 내부 상태의 동일성이나 특정 원인을 증명하지 않는다. [Issue #39](https://github.com/wotjr1649/U2BIO.LabelPrinting/issues/39)의 추가 조사·구현·실기 시험은 종료했고 Issue는 미해결 OPEN이다.
+기존 비교의 한 조건에서는 전원 유지·재투입의 전체 B/P/M USB 전송이 같았는데 물리 결과가 달랐다. 이는 장치 내부 상태의 동일성이나 특정 원인을 증명하지 않는다. 현재 확인 범위를 다른 프린터·펌웨어·용지 전체의 성공으로 확대하지 않는다.
 
 관리 검사·문서 예제 컴파일은 SDK 로드·USB 전송·물리 출력 성공을 증명하지 않는다. 실제 확인 범위는 [운영 안내](PRINT_PRESENTATION.ko.md#운영-기준), 빌드·검증 방법은 [개발 안내](DEVELOPMENT.md)를 따른다.

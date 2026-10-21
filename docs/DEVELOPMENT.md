@@ -1,6 +1,6 @@
 # 저장소 개발 환경과 검증
 
-소스를 빌드·검증하는 유지보수자용 안내다. 보존 V1을 포함한 사용자 안내 6개는 [README](../README.md)의 읽는 순서를 따른다. 현행 인쇄 계약은 [DLL API V2](PRINTER_API_V2.ko.md), 원문 편집·저장 계약은 [TXT API](BTPL_TEMPLATE_API.ko.md), SDK 출처·고정 해시와 실행 파일은 [배포 안내](SDK_DEPLOYMENT.ko.md)에 통합되어 있다.
+소스를 빌드·검증하는 유지보수자용 안내다. 보존 API 안내를 포함한 사용자 안내 6개는 [README](../README.md)의 읽는 순서를 따른다. 현행 인쇄 계약은 [DLL API](PRINTER_API_V2.ko.md), 원문 편집·저장 계약은 [TXT API](BTPL_TEMPLATE_API.ko.md), SDK 출처·고정 해시와 실행 파일은 [배포 안내](SDK_DEPLOYMENT.ko.md)에 통합되어 있다.
 
 ## 빌드 준비와 저장소 검사
 
@@ -13,13 +13,13 @@ git diff --check
 
 정상 출력은 doctor의 `ok`와 `Repository checks passed`다. Node.js와 devflow는 개발 검사 도구이며 제품 런타임 의존성이 아니다. `DEVFLOW_ROOT`를 설치된 devflow 플러그인 루트로 프로세스 환경에 지정한다. 지정하지 않으면 검사기는 기존 기본 경로의 devflow 0.3.0을 찾는다. 개인 절대 경로를 공용 설정에 기록하지 않는다.
 
-저장소 검사는 추적 파일과 Git에서 무시하지 않는 새 파일 중 현존 Markdown이 안내 7개·운영 3개의 정확한 집합인지 확인한다. V1은 보존하고 V2가 기본 인쇄 참조서다. 검사기는 V2 자체의 실제 9개 선언·5개 속성 표와 필수 계약 용어도 확인하므로 V1이 V2의 누락을 대신 통과시키지 않는다. 로컬 파일·한국어 절 링크, 숨은 문자·개인 경로·지침과 private 경로 등은 기존 devflow-doctor로 검사한다. 새 문서가 필요하면 문서 구성 정책을 먼저 변경한다. 과거 자료를 다른 현재 폴더로 옮겨 문서 수만 맞추지 않는다.
+저장소 검사는 추적 파일과 Git에서 무시하지 않는 새 파일 중 현존 Markdown이 안내 7개·운영 3개의 정확한 집합인지 확인한다. 기존 API 안내는 보존하고 현행 DLL API를 기본 인쇄 참조서로 사용한다. 검사기는 현행 API 문서 자체의 실제 9개 선언·5개 속성 표와 필수 계약 용어도 확인하므로 보존판이 현행 안내의 누락을 대신 통과시키지 않는다. 공개 안내의 외부 URL·번호가 붙은 작업 이슈 참조·표시용 API 판수도 검사하며, API 파일명과 SDK·DevExpress 버전 표기는 허용한다. 로컬 파일·한국어 절 링크, 숨은 문자·개인 경로·지침과 private 경로 등은 기존 devflow-doctor로 검사한다. 새 문서가 필요하면 문서 구성 정책을 먼저 변경한다. 과거 자료를 다른 현재 폴더로 옮겨 문서 수만 맞추지 않는다.
 
 샘플 TXT 비접근 조건이 있는 작업은 일반 작업폴더에서 이 검사를 실행하지 않는다. 설치된 doctor는 일반 텍스트와 index blob을 읽으므로 sparse checkout만으로 충분하지 않다. 별도 검증 폴더에서 샘플 작업파일과 검사 index 항목을 모두 제외하고, 검사 전 index 백업과 검사 후 복원·동일성 확인을 한다. 제외 경로와 후보 revision을 기록하며 결과는 샘플 제외 검증 범위로 한정한다. 샘플 삭제를 후보 커밋에 포함하거나 임시 빈 샘플로 링크 검사를 통과시키지 않는다.
 
 ## DLL 기반 빌드와 실행 검사
 
-Issue #39의 B 이후 시간 민감도 시험은 `BT003_POST_B_PAUSE_DIAGNOSTIC` symbol로 만든 격리 빌드에서만 제공한다. 그 빌드에서도 AppContext switch `U2BIO.BT003PROLabelPrinting.DiagnosticPostBPause1000`을 명시적으로 true로 해야 B Move 정상 반환 뒤 첫 ResetForm 전에 1000 ms를 한 번 기다린다. 미정의/false와 정상 제품 빌드에는 이 대기가 없다. 기존 `PrintStageTiming` 진단을 함께 켜고 소스 revision·symbol·설정·실행 DLL hash와 실제 SDK 구간 시각으로 조건을 확인한다. 이 시험은 모터 완료 보증이나 제품용 sleep 해법이 아니며, SDK/실기 검증을 대신하지 않는다. 산출물은 기존 배포·실행 폴더와 분리한다.
+B 복귀 이후 시간 민감도 시험은 `BT003_POST_B_PAUSE_DIAGNOSTIC` symbol로 만든 격리 빌드에서만 제공한다. 그 빌드에서도 AppContext switch `U2BIO.BT003PROLabelPrinting.DiagnosticPostBPause1000`을 명시적으로 true로 해야 B Move 정상 반환 뒤 첫 ResetForm 전에 1000 ms를 한 번 기다린다. 미정의/false와 정상 제품 빌드에는 이 대기가 없다. 기존 `PrintStageTiming` 진단을 함께 켜고 소스 revision·symbol·설정·실행 DLL hash와 실제 SDK 구간 시각으로 조건을 확인한다. 이 시험은 모터 완료 보증이나 제품용 sleep 해법이 아니며, SDK/실기 검증을 대신하지 않는다. 산출물은 기존 배포·실행 폴더와 분리한다.
 
 ```text
 node tools/verify-build.js
@@ -43,15 +43,15 @@ node tools/verify-build.js --scope txt
 
 ## 인쇄 단계 시각 진단
 
-[Issue #39](https://github.com/wotjr1649/U2BIO.LabelPrinting/issues/39)의 전원 재투입 관련 추가 조사·구현·실기 시험은 사용자 결정으로 종료했다. 첫 장 위치와 FEED 정렬은 해결되지 않은 [알려진 제한](PRINT_PRESENTATION.ko.md#전원-재투입-후-알려진-제한)이며 Issue는 OPEN이다. 입력 `^E` 생략도 개선하지 못했고, FEED·연결 함수와 제조사 DLL 이력에서 원인으로 지목할 회귀 변경은 찾지 못했다. 세부 USB 비교·실기 관측·미확인 사항은 Issue에 보존한다.
+전원 재투입 뒤 첫 장 상단 위치와 FEED 정렬은 해결되지 않은 [알려진 제한](PRINT_PRESENTATION.ko.md#전원-재투입-후-알려진-제한)이다. 입력 `^E` 생략도 개선하지 못했고, FEED·연결 함수와 제조사 DLL 이력에서 원인으로 지목할 회귀 변경은 찾지 못했다. 한 조건에서는 전체 B/P/M USB 전송이 같았는데 물리 결과가 달랐으며, 프린터 내부 상태·원인·복구 방법은 미확정이다.
 
 아래 진단은 유지보수용 기록이며 일상 실행에 필요한 설정이 아니다. 일반 빌드는 진단 compile symbol을 지정하지 않고, `PrintStageTiming`과 세 `DiagnosticPostBPause1000`·`DiagnosticPostBObservation`·`DiagnosticPostPObservation` switch는 미정의/false로 둔다. 기존 격리 진단 실행 폴더를 일반 배포 폴더와 혼용하지 않는다. 문서 정리는 진단 설정 변경이나 추가 장치 시험을 뜻하지 않으며, 별도 요청 전 후속 시험 계획은 없다.
 
 같은 관측 전용 compile symbol은 `DiagnosticPostPObservation` AppContext switch를 명시적으로 true로 하면 P 정상 SDK 응답 뒤·위치 0 기록 전·M15 전에 멈추는 진단도 제공한다. B 관측·post-B 1000 ms 대기와 동시에 켤 수 없으며 복귀/배출 15 mm·요청 1장·owned 관측창 조건은 같다. 계속 선택은 기존 M15만 한 번 보내고 P를 다시 호출하지 않는다. 취소·Stop·닫기·관측 예외는 이미 호출한 `PrintInvoked=true`·`PrintCode=0`을 보존하되 실패·위치 미확인으로 반환하고 M/자동 재인쇄를 막는다. P 실패·불명에는 관측창/M을 호출하지 않는다. 같은 라벨의 글자·경계가 보이는 경우만 M 전 위치를 관측하며 보이지 않으면 미관측으로 기록한다. 관측 대기가 재현을 바꿀 수 있으므로 정상 결과만으로 제품 지연 보완을 확정하지 않는다. 이 기능 역시 기본 off이며 정상 제품 빌드에는 포함되지 않는다.
 
-Issue #39의 단계 분리 관측은 별도 `BT003_POST_B_OBSERVATION_DIAGNOSTIC` 빌드와 명시적인 `U2BIO.BT003PROLabelPrinting.DiagnosticPostBObservation=true`에서만 켠다. 정상 빌드에는 관측 callback·친구 어셈블리·UI 코드가 없다. 복귀/배출 15 mm와 요청 1장으로 제한하며 post-B 1000 ms switch는 꺼야 한다. 같은 요청의 Gate·PrintFile 잠금을 유지한 채 B 정상 반환 직후 owned 관측창에서 멈추고, 운영자의 계속 선택 뒤에만 기존 서식 등록·인쇄·배출을 보낸다. 취소·관측 예외는 인쇄/배출 없이 위치를 미확인으로 남겨 재시도를 막는다. B는 이미 보낸 상태이므로 자동 원상 복귀는 하지 않는다. 설정 선행 전송·새 이동·고정 대기를 섞지 않으며 관측 시간 자체의 영향과 SDK 반환/실제 이동 완료를 구분한다. 기본은 off이고, 실제 비교는 확인된 정상 정지 상태에서 사용자 관측으로만 진행한다.
+단계 분리 관측은 별도 `BT003_POST_B_OBSERVATION_DIAGNOSTIC` 빌드와 명시적인 `U2BIO.BT003PROLabelPrinting.DiagnosticPostBObservation=true`에서만 켠다. 정상 빌드에는 관측 callback·친구 어셈블리·UI 코드가 없다. 복귀/배출 15 mm와 요청 1장으로 제한하며 post-B 1000 ms switch는 꺼야 한다. 같은 요청의 Gate·PrintFile 잠금을 유지한 채 B 정상 반환 직후 owned 관측창에서 멈추고, 운영자의 계속 선택 뒤에만 기존 서식 등록·인쇄·배출을 보낸다. 취소·관측 예외는 인쇄/배출 없이 위치를 미확인으로 남겨 재시도를 막는다. B는 이미 보낸 상태이므로 자동 원상 복귀는 하지 않는다. 설정 선행 전송·새 이동·고정 대기를 섞지 않으며 관측 시간 자체의 영향과 SDK 반환/실제 이동 완료를 구분한다. 기본은 off이고, 실제 비교는 확인된 정상 정지 상태에서 사용자 관측으로만 진행한다.
 
-전원 재투입 후 첫 출력의 차이를 조사할 때만 `U2BIO.BT003PROLabelPrinting.PrintStageTiming` AppContext switch를 켤 수 있다. 기본은 미정의/false이며, SDK 호출 순서·거리·대기·위치 기록과 공개 API 서명은 바꾸지 않는다. 실행 exe의 `.exe.config`에 아래 runtime 항목을 병합하고 새 프로세스로 시작한다. 기존 설정을 덮어쓰지 않으며, 제품 기본 설정에는 켜지 않는다. 종료 후 false로 바꾸거나 이 override만 제거한다. 호스트 설정은 [.NET Framework AppContextSwitchOverrides](https://learn.microsoft.com/en-us/dotnet/framework/configure-apps/file-schema/runtime/appcontextswitchoverrides-element)를 따른다.
+전원 재투입 후 첫 출력의 차이를 조사할 때만 `U2BIO.BT003PROLabelPrinting.PrintStageTiming` AppContext switch를 켤 수 있다. 기본은 미정의/false이며, SDK 호출 순서·거리·대기·위치 기록과 공개 API 서명은 바꾸지 않는다. 실행 exe의 `.exe.config`에 아래 runtime 항목을 병합하고 새 프로세스로 시작한다. 기존 설정을 덮어쓰지 않으며, 제품 기본 설정에는 켜지 않는다. 종료 후 false로 바꾸거나 이 override만 제거한다. 설정 파일은 해당 실행 exe 이름의 `.exe.config`다. `configuration/runtime/AppContextSwitchOverrides`의 `value`에 키=값을 넣는다. 이미 여러 키가 있으면 세미콜론으로 구분한 기존 값을 보존하고 해당 키만 병합하며, 같은 요소를 중복 생성하지 않는다.
 
 ```xml
 <configuration>
@@ -128,21 +128,16 @@ Tester self-check는 성공 0·실패 1·잘못된 인수 2로 종료한다. 임
 
 [OfflineSmoke](../tests/OfflineSmoke/Program.cs)는 공개 API를 독립 호출자 관점에서 검사하는 오프라인 검증 프로그램이며 [CheckupExamples](../tests/OfflineSmoke/CheckupExamples.cs)는 호출 프로그램이 준비한 DataRow를 받는 두 합성 예시다. DLL에 DB 조회·업무 열 이름·NULL 정책을 넣지 않는다. Checkup은 ExamNo/DisplayName/BirthText를 V00/V01/V02로 구성해 Print하고, SmartCheckup은 VisitCode/DisplayName/Department를 구성해 PrintFile한다. NULL은 빈 문자열, 항목 공백과 빈 칸은 보존하고 필수 열 누락·값 내부 !!는 거부한다. 날짜·숫자 형식은 호출 전에 정한다.
 
-PrintOne은 실제 연결/인쇄를 시도하므로 오프라인 Main이 호출하지 않는다. FEED는 운영자의 명시적 요청에서만 수행하고 항상 true로 고정해 빈 라벨을 이송하지 않는다. PrintFile 예제는 배포 후 고정된 파일을 전제로 하며 외부 편집을 허용한다면 검사한 원문 Print 또는 Tester의 확인·잠금 순서를 따른다. 실제 업무 프로그램 적용은 상사 승인 대기로 진행하지 않았다.
+PrintOne은 실제 연결/인쇄를 시도하므로 오프라인 Main이 호출하지 않는다. FEED는 운영자의 명시적 요청에서만 수행하고 항상 true로 고정해 빈 라벨을 이송하지 않는다. PrintFile 예제는 배포 후 고정된 파일을 전제로 하며 외부 편집을 허용한다면 검사한 원문 Print 또는 Tester의 확인·잠금 순서를 따른다. 이 예제는 합성 호출 검증이며 실제 업무 프로그램의 통합·운영 검증 완료를 뜻하지 않는다.
 
-[samples/templates/checkup-two-lines.txt](https://github.com/wotjr1649/U2BIO.LabelPrinting/blob/7c85cc30b51370dc7c1433820a9f1f4720e52819/samples/templates/checkup-two-lines.txt)는 CP949 고정 두 줄의 가상 예제다. 링크는 공개된 기준판이며 로컬 파일의 검증을 요구하지 않는다. AW X80/Y94와 X80/Y134, 크기10·굵기1·정렬/방향0/0이며 회색 그림은 용지에 있으므로 서식 요소가 아니다. 운영 용지에서만 확인한 Q35,5,9+와 배출15를 공통 기본값으로 적용하지 않는다. 사용자 수정본·복사본의 검증을 뜻하지 않는다.
+샘플 위치는 저장소 루트 기준 `samples/templates/checkup-two-lines.txt`다. 고정 두 줄 예제를 제공하는 경로 안내이며, 현재 로컬 파일·사용자 수정본·복사본의 내용이나 출력 적합성을 검증한 결과는 아니다. 운영 용지에서만 확인한 Q35,5,9+와 배출15를 공통 기본값으로 적용하지 않는다.
 
 `samples/templates/checkup-variable.txt`는 기존 가변데이터 서식을 원문 그대로 제공하는 추가 샘플이다. 이번 추가 작업에서는 내용 변경·서식 진단·실기 검증을 수행하지 않았다. OfflineSmoke의 세 항목 호출 예시와 대응하는 서식으로 검증한 것은 아니다.
 
 ## 문서 구성과 과거 자료
 
-현행 Markdown은 README·API V2·보존 V1·Tester/운영·배포·TXT·개발 안내 7개와 AGENTS·GitHub 이슈/PR 템플릿 3개다. 기본 인쇄 계약은 V2를 따르고 V1은 그대로 보존한다. 과거 설계·계획·결정·날짜별 시험 상세는 [정리 전 커밋 c185afe](https://github.com/wotjr1649/U2BIO.LabelPrinting/tree/c185afee7cf7091de7838c62d5b475fe2d148c12)에서 확인한다. 이력·태그를 다시 쓰거나 공개를 차단한 것이 아니므로 예전 자료는 계속 열람할 수 있다.
+현행 Markdown은 README·현행 DLL API·보존 API·Tester/운영·배포·TXT·개발 안내 7개와 저장소 운영 파일 3개다. 기본 인쇄 계약은 현행 DLL API를 따르고 기존 API 안내는 그대로 보존한다. 과거 자료를 열람하지 않아도 현재 사용법·알려진 제한·검증 범위를 이 문서들과 내부 상대 링크에서 확인할 수 있다.
 
-```text
-git show c185afee7cf7091de7838c62d5b475fe2d148c12:docs/specs/SYNC_USB_MVP.md
-git show v0.1.1-design:docs/BASELINE.md
-```
+검사에 사용하는 소스 사본에는 `v0.1.1-design` 기준 태그와 그 태그의 기준 문서 객체가 포함되어 있어야 한다. 검사기가 이 태그의 BASELINE과 네 문서 원문(LF 정규화)의 SHA-256을 대조한다. 필요한 태그·객체가 없으면 검사를 진행할 수 없으며 생략하지 않는다. 현재 안내를 고쳤다는 이유로 기준 태그·해시를 갱신하지 않는다. 과거의 미구현/미검증·구 API와 당시 실행 결과를 현재 제품 전체의 성공으로 해석하지 않는다.
 
-기준 문서 네 해시는 현재 문서가 아니라 v0.1.1-design의 BASELINE과 해당 태그의 네 문서 원문(LF 정규화)을 대조한다. 신규 clone에는 기준 태그도 가져온다. 현재 안내를 고쳤다는 이유로 기준 태그·해시를 갱신하지 않는다. 과거의 미구현/미검증·구 API와 당시 실행 결과를 현재 제품 전체의 성공으로 해석하지 않는다.
-
-변경은 연결된 Issue와 전용 브랜치에서 진행한다. Issue I/O와 장부는 설치된 devflow-state를 사용하고 공개 기록에는 검토한 요약·합성 증거만 남긴다. push-on-request와 SDK/실기 승인 경계는 유지한다. tests/(OfflineSmoke 포함) 코드는 개발 소스·전체 검증에 남기며 제품 배포에서만 제외한다. 빌드 산출물·계획·검토 보고서·제조사 참고 자료는 Git에서 제외하고 사용자 서식·개인 설정·위치 기록·다른 작업 폴더와 SDK 원본은 보존한다.
+변경의 추적·전용 브랜치·검토·게시 승인 절차는 [저장소 지침](../AGENTS.md)을 따른다. 공개 기록에는 검토한 요약·합성 증거만 남기고 SDK·실기 승인 경계를 유지한다. tests/(OfflineSmoke 포함) 코드는 개발 소스·전체 검증에 남기며 제품 배포에서만 제외한다. 빌드 산출물·계획·검토 보고서·제조사 참고 자료는 Git에서 제외하고 사용자 서식·개인 설정·위치 기록·다른 작업 폴더와 SDK 원본은 보존한다.

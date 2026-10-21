@@ -20,6 +20,29 @@ const documents = [...guides,
     'AGENTS.md', '.github/ISSUE_TEMPLATE/intent.md', '.github/PULL_REQUEST_TEMPLATE.md'
 ];
 
+function guideProblem(text) {
+    const display = text.replace(/PRINTER_API_V2\.ko\.md/g, '');
+    if (/V2(?!\d|\.\d)/i.test(display)) return 'Use an unversioned display name; keep V2 only in the API filename.';
+    if (/\b[a-z][a-z0-9+.-]*:\/\/|\bwww\.|\bmailto:|\]\(\s*\/\/|^\s*\[[^\]]+\]:\s*\/\//im.test(text))
+        return 'Explain the content locally instead of referring to an external URL.';
+    if (/\bissues?\s*#?\s*\d+\b|이슈\s*#?\s*\d+/i.test(text))
+        return 'Explain current behavior instead of referring to an Issue number.';
+    return '';
+}
+
+function checkGuidePolicy() {
+    const allowed = '[DLL API](PRINTER_API_V2.ko.md) ' + 'C' + ':\\Bitek\\Log DevExpress v20.2 SDK v2.1.0.0 Issue tracking';
+    if (guideProblem(allowed)) throw new Error('Public guide policy rejected supported filenames or prerequisites.');
+    for (const text of ['API V2', 'DLL API V2.', 'V2. 문서', 'V2문서', '[API V2](PRINTER_API_V2.ko.md)', 'https://example.com',
+        '[source](//example.com)', '[source]: //example.com', 'www.example.com', 'mailto:a@example.com',
+        'Issue #39', 'issue 40', '이슈 #39'])
+        if (!guideProblem(text)) throw new Error(`Public guide policy self-check missed: ${text}`);
+    for (const file of guides) {
+        const problem = guideProblem(fs.readFileSync(path.join(root, file), 'utf8'));
+        if (problem) throw new Error(`${file}: ${problem}`);
+    }
+}
+
 function run(command, args) {
     const result = spawnSync(command, args, {
         cwd: root, encoding: 'utf8', windowsHide: true, timeout: 30000, maxBuffer: 1024 * 1024
@@ -36,6 +59,7 @@ try {
     const unexpected = actual.filter(file => !documents.includes(file));
     if (missing.length || unexpected.length)
         throw new Error(`Current document set mismatch; missing: ${missing.join(', ') || 'none'}; unexpected: ${unexpected.join(', ') || 'none'}`);
+    checkGuidePolicy();
     if (!fs.existsSync(doctor)) throw new Error('Installed devflow doctor not found. Set DEVFLOW_ROOT to its plugin root.');
     // 설치된 doctor의 로컬 파일·절 링크 검사를 재사용한다.
     process.stdout.write(run(process.execPath, [doctor, root]));
