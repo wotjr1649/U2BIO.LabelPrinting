@@ -10,6 +10,8 @@
 
 ## DLL 호출 프로그램의 실행 폴더
 
+`Caller.exe`는 이 DLL을 호출하는 **실제 업무 프로그램의 실행 파일을 나타내는 예시 이름**이며, 저장소에서 제공하는 파일명이 아니다. 예를 들어 업무 프로그램이 `Checkup.exe`이면 아래 `Caller.exe` 대신 `Checkup.exe`가 있고, DLL 세 파일은 그 실행 파일과 같은 폴더에 둔다.
+
 ```text
 Caller.exe
 U2BIO.BT003PROLabelPrinting.dll
