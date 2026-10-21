@@ -796,9 +796,9 @@ internal static class Program
                         Check(distance == 15 && Fake.Calls.SequenceEqual(new[] { "CheckPrtConnection", "^B15\r\n", "SendData" }),
                             "Observation was not exactly after B and before Reset/P.");
                         Check(File.ReadAllLines(file)[1] == "0", "B response history missing at observation.");
+                        Fake.Calls.Add("OBSERVATION");
                         if (outcome == "save-fail") Bt003Printer.PositionFile = Path.Combine(file, "blocked.txt");
                         if (outcome == "throw") throw new InvalidOperationException("SyntheticObservationFailure");
-                        Fake.Calls.Add("OBSERVATION");
                         return outcome == "continue";
                     };
                     if (outcome != "missing") hook.SetValue(printer, observer);
@@ -809,6 +809,7 @@ internal static class Program
                         hook.SetValue(printer, new Func<int, bool>(d => { throw new Exception("Changed observer was used."); }));
                     };
                     var result = printer.Print(Literal);
+                    Check(observations == 0 || Fake.Calls.Contains("OBSERVATION"), "Post-B boundary assertions were swallowed by product exception handling.");
                     if (outcome == "continue" || outcome == "off") {
                         Check(result.IsSuccess && result.PrintInvoked && result.PrintCode == 0 && observations == (enabled ? 1 : 0),
                             "Observation continue/off result differs.");
