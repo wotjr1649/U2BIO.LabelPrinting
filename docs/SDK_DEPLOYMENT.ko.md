@@ -1,6 +1,6 @@
 # DLL·Tester 실행 환경과 배포
 
-대상 프로세스와 같은 비트수의 제조사 런타임을 준비한다. 소스 빌드·검사는 [개발 안내](DEVELOPMENT.md#sdk-배포용-빌드), 사용 순서는 [DLL API](PRINTER_API.ko.md)와 [Tester 안내](PRINT_PRESENTATION.ko.md#tester-사용)를 따른다. 아래는 배포 구성 정책이며 자동 패키지 생성이나 배포 완료 기록이 아니다.
+대상 프로세스와 같은 비트수의 제조사 런타임을 준비한다. 소스 빌드·검사는 [개발 안내](DEVELOPMENT.md#sdk-배포용-빌드), 사용 순서는 [DLL API V2](PRINTER_API_V2.ko.md)와 [Tester 안내](PRINT_PRESENTATION.ko.md#tester-사용)를 따른다. 아래는 배포 구성 정책이며 자동 패키지 생성이나 배포 완료 기록이 아니다.
 
 ## 실행 환경
 
@@ -60,6 +60,6 @@ DevExpress는 Tester에만 필요하며 제품 DLL의 의존성이 아니다. DL
 
 `Sdk/Interop/BT003CtrlWrapper.cs`는 제조사 HFSample_UL의 원본 39개 P/Invoke 선언을 보존한다. StdCall과 원래 DLL 이름·문자열 마샬링·입출력 방향을 유지하며 LPCTSTR/LPTSTR 표기만으로 Unicode로 바꾸지 않는다. USHORT는 ushort, BYTE는 byte, Windows의 int/long은 32-bit이므로 .NET Int64로 바꾸지 않는다. StartLabelPrint는 원본 StringBuilder(100) 선언을 사용하며 SizeConst=100은 native 출력 안전성 보장이 아니다.
 
-제품 실행은 .NET 기본 DllImport와 ApplicationDirectory/System32 검색 제한을 사용하고 실행 시 해시·기존 모듈 충돌 검사를 하지 않는다. SDK 최초 호출은 연결 시점이며 오프라인 편집·미리보기는 SDK를 로드하지 않는다. Wrapper에 RFID·보안 선언이 있어도 공개 제품 기능이나 인쇄 흐름에서 사용한다는 뜻은 아니다. 원형 미확정 export나 제공 DLL에 없는 함수를 추측하여 추가하지 않는다. 현재 인쇄·반환 처리 계약은 [DLL API](PRINTER_API.ko.md)에 있다.
+제품 실행은 .NET 기본 DllImport와 ApplicationDirectory/System32 검색 제한을 사용하고 실행 시 해시·기존 모듈 충돌 검사를 하지 않는다. SDK 최초 호출은 연결 시점이며 오프라인 편집·미리보기는 SDK를 로드하지 않는다. Wrapper에 RFID·보안 선언이 있어도 공개 제품 기능이나 인쇄 흐름에서 사용한다는 뜻은 아니다. 원형 미확정 export나 제공 DLL에 없는 함수를 추측하여 추가하지 않는다. 현재 인쇄·반환 처리 계약은 [DLL API V2](PRINTER_API_V2.ko.md)에 있다.
 
 `node tools/verify-build.js`는 플랫폼별 배포 파일과 고정 제조사 해시를 대조하며 SDK를 로드하지 않는다. 관리 검증과 SDK/물리 성공은 다르며, 확인된 용지·위치·배출 범위는 [운영 기준](PRINT_PRESENTATION.ko.md#운영-기준)에 있다.

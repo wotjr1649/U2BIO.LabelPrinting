@@ -6,13 +6,13 @@ BT-003 Pro의 텍스트 라벨 인쇄용 .NET Framework 4.6.1 DLL과 WinForms �
 
 | 독자 | 읽는 순서 |
 | --- | --- |
-| DLL 호출 개발자 | [설치·배포](docs/SDK_DEPLOYMENT.ko.md) → [DLL API와 기본 예제](docs/PRINTER_API.ko.md) → 인쇄 전 [공통 복구·용지 운영](docs/PRINT_PRESENTATION.ko.md#공통-복구) |
+| DLL 호출 개발자 | [설치·배포](docs/SDK_DEPLOYMENT.ko.md) → [DLL API V2·함수별 파라미터와 예제](docs/PRINTER_API_V2.ko.md) → 인쇄 전 [공통 복구·용지 운영](docs/PRINT_PRESENTATION.ko.md#공통-복구) |
 | Tester 사용자 | [Tester 사용 순서](docs/PRINT_PRESENTATION.ko.md#tester-사용) → 용지·위치가 달라지면 같은 문서의 [운영 기준](docs/PRINT_PRESENTATION.ko.md#운영-기준) |
 | 설치·배포 담당자 | [실행 환경과 DLL·Tester 배포 파일](docs/SDK_DEPLOYMENT.ko.md) |
 | 프로그램에서 TXT를 편집하는 개발자 | 기본 인쇄 안내를 읽은 뒤 [선택 TXT 편집 API](docs/BTPL_TEMPLATE_API.ko.md) |
 | 소스를 빌드·검증하는 유지보수자 | [개발 환경과 검증](docs/DEVELOPMENT.md) |
 
-현행 안내는 사용자 안내 **5개**(이 README, API, Tester/운영, 배포, 선택 TXT 편집)와 개발 안내 **1개**입니다. 별도의 저장소 운영 파일은 `AGENTS.md`와 GitHub 이슈·PR 템플릿 2개로, 현재 추적하는 Markdown은 **총 9개**입니다.
+안내는 사용자 안내 **6개**(이 README, API V2, 보존 V1, Tester/운영, 배포, 선택 TXT 편집)와 개발 안내 **1개**입니다. 별도의 저장소 운영 파일은 `AGENTS.md`와 GitHub 이슈·PR 템플릿 2개로, 현재 추적하는 Markdown은 **총 10개**입니다. API V2는 문서 개정판이며 DLL API 변경을 뜻하지 않습니다. [V1 API 안내](docs/PRINTER_API.ko.md)는 기존 내용 그대로 보존하며, 기본 개발자 진입점은 V2입니다.
 
 ## 지원 범위와 결과 해석
 

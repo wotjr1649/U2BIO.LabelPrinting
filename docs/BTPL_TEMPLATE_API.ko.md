@@ -1,6 +1,6 @@
 # TXT 서식 편집 API 사용 안내
 
-이 문서는 프로그램에서 TXT를 편집·저장하거나 표시용 변수 치환을 사용하는 개발자만 읽는 선택 안내이며 현행 TXT 편집 계약을 포함한다. 기본 인쇄는 [프린터 API](PRINTER_API.ko.md), Tester 조작은 [사용 안내](PRINT_PRESENTATION.ko.md#tester-사용)를 따른다. 이전 JSON/XML·바인딩·BtplProcessor API는 제공하지 않는다.
+이 문서는 프로그램에서 TXT를 편집·저장하거나 표시용 변수 치환을 사용하는 개발자만 읽는 선택 안내이며 현행 TXT 편집 계약을 포함한다. 기본 인쇄는 [프린터 API V2](PRINTER_API_V2.ko.md), Tester 조작은 [사용 안내](PRINT_PRESENTATION.ko.md#tester-사용)를 따른다. 이전 JSON/XML·바인딩·BtplProcessor API는 제공하지 않는다.
 
 ## 편집과 인쇄
 

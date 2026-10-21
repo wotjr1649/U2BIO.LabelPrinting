@@ -1,6 +1,6 @@
 # Tester 사용과 용지 운영
 
-Tester 사용자와 DLL 호출 개발자가 함께 쓰는 안내다. Tester는 아래 사용 순서부터, DLL 개발자는 [공통 복구](#공통-복구)와 [운영 기준](#운영-기준)부터 읽는다. 설치할 파일은 [배포 안내](SDK_DEPLOYMENT.ko.md), DLL 호출은 [프린터 API](PRINTER_API.ko.md)에 있다.
+Tester 사용자와 DLL 호출 개발자가 함께 쓰는 안내다. Tester는 아래 사용 순서부터, DLL 개발자는 [공통 복구](#공통-복구)와 [운영 기준](#운영-기준)부터 읽는다. 설치할 파일은 [배포 안내](SDK_DEPLOYMENT.ko.md), DLL 호출은 [프린터 API V2](PRINTER_API_V2.ko.md)에 있다.
 
 - [Tester 사용](#tester-사용): 실행·설정·편집·저장·인쇄·중단
 - [공통 복구](#공통-복구): 용지 위치 불명과 연결 오류
@@ -61,7 +61,7 @@ FEED는 실제 용지를 이송한다. LCD 메뉴를 닫고 대기 화면에서 
 
 ## DLL의 배출·위치 기록
 
-현재 인쇄·위치·정리 계약은 [공개 API](PRINTER_API.ko.md)를 따른다. 과거 worker/일괄/취소 계약과 상세 시험 경위는 [개발 안내의 Git 이력 조회](DEVELOPMENT.md#문서-구성과-과거-자료)로 확인한다.
+현재 인쇄·위치·정리 계약은 [공개 API V2](PRINTER_API_V2.ko.md)를 따른다. 과거 worker/일괄/취소 계약과 상세 시험 경위는 [개발 안내의 Git 이력 조회](DEVELOPMENT.md#문서-구성과-과거-자료)로 확인한다.
 
 ```csharp
 using (var printer = new Bt003Printer())

@@ -1,6 +1,6 @@
 # 저장소 개발 환경과 검증
 
-소스를 빌드·검증하는 유지보수자용 안내다. 사용자 안내 5개는 [README](../README.md)의 읽는 순서를 따른다. 현행 인쇄 계약은 [DLL API](PRINTER_API.ko.md), 원문 편집·저장 계약은 [TXT API](BTPL_TEMPLATE_API.ko.md), SDK 출처·고정 해시와 실행 파일은 [배포 안내](SDK_DEPLOYMENT.ko.md)에 통합되어 있다.
+소스를 빌드·검증하는 유지보수자용 안내다. 보존 V1을 포함한 사용자 안내 6개는 [README](../README.md)의 읽는 순서를 따른다. 현행 인쇄 계약은 [DLL API V2](PRINTER_API_V2.ko.md), 원문 편집·저장 계약은 [TXT API](BTPL_TEMPLATE_API.ko.md), SDK 출처·고정 해시와 실행 파일은 [배포 안내](SDK_DEPLOYMENT.ko.md)에 통합되어 있다.
 
 ## 빌드 준비와 저장소 검사
 
@@ -13,7 +13,9 @@ git diff --check
 
 정상 출력은 doctor의 `ok`와 `Repository checks passed`다. Node.js와 devflow는 개발 검사 도구이며 제품 런타임 의존성이 아니다. `DEVFLOW_ROOT`를 설치된 devflow 플러그인 루트로 프로세스 환경에 지정한다. 지정하지 않으면 검사기는 기존 기본 경로의 devflow 0.3.0을 찾는다. 개인 절대 경로를 공용 설정에 기록하지 않는다.
 
-저장소 검사는 추적 파일과 Git에서 무시하지 않는 새 파일 중 현존 Markdown이 안내 6개·운영 3개의 정확한 집합인지 확인한다. 로컬 파일·한국어 절 링크, 숨은 문자·개인 경로·지침과 private 경로 등은 기존 devflow-doctor로 검사한다. 새 문서가 필요하면 문서 구성 정책을 먼저 변경한다. 과거 자료를 다른 현재 폴더로 옮겨 문서 수만 맞추지 않는다.
+저장소 검사는 추적 파일과 Git에서 무시하지 않는 새 파일 중 현존 Markdown이 안내 7개·운영 3개의 정확한 집합인지 확인한다. V1은 보존하고 V2가 기본 인쇄 참조서다. 검사기는 V2 자체의 실제 9개 선언·5개 속성 표와 필수 계약 용어도 확인하므로 V1이 V2의 누락을 대신 통과시키지 않는다. 로컬 파일·한국어 절 링크, 숨은 문자·개인 경로·지침과 private 경로 등은 기존 devflow-doctor로 검사한다. 새 문서가 필요하면 문서 구성 정책을 먼저 변경한다. 과거 자료를 다른 현재 폴더로 옮겨 문서 수만 맞추지 않는다.
+
+샘플 TXT 비접근 조건이 있는 작업은 일반 작업폴더에서 이 검사를 실행하지 않는다. 설치된 doctor는 일반 텍스트와 index blob을 읽으므로 sparse checkout만으로 충분하지 않다. 별도 검증 폴더에서 샘플 작업파일과 검사 index 항목을 모두 제외하고, 검사 전 index 백업과 검사 후 복원·동일성 확인을 한다. 제외 경로와 후보 revision을 기록하며 결과는 샘플 제외 검증 범위로 한정한다. 샘플 삭제를 후보 커밋에 포함하거나 임시 빈 샘플로 링크 검사를 통과시키지 않는다.
 
 ## DLL 기반 빌드와 실행 검사
 
@@ -128,13 +130,13 @@ Tester self-check는 성공 0·실패 1·잘못된 인수 2로 종료한다. 임
 
 PrintOne은 실제 연결/인쇄를 시도하므로 오프라인 Main이 호출하지 않는다. FEED는 운영자의 명시적 요청에서만 수행하고 항상 true로 고정해 빈 라벨을 이송하지 않는다. PrintFile 예제는 배포 후 고정된 파일을 전제로 하며 외부 편집을 허용한다면 검사한 원문 Print 또는 Tester의 확인·잠금 순서를 따른다. 실제 업무 프로그램 적용은 상사 승인 대기로 진행하지 않았다.
 
-[samples/templates/checkup-two-lines.txt](../samples/templates/checkup-two-lines.txt)는 CP949 고정 두 줄의 가상 예제다. AW X80/Y94와 X80/Y134, 크기10·굵기1·정렬/방향0/0이며 회색 그림은 용지에 있으므로 서식 요소가 아니다. 운영 용지에서만 확인한 Q35,5,9+와 배출15를 공통 기본값으로 적용하지 않는다. 사용자 수정본·복사본의 검증을 뜻하지 않는다.
+[samples/templates/checkup-two-lines.txt](https://github.com/wotjr1649/U2BIO.LabelPrinting/blob/7c85cc30b51370dc7c1433820a9f1f4720e52819/samples/templates/checkup-two-lines.txt)는 CP949 고정 두 줄의 가상 예제다. 링크는 공개된 기준판이며 로컬 파일의 검증을 요구하지 않는다. AW X80/Y94와 X80/Y134, 크기10·굵기1·정렬/방향0/0이며 회색 그림은 용지에 있으므로 서식 요소가 아니다. 운영 용지에서만 확인한 Q35,5,9+와 배출15를 공통 기본값으로 적용하지 않는다. 사용자 수정본·복사본의 검증을 뜻하지 않는다.
 
 `samples/templates/checkup-variable.txt`는 기존 가변데이터 서식을 원문 그대로 제공하는 추가 샘플이다. 이번 추가 작업에서는 내용 변경·서식 진단·실기 검증을 수행하지 않았다. OfflineSmoke의 세 항목 호출 예시와 대응하는 서식으로 검증한 것은 아니다.
 
 ## 문서 구성과 과거 자료
 
-현행 Markdown은 README·API·Tester/운영·배포·TXT·개발 안내 6개와 AGENTS·GitHub 이슈/PR 템플릿 3개다. 현재 유효한 계약은 이 안내가 소유하며 과거 설계·계획·결정·날짜별 시험 상세는 [정리 전 커밋 c185afe](https://github.com/wotjr1649/U2BIO.LabelPrinting/tree/c185afee7cf7091de7838c62d5b475fe2d148c12)에서 확인한다. 이력·태그를 다시 쓰거나 공개를 차단한 것이 아니므로 예전 자료는 계속 열람할 수 있다.
+현행 Markdown은 README·API V2·보존 V1·Tester/운영·배포·TXT·개발 안내 7개와 AGENTS·GitHub 이슈/PR 템플릿 3개다. 기본 인쇄 계약은 V2를 따르고 V1은 그대로 보존한다. 과거 설계·계획·결정·날짜별 시험 상세는 [정리 전 커밋 c185afe](https://github.com/wotjr1649/U2BIO.LabelPrinting/tree/c185afee7cf7091de7838c62d5b475fe2d148c12)에서 확인한다. 이력·태그를 다시 쓰거나 공개를 차단한 것이 아니므로 예전 자료는 계속 열람할 수 있다.
 
 ```text
 git show c185afee7cf7091de7838c62d5b475fe2d148c12:docs/specs/SYNC_USB_MVP.md
